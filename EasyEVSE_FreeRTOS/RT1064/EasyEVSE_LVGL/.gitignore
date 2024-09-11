@@ -1,0 +1,8 @@
+/Debug/
+/Release/
+/.settings/
+/RT1064_WIFI/
+/RT1064_ETHERNET/
+/script.jlink
+/RT1060_EasyEVSE_FreeRTOS JLink Debug.launch
+/EVSE/

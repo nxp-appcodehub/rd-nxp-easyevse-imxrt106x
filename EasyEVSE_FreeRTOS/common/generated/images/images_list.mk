@@ -1,0 +1,1 @@
+GEN_CSRCS += _mainpng_480x272.c _evse_alpha_60x61.c _debug_alpha_62x62.c _carpng_alpha_60x61.c _meterguage_alpha_60x61.c _nfc_alpha_60x61.c _debug_ISO15118_alpha_62x62.c _returnpng_alpha_32x28.c _readdata_alpha_35x37.c _readnfc_alpha_91x63.c
