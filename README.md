@@ -174,6 +174,10 @@ Questions regarding the content/correctness of this example can be entered as Is
 <!----- Toolchains ----->
 [![Toolchain badge](https://img.shields.io/badge/Toolchain-MCUXPRESSO%20IDE-orange)](https://github.com/search?q=org%3Anxp-appcodehub+mcux+in%3Areadme&type=Repositories)
 
+Questions regarding the content/correctness of this example can be entered as Issues within this GitHub repository.
+
+>**Warning**: For more general technical questions regarding NXP Microcontrollers and the difference in expected functionality, enter your questions on the [NXP Community Forum](https://community.nxp.com/)
+
 [![Follow us on Youtube](https://img.shields.io/badge/Youtube-Follow%20us%20on%20Youtube-red.svg)](https://www.youtube.com/NXP_Semiconductors)
 [![Follow us on LinkedIn](https://img.shields.io/badge/LinkedIn-Follow%20us%20on%20LinkedIn-blue.svg)](https://www.linkedin.com/company/nxp-semiconductors)
 [![Follow us on Facebook](https://img.shields.io/badge/Facebook-Follow%20us%20on%20Facebook-blue.svg)](https://www.facebook.com/nxpsemi/)
@@ -182,4 +186,5 @@ Questions regarding the content/correctness of this example can be entered as Is
 ## 6. Release Notes<a name="step6"></a>
 | Version | Description / Update                           | Date                        |
 |:-------:|------------------------------------------------|----------------------------:|
+|3.0.6     | Replaced Baltimore CA certificate with DigiCert Global Root G2 certificate for DPS registration.        | October 15<sup>th</sup> 2024 |
 |3.0.4     | Initial release on Application Code Hub        | August 20<sup>th</sup> 2024 |

@@ -18,7 +18,7 @@ extern   "C" {
 
 #define FIRMWARE_VERSION_MAJOR  3U
 #define FIRMWARE_VERSION_MINOR  0U
-#define FIRMWARE_VERSION_HOTFIX 5U
+#define FIRMWARE_VERSION_HOTFIX 6U
 
 /* ENABLE_ISO15118 contains also the J1772 basic charging */
 #ifndef ENABLE_ISO15118

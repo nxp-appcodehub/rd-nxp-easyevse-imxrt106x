@@ -54,8 +54,8 @@
 #error "Define the config dps endpoint by following the instructions in file EVSE_config.h."
 #endif
 
-#ifndef democonfigROOT_CA_PEM
-#error "Please define Root CA certificate of the IoT Hub (democonfigROOT_CA_PEM) in EVSE_config.h."
+#ifndef demoHubconfigROOT_CA_PEM
+#error "Please define Root CA certificate of the IoT Hub (demoHubconfigROOT_CA_PEM) in EVSE_config.h."
 #endif
 
 #if defined(EVSE_SAS_AUTH) && defined(democonfigCLIENT_CERTIFICATE_PEM)
@@ -443,8 +443,8 @@ static uint32_t prvSetupDPSNetworkCredentials(NetworkCredentials_t *pxNetworkCre
 
     pxNetworkCredentials->disableSni = pdFALSE;
     /* Set the credentials for establishing a TLS connection. */
-    pxNetworkCredentials->pRootCa    = (const unsigned char *)democonfigROOT_CA_PEM;
-    pxNetworkCredentials->rootCaSize = sizeof(democonfigROOT_CA_PEM);
+    pxNetworkCredentials->pRootCa    = (const unsigned char *)demoHubconfigROOT_CA_PEM;
+    pxNetworkCredentials->rootCaSize = sizeof(demoHubconfigROOT_CA_PEM);
 
 #if (EVSE_X509_AUTH == 1)
     pxNetworkCredentials->pucClientCert   = (const unsigned char *)X509_CERTIFICATE_PEM;
