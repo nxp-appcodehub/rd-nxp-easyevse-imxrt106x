@@ -3,11 +3,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/* ********************** Include files ********************** */
+/* ************************************************************************** */
+/* Includes                                                                   */
+/* ************************************************************************** */
+
 #include "sss_pkcs11_pal.h"
 #include <limits.h>
 
-/* ********************** Functions ********************** */
+/* ************************************************************************** */
+/* Public Functions                                                           */
+/* ************************************************************************** */
 
 /*
  This is a simple function to insert a TLV into a buffer.
@@ -21,7 +26,7 @@
  Note : This function inserts the component at the end of the buffer and updates the
         keyLen to where the component is inserted with tag. (Points to the tag)
 */
-CK_RV pkcs11_setASNTLV(uint8_t tag, uint8_t *component, const size_t componentLen, uint8_t *key, size_t *keyLen)
+CK_RV SetASNTLV(uint8_t tag, uint8_t *component, const size_t componentLen, uint8_t *key, size_t *keyLen)
 {
     if (componentLen <= 0) {
         return CKR_ARGUMENTS_BAD;
@@ -78,7 +83,8 @@ CK_RV pkcs11_setASNTLV(uint8_t tag, uint8_t *component, const size_t componentLe
  * @retval #CKR_OK The operation has completed successfully.
  * @retval #CKR_FUNCTION_FAILED The requested function could not be performed.
  */
-CK_RV pkcs11_ecSignatureToRandS(uint8_t *signature, size_t *sigLen)
+
+CK_RV EcSignatureToRandS(uint8_t *signature, size_t *sigLen)
 {
     CK_RV xResult      = CKR_FUNCTION_FAILED;
     uint8_t rands[128] = {0};
@@ -86,9 +92,6 @@ CK_RV pkcs11_ecSignatureToRandS(uint8_t *signature, size_t *sigLen)
     size_t i           = 0;
     size_t len         = 0;
     if (signature[index++] != 0x30) {
-        goto exit;
-    }
-    if ((*sigLen) < 2) {
         goto exit;
     }
     if (signature[index++] != (*sigLen - 2)) {
@@ -123,12 +126,11 @@ CK_RV pkcs11_ecSignatureToRandS(uint8_t *signature, size_t *sigLen)
         rands[i] = signature[index++];
     }
 
-    ENSURE_OR_GO_EXIT(i <= *sigLen);
-    ENSURE_OR_GO_EXIT(i <= sizeof(rands));
     memcpy(&signature[0], &rands[0], i);
     *sigLen = i;
 
     xResult = CKR_OK;
+
 exit:
     return xResult;
 }
@@ -146,7 +148,8 @@ exit:
  * @retval #CKR_FUNCTION_FAILED The requested function could not be performed.
  * @retval #CKR_ARGUMENTS_BAD The arguments supplied to the function are not appropriate.
  */
-CK_RV pkcs11_ecRandSToSignature(uint8_t *rands, const size_t rands_len, uint8_t *output, size_t *outputLen)
+
+CK_RV EcRandSToSignature(uint8_t *rands, const size_t rands_len, uint8_t *output, size_t *outputLen)
 {
     CK_RV xResult          = CKR_FUNCTION_FAILED;
     uint8_t signature[256] = {0};
@@ -155,13 +158,18 @@ CK_RV pkcs11_ecRandSToSignature(uint8_t *rands, const size_t rands_len, uint8_t 
     uint8_t tag            = ASN_TAG_INT;
     size_t totalLen;
 
-    xResult = pkcs11_setASNTLV(tag, &rands[componentLen], componentLen, signature, &signatureLen);
+    xResult = SetASNTLV(tag, &rands[componentLen], componentLen, signature, &signatureLen);
     if (xResult != CKR_OK) {
         goto exit;
     }
 
-    xResult = pkcs11_setASNTLV(tag, &rands[0], componentLen, signature, &signatureLen);
+    xResult = SetASNTLV(tag, &rands[0], componentLen, signature, &signatureLen);
     if (xResult != CKR_OK) {
+        goto exit;
+    }
+
+    if (signatureLen > sizeof(signature)) {
+        xResult = CKR_FUNCTION_FAILED;
         goto exit;
     }
 
@@ -204,14 +212,12 @@ CK_RV pkcs11_ecRandSToSignature(uint8_t *rands, const size_t rands_len, uint8_t 
 
     signature[signatureLen] = ASN_TAG_SEQUENCE;
 
-    if (sizeof(signature) < signatureLen) {
-        return CKR_BUFFER_TOO_SMALL;
-    }
     totalLen = sizeof(signature) - signatureLen;
     memcpy(&output[0], &signature[signatureLen], totalLen);
     *outputLen = totalLen;
 
     xResult = CKR_OK;
+
 exit:
     return xResult;
 }
@@ -226,14 +232,15 @@ exit:
  * @retval #CKR_OK The operation has completed successfully.
  * @retval #CKR_FUNCTION_FAILED The requested function could not be performed.
  */
-CK_RV pkcs11_ecPublickeyGetEcParams(uint8_t *input, size_t *inputLen)
+
+CK_RV EcPublickeyGetEcParams(uint8_t *input, size_t *inputLen)
 {
     CK_RV xResult      = CKR_FUNCTION_FAILED;
     size_t index       = 0;
     uint8_t data[1024] = {0};
     size_t len         = 0;
     uint8_t tag        = 0;
-    if (sizeof(data) <= *inputLen) {
+    if (sizeof(data) < *inputLen) {
         xResult = CKR_FUNCTION_FAILED;
         goto exit;
     }
@@ -307,7 +314,7 @@ CK_RV pkcs11_ecPublickeyGetEcParams(uint8_t *input, size_t *inputLen)
         goto exit;
     }
 
-    if (index >= sizeof(data)) {
+    if (index >= sizeof(data)){
         xResult = CKR_FUNCTION_FAILED;
         goto exit;
     }
@@ -318,7 +325,11 @@ CK_RV pkcs11_ecPublickeyGetEcParams(uint8_t *input, size_t *inputLen)
         goto exit;
     }
 
-    ENSURE_OR_GO_EXIT((index + 1) <= sizeof(data) - 1);
+    if (index >= (sizeof(data) - 1)){
+        xResult = CKR_FUNCTION_FAILED;
+        goto exit;
+    }
+
     len = data[index + 1];
 
     if ((len & 0x80) == 0x80) {
@@ -345,7 +356,7 @@ CK_RV pkcs11_ecPublickeyGetEcParams(uint8_t *input, size_t *inputLen)
         goto exit;
     }
 
-    if (index > sizeof(data)) {
+    if (index > sizeof(data)){
         xResult = CKR_FUNCTION_FAILED;
         goto exit;
     }
@@ -353,11 +364,15 @@ CK_RV pkcs11_ecPublickeyGetEcParams(uint8_t *input, size_t *inputLen)
     memcpy(&input[0], &data[index], len);
     *inputLen = len;
     xResult   = CKR_OK;
+
 exit:
     return xResult;
 }
 
 /** @brief Asymmetric Encryption.
+ * This function generates a random IV (initialization vector), nonce
+ * or initial counter value for the encryption operation as appropriate
+ * for the chosen algorithm, key type and key size.
  *
  * @param pxSessionObj - Pointer to mechParameter for initializing initialization vector.
  * @param algorithm - Algorithm to be applied, e.g. kAlgorithm_SSS_AES_CBC.
@@ -373,72 +388,97 @@ exit:
  * @retval #CKR_BUFFER_TOO_SMALL The output of function is too large to fit in supplied buffer.
  * @retval #CKR_MECHANISM_INVALID If unknown mechanism specified.
  */
-CK_RV pkcs11_se05x_asymmetric_encrypt(P11SessionPtr_t pxSessionObj,
+CK_RV AsymmetricEncrypt(P11SessionPtr_t pxSessionObj,
     sss_algorithm_t algorithm,
     CK_BYTE_PTR pData,
     CK_ULONG ulDataLen,
     CK_BYTE_PTR pEncryptedData,
     CK_ULONG_PTR pulEncryptedDataLen)
 {
-    CK_RV xResult             = CKR_FUNCTION_FAILED;
-    sss_status_t status       = kStatus_SSS_Fail;
-    uint8_t data[2048]        = {0};
-    size_t dataLen            = sizeof(data);
-    sss_asymmetric_t asymmCtx = {0};
-    sss_object_t sss_object   = {0};
-    uint8_t encData[256]      = {0};
-    size_t encDataLen         = sizeof(encData);
+    CK_RV xResult       = CKR_OK;
+    sss_status_t status = kStatus_SSS_Fail;
+    uint8_t data[2048]  = {0};
+    size_t dataLen      = sizeof(data);
+    sss_asymmetric_t asymmCtx;
+    sss_object_t sss_object = {0};
 
     if (pxSessionObj->xOperationInProgress == CKM_RSA_PKCS) {
-        ENSURE_OR_GO_EXIT(sizeof(data) >= (ulDataLen + 11));
+        if ((SIZE_MAX - ulDataLen) < 11) {
+            return kStatus_SSS_Fail;
+        }
+        xResult = (2048 >= (ulDataLen + 11)) ? CKR_OK : CKR_MECHANISM_INVALID;
+        if (xResult != CKR_OK) {
+            pxSessionObj->xOperationInProgress = pkcs11NO_OPERATION;
+            return xResult;
+        }
     }
-    else {
-        ENSURE_OR_GO_EXIT(sizeof(data) >= ulDataLen);
+
+    {
+        memcpy(&data[0], pData, ulDataLen);
+        dataLen = ulDataLen;
     }
 
-    memcpy(&data[0], pData, ulDataLen);
-    dataLen = ulDataLen;
+    LOCK_MUTEX_FOR_RTOS
+    {
+        status = sss_key_object_init(&sss_object, &pex_sss_demo_boot_ctx->ks);
+        if (status != kStatus_SSS_Success) {
+            pxSessionObj->xOperationInProgress = pkcs11NO_OPERATION;
+            UNLOCK_MUTEX_FOR_RTOS_RET(CKR_DEVICE_ERROR)
+        }
 
-    ENSURE_OR_EXIT_WITH_STATUS_ON_ERROR(sss_pkcs11_mutex_lock() == 0, xResult, CKR_CANT_LOCK);
+        if ((pxSessionObj->xOperationKeyHandle) > UINT32_MAX) {
+            pxSessionObj->xOperationInProgress = pkcs11NO_OPERATION;
+            UNLOCK_MUTEX_FOR_RTOS_RET(CKR_DEVICE_ERROR)
+        }
+        status = sss_key_object_get_handle(&sss_object, pxSessionObj->xOperationKeyHandle);
+        if (status != kStatus_SSS_Success) {
+            pxSessionObj->xOperationInProgress = pkcs11NO_OPERATION;
+            UNLOCK_MUTEX_FOR_RTOS_RET(CKR_DEVICE_ERROR)
+        }
 
-    status = sss_key_object_init(&sss_object, &pex_sss_demo_boot_ctx->ks);
-    ENSURE_OR_GO_EXIT(status == kStatus_SSS_Success);
+        status = sss_asymmetric_context_init(
+            &asymmCtx, &pex_sss_demo_boot_ctx->session, &sss_object, algorithm, kMode_SSS_Encrypt);
+        if (status != kStatus_SSS_Success) {
+            LOG_E(" sss_asymmetric_context_ sign init Failed...");
+            pxSessionObj->xOperationInProgress = pkcs11NO_OPERATION;
+            UNLOCK_MUTEX_FOR_RTOS_RET(CKR_FUNCTION_FAILED)
+            // return CKR_FUNCTION_FAILED;
+        }
 
-    ENSURE_OR_GO_EXIT((pxSessionObj->xOperationKeyHandle) <= UINT32_MAX);
-    status = sss_key_object_get_handle(&sss_object, pxSessionObj->xOperationKeyHandle);
-    ENSURE_OR_GO_EXIT(status == kStatus_SSS_Success);
+        /* Do Encryption */
+        uint8_t encData[256] = {0};
+        size_t encDataLen    = sizeof(encData);
+        status               = sss_asymmetric_encrypt(&asymmCtx, &data[0], dataLen, &encData[0], &encDataLen);
 
-    status = sss_asymmetric_context_init(
-        &asymmCtx, &pex_sss_demo_boot_ctx->session, &sss_object, algorithm, kMode_SSS_Encrypt);
-    ENSURE_OR_GO_EXIT(status == kStatus_SSS_Success);
+        if (status != kStatus_SSS_Success) {
+            LOG_E("sss_asymmetric_encrypt failed");
+            xResult = CKR_FUNCTION_FAILED;
+        }
+        if (xResult == CKR_OK) {
+            if (pEncryptedData) {
+                if (*pulEncryptedDataLen < encDataLen) {
+                    xResult = CKR_BUFFER_TOO_SMALL;
+                }
+                else {
+                    memcpy(pEncryptedData, &encData[0], encDataLen);
+                    pxSessionObj->xOperationInProgress = pkcs11NO_OPERATION;
+                }
+            }
+            *pulEncryptedDataLen = encDataLen;
+        }
 
-    /* Do Encryption */
-    status = sss_asymmetric_encrypt(&asymmCtx, &data[0], dataLen, &encData[0], &encDataLen);
-    ENSURE_OR_GO_EXIT(status == kStatus_SSS_Success);
-
-    if (pEncryptedData) {
-        ENSURE_OR_EXIT_WITH_STATUS_ON_ERROR(*pulEncryptedDataLen >= encDataLen, xResult, CKR_BUFFER_TOO_SMALL);
-        memcpy(pEncryptedData, &encData[0], encDataLen);
-        pxSessionObj->xOperationInProgress = pkcs11NO_OPERATION;
-    }
-    *pulEncryptedDataLen = encDataLen;
-
-    xResult = CKR_OK;
-
-exit:
-    if (xResult != CKR_OK) {
-        pxSessionObj->xOperationInProgress = pkcs11NO_OPERATION;
-    }
-    if (asymmCtx.session != NULL) {
         sss_asymmetric_context_free(&asymmCtx);
+
+        UNLOCK_MUTEX_FOR_RTOS
     }
-    if (sss_pkcs11_mutex_unlock() != 0) {
-        return CKR_FUNCTION_FAILED;
-    }
+
     return xResult;
 }
 
 /** @brief Asymmetric Decryption.
+ * This function generates a random IV (initialization vector), nonce
+ * or initial counter value for the decryption operation as appropriate
+ * for the chosen algorithm, key type and key size.
  *
  * @param pxSessionObj - Pointer to mechParameter for initializing initialization vector.
  * @param algorithm - Algorithm to be applied, e.g. kAlgorithm_SSS_AES_CBC.
@@ -453,57 +493,81 @@ exit:
  * @retval #CKR_DEVICE_ERROR If some problem has occured with the token or slot.
  * @retval #CKR_BUFFER_TOO_SMALL The output of function is too large to fit in supplied buffer.
  */
-CK_RV pkcs11_se05x_asymmetric_decrypt(P11SessionPtr_t pxSessionObj,
+CK_RV AsymmetricDecrypt(P11SessionPtr_t pxSessionObj,
     sss_algorithm_t algorithm,
     CK_BYTE_PTR pEncryptedData,
     CK_ULONG ulEncryptedDataLen,
     CK_BYTE_PTR pData,
     CK_ULONG_PTR pulDataLen)
 {
-    CK_RV xResult             = CKR_FUNCTION_FAILED;
-    sss_status_t status       = kStatus_SSS_Fail;
-    uint8_t data[2048]        = {0};
-    size_t dataLen            = sizeof(data);
-    sss_asymmetric_t asymmCtx = {0};
-    sss_object_t sss_object   = {0};
-    uint8_t signature[256]    = {0};
-    size_t sigLen             = sizeof(signature);
+    CK_RV xResult       = CKR_OK;
+    sss_status_t status = kStatus_SSS_Fail;
+    uint8_t data[2048]  = {0};
+    size_t dataLen      = sizeof(data);
+    sss_asymmetric_t asymmCtx;
+    sss_object_t sss_object = {0};
 
-    ENSURE_OR_GO_EXIT(sizeof(data) >= ulEncryptedDataLen);
-    memcpy(&data[0], pEncryptedData, ulEncryptedDataLen);
-    dataLen = ulEncryptedDataLen;
-
-    ENSURE_OR_EXIT_WITH_STATUS_ON_ERROR(sss_pkcs11_mutex_lock() == 0, xResult, CKR_CANT_LOCK);
-
-    status = sss_key_object_init(&sss_object, &pex_sss_demo_boot_ctx->ks);
-    ENSURE_OR_GO_EXIT(status == kStatus_SSS_Success);
-
-    ENSURE_OR_GO_EXIT(pxSessionObj->xOperationKeyHandle <= UINT32_MAX);
-
-    status = sss_key_object_get_handle(&sss_object, pxSessionObj->xOperationKeyHandle);
-    ENSURE_OR_GO_EXIT(status == kStatus_SSS_Success);
-
-    status = sss_asymmetric_context_init(
-        &asymmCtx, &pex_sss_demo_boot_ctx->session, &sss_object, algorithm, kMode_SSS_Decrypt);
-    ENSURE_OR_GO_EXIT(status == kStatus_SSS_Success);
-
-    status = sss_asymmetric_decrypt(&asymmCtx, &data[0], dataLen, &signature[0], &sigLen);
-    ENSURE_OR_GO_EXIT(status == kStatus_SSS_Success);
-
-    if (pData) {
-        ENSURE_OR_GO_EXIT(*pulDataLen >= sigLen);
-        memcpy(pData, &signature[0], sigLen);
-        pxSessionObj->xOperationInProgress = pkcs11NO_OPERATION;
+    {
+        memcpy(&data[0], pEncryptedData, ulEncryptedDataLen);
+        dataLen = ulEncryptedDataLen;
     }
-    *pulDataLen = sigLen;
 
-    xResult = CKR_OK;
-exit:
-    if (asymmCtx.session != NULL) {
+    LOCK_MUTEX_FOR_RTOS
+    {
+        status = sss_key_object_init(&sss_object, &pex_sss_demo_boot_ctx->ks);
+        if (status != kStatus_SSS_Success) {
+            pxSessionObj->xOperationInProgress = pkcs11NO_OPERATION;
+            UNLOCK_MUTEX_FOR_RTOS_RET(CKR_DEVICE_ERROR)
+        }
+
+        if ((pxSessionObj->xOperationKeyHandle) > UINT32_MAX) {
+            pxSessionObj->xOperationInProgress = pkcs11NO_OPERATION;
+            UNLOCK_MUTEX_FOR_RTOS_RET(CKR_DEVICE_ERROR)
+        }
+        status = sss_key_object_get_handle(&sss_object, pxSessionObj->xOperationKeyHandle);
+        if (status != kStatus_SSS_Success) {
+            pxSessionObj->xOperationInProgress = pkcs11NO_OPERATION;
+            UNLOCK_MUTEX_FOR_RTOS_RET(CKR_DEVICE_ERROR)
+        }
+
+        status = sss_asymmetric_context_init(
+            &asymmCtx, &pex_sss_demo_boot_ctx->session, &sss_object, algorithm, kMode_SSS_Decrypt);
+        if (status != kStatus_SSS_Success) {
+            LOG_E(" sss_asymmetric_context_ sign init Failed...");
+            pxSessionObj->xOperationInProgress = pkcs11NO_OPERATION;
+            UNLOCK_MUTEX_FOR_RTOS_RET(CKR_FUNCTION_FAILED)
+            // return CKR_FUNCTION_FAILED;
+        }
+
+        /* Do Signing */
+        uint8_t signature[256] = {0};
+        size_t sigLen          = sizeof(signature);
+        status                 = sss_asymmetric_decrypt(&asymmCtx, &data[0], dataLen, &signature[0], &sigLen);
+        // status = sss_asymmetric_sign_digest(
+        //     &asymmCtx, &data[0], dataLen, &signature[0], &sigLen);
+
+        if (status != kStatus_SSS_Success) {
+            LOG_E("sss_asymmetric_decrypt failed");
+            pxSessionObj->xOperationInProgress = pkcs11NO_OPERATION;
+            xResult                            = CKR_FUNCTION_FAILED;
+        }
+        if (xResult == CKR_OK) {
+            if (pData) {
+                if (*pulDataLen < sigLen) {
+                    xResult = CKR_BUFFER_TOO_SMALL;
+                }
+                else {
+                    memcpy(pData, &signature[0], sigLen);
+                    pxSessionObj->xOperationInProgress = pkcs11NO_OPERATION;
+                }
+            }
+            *pulDataLen = sigLen;
+        }
+
         sss_asymmetric_context_free(&asymmCtx);
+
+        UNLOCK_MUTEX_FOR_RTOS
     }
-    if (sss_pkcs11_mutex_unlock() != 0) {
-        return CKR_FUNCTION_FAILED;
-    }
+
     return xResult;
 }

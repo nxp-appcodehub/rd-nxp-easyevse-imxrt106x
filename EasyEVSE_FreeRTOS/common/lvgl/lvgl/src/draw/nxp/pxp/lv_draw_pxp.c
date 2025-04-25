@@ -270,6 +270,7 @@ static void lv_draw_pxp_buffer_copy(lv_draw_ctx_t * draw_ctx,
     }
 
     lv_gpu_nxp_pxp_buffer_copy(dest_buf, dest_area, dest_stride, src_buf, src_area, src_stride);
+//    lv_draw_sw_buffer_copy(draw_ctx, dest_buf, dest_stride, dest_area, src_buf, src_stride, src_area);
 }
 
 #endif /*LV_USE_GPU_NXP_PXP*/

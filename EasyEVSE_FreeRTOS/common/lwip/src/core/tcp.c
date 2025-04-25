@@ -67,6 +67,7 @@
 
 /*
  * Copyright (c) 2001-2004 Swedish Institute of Computer Science.
+ * Copyright 2019-2020 NXP
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -1959,6 +1960,7 @@ tcp_alloc(u8_t prio)
 #if LWIP_TCP_USER_TIMEOUT  
     pcb->user_timeout = TCP_USER_TIMEOUT_DEFAULT;
 #endif /* LWIP_TCP_USER_TIMEOUT */
+    pcb_tci_init(pcb);
   }
   return pcb;
 }

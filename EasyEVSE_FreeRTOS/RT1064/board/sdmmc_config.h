@@ -1,6 +1,5 @@
 /*
- * Copyright 2020-2022 NXP
- * All rights reserved.
+ * Copyright 2020-2022, 2025 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -79,6 +78,11 @@ extern "C" {
 /*******************************************************************************
  * API
  ******************************************************************************/
+/**
+ * Enable or disable the VSD_3V3 power supply that is used by the SD interface
+ */
+void BOARD_SDCardPowerControl(bool enable);
+
 /*!
  * @brief BOARD SD configurations.
  * @param card card descriptor

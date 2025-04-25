@@ -159,6 +159,7 @@ typedef struct AzureIoTTransportInterface
 {
     AzureIoTTransportRecv_t xRecv;            /**< Transport receive interface. */
     AzureIoTTransportSend_t xSend;            /**< Transport send interface. */
+    TransportWritev_t writev;           /**< Transport writev function pointer. */
     struct NetworkContext * pxNetworkContext; /**< Implementation-defined network context. */
 } AzureIoTTransportInterface_t;
 

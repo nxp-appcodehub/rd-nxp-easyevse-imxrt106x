@@ -155,19 +155,7 @@ i2c_error_t axI2CInit(void **conn_ctx, const char *pDevName)
     uint32_t instance                  = LPI2C_GetInstance(AX_I2CM);
     lpi2c_master_config_t masterConfig;
 
-    EVSE_LPI2C_InitMutex(instance);
-    LPI2C_MasterGetDefaultConfig(&masterConfig);
-/*    masterConfig.enableDoze = false;
-    masterConfig.debugEnable = true;
-    masterConfig.baudRate_Hz = I2C_BAUDRATE;
-    masterConfig.sdaGlitchFilterWidth_ns = 150;
-    masterConfig.sclGlitchFilterWidth_ns = 150;*/
-    uint32_t sourceClock = LPI2C_CLOCK_FREQUENCY;//CLOCK_GetFreq(AX_LPI2C_CLK_SRC);
-    masterConfig.baudRate_Hz = I2C_BAUDRATE;
-
-    LPI2C_MasterInit(AX_I2CM, &masterConfig, sourceClock);
-
-    LPI2C_MasterCheckAndClearError(AX_I2CM, LPI2C_MasterGetStatusFlags(AX_I2CM));
+    BOARD_LPI2C_Init (AX_I2CM, LPI2C_CLOCK_FREQUENCY);
 
     return I2C_OK;
 }

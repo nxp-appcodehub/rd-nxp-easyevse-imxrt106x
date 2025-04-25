@@ -40,6 +40,8 @@
  *      DEFINES
  *********************/
 
+extern void pxp_reset_state(void);
+
 #if LV_COLOR_16_SWAP
     #error Color swap not implemented. Disable LV_COLOR_16_SWAP feature.
 #endif
@@ -319,6 +321,7 @@ void lv_gpu_nxp_pxp_buffer_copy(lv_color_t * dest_buf, const lv_area_t * dest_ar
     lv_coord_t src_width = lv_area_get_width(src_area);
     lv_coord_t src_height = lv_area_get_height(src_area);
 
+    lv_gpu_nxp_pxp_wait();
     lv_gpu_nxp_pxp_reset();
 
     const pxp_pic_copy_config_t picCopyConfig = {
@@ -334,9 +337,8 @@ void lv_gpu_nxp_pxp_buffer_copy(lv_color_t * dest_buf, const lv_area_t * dest_ar
         .height = src_height,
         .pixelFormat = PXP_AS_PIXEL_FORMAT
     };
-
+    pxp_reset_state();
     PXP_StartPictureCopy(LV_GPU_NXP_PXP_ID, &picCopyConfig);
-
     lv_gpu_nxp_pxp_wait();
 }
 

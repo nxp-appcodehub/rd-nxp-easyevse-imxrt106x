@@ -10,7 +10,6 @@ In this Article
   - [Sending Telemetry](#sending-telemetry)
   - [Other IoT Hub Features](#other-iot-hub-features)
 - [Application Code for Azure IoT Device Provisioning](#application-code-for-azure-iot-device-provisioning)
-  - [Initialization](#initialization-1)
   - [Device Registration](#device-registration)
 - [Error Handling](#error-handling)
 - [Threads](#threads)
@@ -216,7 +215,7 @@ else
 do
 {
     xResult = AzureIoTProvisioningClient_Register( &xAzureIoTProvisioningClient,
-                                                    sampleazureiotProvisioning_Registration_TIMEOUT_MS );
+sampleazureiotProvisioning_Registration_TIMEOUT_MS );
 } while( xResult == eAzureIoTErrorPending );
 
 xResult = AzureIoTProvisioningClient_GetDeviceAndHub( &xAzureIoTProvisioningClient,

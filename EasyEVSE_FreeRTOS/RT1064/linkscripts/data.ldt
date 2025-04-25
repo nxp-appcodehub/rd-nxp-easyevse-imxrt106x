@@ -1,8 +1,9 @@
- <#if memory.name=="SRAM_DTC">
+ <#if memory.name=="SRAM_ITC">
         *flash_config.o(.rodata* .text*)
         *fsl_flexspi.o(.rodata* .text*)
         *mflash_drv.o(.text* .rodata*)
-
+		*bigmath.o(.text* .rodata*)
+		*ecdsa.o(.text* .rodata*)
         /* FreeRTOS Debug Config, Move from Flash to here*/
         *tasks.o(.rodata*)
 </#if>

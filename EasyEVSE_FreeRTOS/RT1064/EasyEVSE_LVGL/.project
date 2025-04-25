@@ -60,10 +60,5 @@
 			<type>2</type>
 			<locationURI>PARENT-2-PROJECT_LOC/common/lvgl</locationURI>
 		</link>
-		<link>
-			<name>source/lv_conf.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/common/source/config/lv_conf.h</locationURI>
-		</link>
 	</linkedResources>
 </projectDescription>

@@ -1,6 +1,5 @@
 /*
- * Copyright 2021, 2023 NXP
- * All rights reserved.
+ * Copyright 2021, 2023, 2025 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -29,7 +28,7 @@
  * Definitions
  ******************************************************************************/
 
-/* Macros for the touch touch controller. */
+/* Macros for the touch controller. */
 #define TOUCH_I2C LPI2C1
 
 /* Select USB1 PLL (480 MHz) as master lpi2c clock source */
@@ -415,6 +414,7 @@ static void DEMO_FlushDisplay(lv_disp_drv_t *disp_drv, const lv_area_t *area, lv
         ELCDIF_SetNextBufferAddr(LCDIF, (uint32_t)color_p);
     }
 
+#if !((LV_VERSION_CHECK (8, 3, 10) || LV_VERSION_CHECK (9, 0, 0)))
     if (disp_drv->direct_mode )
     {
         lv_area_t empty_area = {0};
@@ -452,6 +452,7 @@ static void DEMO_FlushDisplay(lv_disp_drv_t *disp_drv, const lv_area_t *area, lv
             disp_index++;
         }
     }
+#endif
 
     s_framePending = true;
 
@@ -589,8 +590,11 @@ static void DEMO_InitTouch(void)
     CLOCK_SetMux(kCLOCK_Lpi2cMux, TOUCH_LPI2C_CLOCK_SOURCE_SELECT);
     CLOCK_SetDiv(kCLOCK_Lpi2cDiv, TOUCH_LPI2C_CLOCK_SOURCE_DIVIDER);
 
+
     BOARD_LPI2C_Init(TOUCH_I2C, TOUCH_I2C_CLOCK_FREQ);
 
+    uint32_t instance = LPI2C_GetInstance(TOUCH_I2C);
+    EVSE_LPI2C_GetMutex(instance);
     /* Initialize touch panel controller */
     status = FT5406_RT_Init(&touchHandle, TOUCH_I2C);
     if (status != kStatus_Success)
@@ -599,6 +603,7 @@ static void DEMO_InitTouch(void)
         assert(0);
     }
 
+    EVSE_LPI2C_PostMutex(instance);
 }
 
 /* Will be called by the library to read the touchpad */

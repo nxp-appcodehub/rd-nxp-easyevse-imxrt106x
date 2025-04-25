@@ -6,6 +6,7 @@
 
 /*
  * Copyright (c) 2010 Inico Technologies Ltd.
+ * Copyright 2017, 2020, 2023-2024 NXP
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -367,6 +368,14 @@ ip6_forward(struct pbuf *p, struct ip6_hdr *iphdr, struct netif *inp)
 {
   struct netif *netif;
 
+#ifdef LWIP_HOOK_IP6_CANFORWARD
+  int ret = LWIP_HOOK_IP6_CANFORWARD(ip6_current_src_addr(), ip6_current_dest_addr(), p, inp);
+  if (ret == 0) { 
+    /* Packet consumed or not suitable for forwarding */
+    return;
+  }
+#endif /* LWIP_HOOK_IP6_CANFORWARD */
+
   /* do not forward link-local or loopback addresses */
   if (ip6_addr_islinklocal(ip6_current_dest_addr()) ||
       ip6_addr_isloopback(ip6_current_dest_addr())) {
@@ -412,6 +421,7 @@ ip6_forward(struct pbuf *p, struct ip6_hdr *iphdr, struct netif *inp)
     return;
   }
 #endif /* LWIP_IPV6_SCOPES */
+#if !IP_FORWARD_ALLOW_TX_ON_RX_NETIF
   /* Do not forward packets onto the same network interface on which
    * they arrived. */
   if (netif == inp) {
@@ -420,6 +430,7 @@ ip6_forward(struct pbuf *p, struct ip6_hdr *iphdr, struct netif *inp)
     IP6_STATS_INC(ip6.drop);
     return;
   }
+#endif /* IP_FORWARD_ALLOW_TX_ON_RX_NETIF */
 
   /* decrement HL */
   IP6H_HOPLIM_SET(iphdr, IP6H_HOPLIM(iphdr) - 1);
@@ -684,11 +695,17 @@ netif_found:
     /* packet not for us, route or discard */
     LWIP_DEBUGF(IP6_DEBUG | LWIP_DBG_TRACE, ("ip6_input: packet not for us.\n"));
 #if LWIP_IPV6_FORWARD
-    /* non-multicast packet? */
+
+    /* try to forward IP packet on (other) interfaces */
+#ifndef LWIP_HOOK_IP6_CANFORWARD
+    /* Don't forward multicast traffic unless the IPv6 forwarding hook is defined. */
     if (!ip6_addr_ismulticast(ip6_current_dest_addr())) {
-      /* try to forward IP packet on (other) interfaces */
       ip6_forward(p, ip6hdr, inp);
     }
+#else /* LWIP_HOOK_IP6_CANFORWARD */
+    ip6_forward(p, ip6hdr, inp);
+#endif /* LWIP_HOOK_IP6_CANFORWARD */
+    
 #endif /* LWIP_IPV6_FORWARD */
     pbuf_free(p);
     goto ip6_input_cleanup;
@@ -1017,9 +1034,10 @@ netif_found:
           goto ip6_input_cleanup;
         }
 
-        /* Returned p point to IPv6 header.
+        /* Returned p points to IPv6 header.
          * Update all our variables and pointers and continue. */
         ip6hdr = (struct ip6_hdr *)p->payload;
+        ip_data.current_ip6_header = ip6hdr;
         nexth = &IP6H_NEXTH(ip6hdr);
         hlen = hlen_tot = IP6_HLEN;
         pbuf_remove_header(p, IP6_HLEN);

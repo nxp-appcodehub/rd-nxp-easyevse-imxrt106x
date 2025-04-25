@@ -1,5 +1,6 @@
 /*
- * Copyright 2023-2024 NXP
+
+ * Copyright 2023-2025 NXP
  * NXP Proprietary. This software is owned or controlled by NXP and may only be used strictly in
  * accordance with the applicable license terms. By expressly accepting such terms or by downloading, installing,
  * activating and/or otherwise using the software, you are agreeing that you have read, and that you agree to
@@ -17,12 +18,22 @@ extern "C" {
 #include "EVSE_Metering.h"
 #include "EVSE_Connectivity.h"
 #include "EVSE_ChargingProtocol.h"
-#include "ISO15118-2.h"
+#include <ISO15118.h>
 #include "EVSE_UI.h"
 #include "EVSE_Utils.h"
 
 #define NOT_CHARGING        0
 #define MAX_EVSE_SW_VERSION 20
+
+#define RED_LED   0xfc0702
+#define GREEN_LED 0x40d440
+#define GRAY_LED  0xdadada
+#define BLUE_LED  0x0000e0
+
+#define CHARGING_IMAGES_NUMBER 4
+
+#define RESUME_TEXT "Resume"
+#define PAUSE_TEXT  "Pause"
 
 typedef enum _evse_screens
 {
@@ -45,7 +56,7 @@ evse_screens_t ui_getCurentScreen(void);
  * Update the Vehicle Id in NFC screen
  * @param vehicleID string that points to a vehicle ID
  */
-void UI_Update_NFC_VehicleID(const char* vehicleID);
+void UI_Update_NFC_VehicleID(const char *vehicleID);
 
 /**
  * Set the telemetry counter in Debug screen
@@ -107,7 +118,9 @@ void UI_Update_EVSE_Uptime(void);
 /**
  * Update data displayed on ISO15118 Debug screen
  */
-void UI_Update_ISO15118_Debug_Values(const evse_iso15118_state_t status, const V2G_status_t V2G_status, const uint32_t Telemetry_cntr);
+void UI_Update_ISO15118_Debug_Values(const evse_iso15118_state_t status,
+                                     const V2G_status_t V2G_status,
+                                     const uint32_t Telemetry_cntr);
 
 /**
  * Update Power Request Cntr displayed on ISO15118 Debug screen
@@ -131,9 +144,23 @@ void UI_Update_Localtime(void);
 
 /**
  * Update Vehicle ID displayed on Car screen
-*/
-void UI_Update_Car_VehicleID(const char* vehicleID);
+ */
+void UI_Update_Car_VehicleID(const char *vehicleID);
 
+/**
+ * Update charging direction for Grid to Vehicle scenario
+ */
+void GridtoVehicle_animation();
+
+/**
+ * Update charging direction for Vehicle to Grid scenario
+ */
+void VehicletoGrid_animation(void);
+
+/**
+ * Clean the charging animation.
+ */
+void CleanCharging_animation(void);
 #ifdef __cplusplus
 }
 #endif

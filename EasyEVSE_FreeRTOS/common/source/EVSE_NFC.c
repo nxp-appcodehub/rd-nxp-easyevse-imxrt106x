@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 NXP
+ * Copyright 2023-2025 NXP
  * NXP Proprietary. This software is owned or controlled by NXP and may only be used strictly in
  * accordance with the applicable license terms. By expressly accepting such terms or by downloading, installing,
  * activating and/or otherwise using the software, you are agreeing that you have read, and that you agree to comply
@@ -43,7 +43,7 @@ static CardDetect NFCDetectCallbacks[NFC_CALLBACKS_NUMBER];
 
 AT_NONCACHEABLE_SECTION_ALIGN(static StackType_t xStackNFC[APP_NFC_STACK_SIZE], 32);
 
-phacDiscLoop_Sw_DataParams_t       *pDiscLoop;
+phacDiscLoop_Sw_DataParams_t *pDiscLoop;
 
 /* This is used to save restore Poll Config.
  * If in case application has update/change PollCfg to resolve Tech
@@ -57,7 +57,7 @@ nfc_data_info_t NFC_retrieved_data;
 
 static void EVSE_NFC_CallbackCall(uint8_t *CardUID, uint8_t SizeUID)
 {
-    for (uint8_t i = 0; i < NFC_CALLBACKS_NUMBER ; i++)
+    for (uint8_t i = 0; i < NFC_CALLBACKS_NUMBER; i++)
     {
         if (NFCDetectCallbacks[i] != NULL)
         {
@@ -68,8 +68,8 @@ static void EVSE_NFC_CallbackCall(uint8_t *CardUID, uint8_t SizeUID)
 
 void NFC_Hardware_Init(void)
 {
-    phStatus_t          status   = PH_ERR_INTERNAL_ERROR;
-    phNfcLib_Status_t   dwStatus = PH_NFCLIB_STATUS_INVALID_STATE;
+    phStatus_t status          = PH_ERR_INTERNAL_ERROR;
+    phNfcLib_Status_t dwStatus = PH_NFCLIB_STATUS_INVALID_STATE;
 
 #ifdef PH_PLATFORM_HAS_ICFRONTEND
     phNfcLib_AppContext_t AppContext = {0};
@@ -85,32 +85,32 @@ void NFC_Hardware_Init(void)
     CHECK_STATUS(status);
 
     AppContext.pBalDataparams = &sBalParams;
-    dwStatus = phNfcLib_SetContext(&AppContext);
+    dwStatus                  = phNfcLib_SetContext(&AppContext);
     CHECK_NFCLIB_STATUS(dwStatus);
 }
 
 static nfc_status_t NFC_Lib_Init(void)
 {
     /* Initialize library */
-    phNfcLib_Status_t   dwStatus;
-    phStatus_t          status = PH_ERR_INTERNAL_ERROR;
+    phNfcLib_Status_t dwStatus;
+    phStatus_t status = PH_ERR_INTERNAL_ERROR;
 
     dwStatus = phNfcLib_Init();
     CHECK_NFCLIB_STATUS(dwStatus);
 
-    if(dwStatus != PH_NFCLIB_STATUS_SUCCESS)
+    if (dwStatus != PH_NFCLIB_STATUS_SUCCESS)
     {
         return kNFCStatus_Fail;
     }
 
     /* Set the generic pointer */
-    pHal = phNfcLib_GetDataParams(PH_COMP_HAL);
+    pHal      = phNfcLib_GetDataParams(PH_COMP_HAL);
     pDiscLoop = phNfcLib_GetDataParams(PH_COMP_AC_DISCLOOP);
 
     /* Initialize other components that are not initialized by NFCLIB and configure Discovery Loop. */
     status = phApp_Comp_Init(pDiscLoop);
     CHECK_STATUS(status);
-    if(status != PH_ERR_SUCCESS)
+    if (status != PH_ERR_SUCCESS)
     {
         return kNFCStatus_Fail;
     }
@@ -118,7 +118,7 @@ static nfc_status_t NFC_Lib_Init(void)
     /* Configure the IRQ */
     status = phApp_Configure_IRQ();
     CHECK_STATUS(status);
-    if(status != PH_ERR_SUCCESS)
+    if (status != PH_ERR_SUCCESS)
     {
         return kNFCStatus_Fail;
     }
@@ -141,9 +141,9 @@ static void NFC_Run_Discovery_Loop(void)
 
     /* Start in poll mode */
     wEntryPoint = PHAC_DISCLOOP_ENTRY_POINT_POLL;
-    status = PHAC_DISCLOOP_LPCD_NO_TECH_DETECTED;
+    status      = PHAC_DISCLOOP_LPCD_NO_TECH_DETECTED;
 
-    while(1)
+    while (1)
     {
         phStatus_t statustmp   = 0;
         uint16_t wTagsDetected = 0;
@@ -156,7 +156,8 @@ static void NFC_Run_Discovery_Loop(void)
         CHECK_STATUS(statustmp);
 
         /* Set Discovery Poll State to Detection */
-        statustmp = phacDiscLoop_SetConfig(pDiscLoop, PHAC_DISCLOOP_CONFIG_NEXT_POLL_STATE, PHAC_DISCLOOP_POLL_STATE_DETECTION);
+        statustmp =
+            phacDiscLoop_SetConfig(pDiscLoop, PHAC_DISCLOOP_CONFIG_NEXT_POLL_STATE, PHAC_DISCLOOP_POLL_STATE_DETECTION);
         CHECK_STATUS(statustmp);
 
         /* Set Poll Configuration */
@@ -187,32 +188,32 @@ static void NFC_Run_Discovery_Loop(void)
 
         if (wEntryPoint == PHAC_DISCLOOP_ENTRY_POINT_POLL)
         {
-            if((status & PH_ERR_MASK) == PHAC_DISCLOOP_MULTI_TECH_DETECTED)
+            if ((status & PH_ERR_MASK) == PHAC_DISCLOOP_MULTI_TECH_DETECTED)
             {
-            	configPRINTF((" \n\r Multiple technology detected: \n\r"));
+                configPRINTF((" \n\r Multiple technology detected: \n\r"));
 
                 status = phacDiscLoop_GetConfig(pDiscLoop, PHAC_DISCLOOP_CONFIG_TECH_DETECTED, &wTagsDetected);
                 CHECK_STATUS(status);
 
                 if (PHAC_DISCLOOP_CHECK_ANDMASK(wTagsDetected, PHAC_DISCLOOP_POS_BIT_MASK_A))
                 {
-                	configPRINTF((" \tType A detected... \n\r"));
+                    configPRINTF((" \tType A detected... \n\r"));
                 }
                 if (PHAC_DISCLOOP_CHECK_ANDMASK(wTagsDetected, PHAC_DISCLOOP_POS_BIT_MASK_B))
                 {
-                	configPRINTF((" \tType B detected... \n\r"));
+                    configPRINTF((" \tType B detected... \n\r"));
                 }
                 if (PHAC_DISCLOOP_CHECK_ANDMASK(wTagsDetected, PHAC_DISCLOOP_POS_BIT_MASK_F212))
                 {
-                	configPRINTF((" \tType F detected with baud rate 212... \n\r"));
+                    configPRINTF((" \tType F detected with baud rate 212... \n\r"));
                 }
                 if (PHAC_DISCLOOP_CHECK_ANDMASK(wTagsDetected, PHAC_DISCLOOP_POS_BIT_MASK_F424))
                 {
-                	configPRINTF((" \tType F detected with baud rate 424... \n\r"));
+                    configPRINTF((" \tType F detected with baud rate 424... \n\r"));
                 }
                 if (PHAC_DISCLOOP_CHECK_ANDMASK(wTagsDetected, PHAC_DISCLOOP_POS_BIT_MASK_V))
                 {
-                	configPRINTF((" \tType V / ISO 15693 / T5T detected... \n\r"));
+                    configPRINTF((" \tType V / ISO 15693 / T5T detected... \n\r"));
                 }
 
                 /* Select 1st Detected Technology to Resolve*/
@@ -221,7 +222,8 @@ static void NFC_Run_Discovery_Loop(void)
                     if (PHAC_DISCLOOP_CHECK_ANDMASK(wTagsDetected, (1 << bIndex)))
                     {
                         /* Configure for one of the detected technology */
-                        status = phacDiscLoop_SetConfig(pDiscLoop, PHAC_DISCLOOP_CONFIG_PAS_POLL_TECH_CFG, (1 << bIndex));
+                        status =
+                            phacDiscLoop_SetConfig(pDiscLoop, PHAC_DISCLOOP_CONFIG_PAS_POLL_TECH_CFG, (1 << bIndex));
                         CHECK_STATUS(status);
                         break;
                     }
@@ -231,14 +233,15 @@ static void NFC_Run_Discovery_Loop(void)
                 phApp_PrintTech((1 << bIndex));
 
                 /* Set Discovery Poll State to collision resolution */
-                status = phacDiscLoop_SetConfig(pDiscLoop, PHAC_DISCLOOP_CONFIG_NEXT_POLL_STATE, PHAC_DISCLOOP_POLL_STATE_COLLISION_RESOLUTION);
+                status = phacDiscLoop_SetConfig(pDiscLoop, PHAC_DISCLOOP_CONFIG_NEXT_POLL_STATE,
+                                                PHAC_DISCLOOP_POLL_STATE_COLLISION_RESOLUTION);
                 CHECK_STATUS(status);
 
                 /* Restart discovery loop in poll mode from collision resolution phase */
                 status = phacDiscLoop_Run(pDiscLoop, wEntryPoint);
             }
 
-            if((status & PH_ERR_MASK) == PHAC_DISCLOOP_MULTI_DEVICES_RESOLVED)
+            if ((status & PH_ERR_MASK) == PHAC_DISCLOOP_MULTI_DEVICES_RESOLVED)
             {
                 /* Get Detected Technology Type */
                 status = phacDiscLoop_GetConfig(pDiscLoop, PHAC_DISCLOOP_CONFIG_TECH_DETECTED, &wTagsDetected);
@@ -248,15 +251,15 @@ static void NFC_Run_Discovery_Loop(void)
                 status = phacDiscLoop_GetConfig(pDiscLoop, PHAC_DISCLOOP_CONFIG_NR_TAGS_FOUND, &wNumberOfTags);
                 CHECK_STATUS(status);
 
-                configPRINTF((" \n\r Multiple cards resolved: %d cards \n\r",wNumberOfTags));
+                configPRINTF((" \n\r Multiple cards resolved: %d cards \n\r", wNumberOfTags));
                 phApp_PrintTagInfo(pDiscLoop, wNumberOfTags, wTagsDetected);
 
-                if(wNumberOfTags > 1)
+                if (wNumberOfTags > 1)
                 {
                     /* Get 1st Detected Tag and Activate device at index 0 */
-                    for(bIndex = 0; bIndex < PHAC_DISCLOOP_PASS_POLL_MAX_TECHS_SUPPORTED; bIndex++)
+                    for (bIndex = 0; bIndex < PHAC_DISCLOOP_PASS_POLL_MAX_TECHS_SUPPORTED; bIndex++)
                     {
-                        if(PHAC_DISCLOOP_CHECK_ANDMASK(wTagsDetected, (1 << bIndex)))
+                        if (PHAC_DISCLOOP_CHECK_ANDMASK(wTagsDetected, (1 << bIndex)))
                         {
                             DEBUG_PRINTF("\t Activating one card...\n\r");
                             status = phacDiscLoop_ActivateCard(pDiscLoop, bIndex, 0);
@@ -276,7 +279,7 @@ static void NFC_Run_Discovery_Loop(void)
                     }
                     else
                     {
-                    	configPRINTF((error("\t\tCard activation failed...\n\r")));
+                        configPRINTF((error("\t\tCard activation failed...\n\r")));
                     }
                 }
 
@@ -296,7 +299,7 @@ static void NFC_Run_Discovery_Loop(void)
             }
             else if ((status & PH_ERR_MASK) == PHAC_DISCLOOP_MERGED_SEL_RES_FOUND)
             {
-            	configPRINTF((" \n\r Device having T4T and NFC-DEP support detected... \n\r"));
+                configPRINTF((" \n\r Device having T4T and NFC-DEP support detected... \n\r"));
                 /* Get Detected Technology Type */
                 status = phacDiscLoop_GetConfig(pDiscLoop, PHAC_DISCLOOP_CONFIG_TECH_DETECTED, &wTagsDetected);
                 CHECK_STATUS(status);
@@ -330,12 +333,12 @@ static void NFC_Run_Discovery_Loop(void)
             }
             else if ((status & PH_ERR_MASK) == PHAC_DISCLOOP_ACTIVE_TARGET_ACTIVATED)
             {
-            	configPRINTF((success(" \n\r Active target detected... \n\r")));
+                configPRINTF((success(" \n\r Active target detected... \n\r")));
                 /* Switch to LISTEN mode after POLL mode */
             }
             else if ((status & PH_ERR_MASK) == PHAC_DISCLOOP_PASSIVE_TARGET_ACTIVATED)
             {
-            	configPRINTF((success(" \n\r Passive target detected... \n\r")));
+                configPRINTF((success(" \n\r Passive target detected... \n\r")));
 
                 /* Get Detected Technology Type */
                 status = phacDiscLoop_GetConfig(pDiscLoop, PHAC_DISCLOOP_CONFIG_TECH_DETECTED, &wTagsDetected);
@@ -395,7 +398,7 @@ static void NFC_Run_Discovery_Loop(void)
             {
                 if ((status & PH_ERR_MASK) == PHAC_DISCLOOP_ACTIVATED_BY_PEER)
                 {
-                	configPRINTF((" \n\r Device activated in listen mode... \n\r"));
+                    configPRINTF((" \n\r Device activated in listen mode... \n\r"));
                 }
                 else if ((status & PH_ERR_MASK) == PH_ERR_INVALID_PARAMETER)
                 {
@@ -429,7 +432,7 @@ void EVSE_NFC_RegisterCallbackFunction(CardDetect cb)
     if (cb == NULL)
         return;
 
-    for (uint8_t i = 0; i < NFC_CALLBACKS_NUMBER ; i++)
+    for (uint8_t i = 0; i < NFC_CALLBACKS_NUMBER; i++)
     {
         if (NFCDetectCallbacks[i] == NULL)
         {
@@ -439,14 +442,14 @@ void EVSE_NFC_RegisterCallbackFunction(CardDetect cb)
     }
 }
 
-const char* EVSE_NFC_Get_VehicleID()
+const char *EVSE_NFC_Get_VehicleID()
 {
-	return NFC_retrieved_data.CardUID;
+    return NFC_retrieved_data.CardUID;
 }
 
 static void EVSE_NFC_Task(void *args)
 {
-	configPRINTF((info("Starting NFC Reader in Polling Mode...\r\n")));
+    configPRINTF((info("Starting NFC Reader in Polling Mode...\r\n")));
 
     NFC_Hardware_Init();
 
@@ -485,9 +488,8 @@ void EVSE_NFC_ClearVehicleID()
     NFC_retrieved_data.SizeUID = sizeof(CARD_NOT_PRESENT);
     memcpy(NFC_retrieved_data.CardUID, CARD_NOT_PRESENT, NFC_retrieved_data.SizeUID);
 
-
     EVSE_UI_SetEvent(EVSE_UI_NFC);
-    //EVSE_NFC_CallbackCall(NULL, 0);
+    // EVSE_NFC_CallbackCall(NULL, 0);
 }
 
 void EVSE_NFC_Init(void)
@@ -495,10 +497,12 @@ void EVSE_NFC_Init(void)
     NFC_retrieved_data.SizeUID = sizeof(CARD_NOT_PRESENT);
     memcpy(NFC_retrieved_data.CardUID, CARD_NOT_PRESENT, NFC_retrieved_data.SizeUID);
 
-    if (xTaskCreateStatic(EVSE_NFC_Task, "NFC", APP_NFC_STACK_SIZE, NULL, APP_NFC_PRIORITY , xStackNFC, &xNFCTaskBuffer) == NULL)
+    if (xTaskCreateStatic(EVSE_NFC_Task, "NFC", APP_NFC_STACK_SIZE, NULL, APP_NFC_PRIORITY, xStackNFC,
+                          &xNFCTaskBuffer) == NULL)
     {
         configPRINTF((error("Failed to create NFC task")));
-        while (1);
+        while (1)
+            ;
     }
 }
 #endif /* (CLEV663_ENABLE == 1) */

@@ -4,7 +4,7 @@
 ## NXP EasyEVSE iMXRT106x 
 
 
-EasyEVSE is a simulated electric vehicle charging station, J1772 compliant, connected to the Microsoft Azure IoT Central over Ethernet or Wi-Fi communication. The provided application is available in 2 flavors. One is the basic enablement, available on GitHub, while the full enablement can be found on [nxp.com](https://www.nxp.com/design/design-center/development-boards-and-designs/easyevse-ev-charging-station-development-platform-mcu-rtos:CONNECTED-EV-CHARGING-STATION). <br />Basic enablement provides:<ul><li>Graphical UI using LVGL and NXP GUI Guider tool</li><li>Network connectivity using either Ethernet or Wi-Fi<br /></li><li>Secure Microsoft Azure Cloud connectivity using the SE050 secure element</li><li>EVSE-SIG-BRD add-on development board communication for J1772 vehicle charger standard</li><li>Kinetis KM3x Metrology MCU communication.</li></ul>Full enablement provides the following additional functionalities:<br /><ul><li>Integration with Sevenstax `ISO15118-2` high level charging protocol using the HomePlug Green PHY (HPGP) transceiver (Lumissil IS32CG5317)</li><li>Integration with NXP CLRC663 NFC for external identification method</li></ul>
+EasyEVSE is a simulated electric vehicle charging station, J1772 compliant, connected to the Microsoft Azure IoT Central over Ethernet or Wi-Fi communication. The provided application is available in 2 flavors. One is the basic enablement, available on GitHub, while the full enablement can be found on [nxp.com](https://www.nxp.com/design/design-center/development-boards-and-designs/easyevse-ev-charging-station-development-platform-mcu-rtos:CONNECTED-EV-CHARGING-STATION). <br />Basic enablement provides:<ul><li>Graphical UI using LVGL and NXP GUI Guider tool</li><li>Network connectivity using either Ethernet or Wi-Fi<br /></li><li>Secure Microsoft Azure Cloud connectivity using the SE050 secure element</li><li>EVSE-SIG-BRD add-on development board communication for J1772 vehicle charger standard</li><li>Kinetis KM3x Metrology MCU communication.</li></ul>Full enablement provides the following additional functionalities:<br /><ul><li>Integration with Sevenstax `ISO15118-2` and `ISO15118-20` high level charging protocol using the HomePlug Green PHY (HPGP) transceiver (Lumissil IS32CG5317)</li><li>Integration with NXP CLRC663 NFC for external identification method</li></ul>
 
 The EasyEVSE purpose is to deliver both EV and EVSE reference applications based on NXP kits.
 
@@ -118,8 +118,7 @@ In the ISO15118 screen, please check that the EVSE-SIG-BRD connection matches wi
 
 2. EV project
 
-The EV project has no screen, so the actual functionality is hard to see.
-In order to check if the project is working connect an USB cable in the J1 USB interface (Connected to the LinkServer) to see the logs. Using a terminal emulator, logs should appear on the serial terminal connected to the board.
+Currently, the EV project has no UI capabilities. In order to check if the project is working connect an USB cable in the J1 USB interface (Connected to the LinkServer) to see the logs. Using a terminal emulator, logs should appear on the serial terminal connected to the board.
 
 ![plot](./images/EV_BootLogs.png)
 
@@ -186,5 +185,6 @@ Questions regarding the content/correctness of this example can be entered as Is
 ## 6. Release Notes<a name="step6"></a>
 | Version | Description / Update                           | Date                        |
 |:-------:|------------------------------------------------|----------------------------:|
-|3.0.6     | Replaced Baltimore CA certificate with DigiCert Global Root G2 certificate for DPS registration.        | October 15<sup>th</sup> 2024 |
+|4.0.4     | Add ISO15118-20 on the MCU <br/> Update UI to address the ISO15118-20 <br/> Update SDK version to 2.15 <br/>  Add new build configuration for EVSE-SIG-BRD connection using the ETH| April 25<sup>th</sup> 2025 |
+|3.0.6     | Replaced Baltimore CA certificate with DigiCert Global Root G2 certificate for DPS registration        | October 15<sup>th</sup> 2024 |
 |3.0.4     | Initial release on Application Code Hub        | August 20<sup>th</sup> 2024 |

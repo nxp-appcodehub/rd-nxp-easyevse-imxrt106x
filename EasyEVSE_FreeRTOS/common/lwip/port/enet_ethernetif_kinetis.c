@@ -32,7 +32,7 @@
 
 /*
  * Copyright (c) 2013-2016, Freescale Semiconductor, Inc.
- * Copyright 2016-2023 NXP
+ * Copyright 2016-2024 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -74,19 +74,43 @@
  * Definitions
  ******************************************************************************/
 
+#if defined(FSL_SDK_ENABLE_DRIVER_CACHE_CONTROL) && FSL_SDK_ENABLE_DRIVER_CACHE_CONTROL
+#if defined(FSL_FEATURE_L2CACHE_LINESIZE_BYTE) && \
+    ((!defined(FSL_SDK_DISBLE_L2CACHE_PRESENT)) || (FSL_SDK_DISBLE_L2CACHE_PRESENT == 0))
+#if defined(FSL_FEATURE_L1DCACHE_LINESIZE_BYTE)
+#define FSL_CACHE_LINESIZE_MAX  MAX(FSL_FEATURE_L1DCACHE_LINESIZE_BYTE, FSL_FEATURE_L2CACHE_LINESIZE_BYTE)
+#define FSL_ENET_BUFF_ALIGNMENT MAX(ENET_BUFF_ALIGNMENT, FSL_CACHE_LINESIZE_MAX)
+#else
+#define FSL_ENET_BUFF_ALIGNMENT MAX(ENET_BUFF_ALIGNMENT, FSL_FEATURE_L2CACHE_LINESIZE_BYTE)
+#endif
+#elif defined(FSL_FEATURE_L1DCACHE_LINESIZE_BYTE)
+#define FSL_ENET_BUFF_ALIGNMENT MAX(ENET_BUFF_ALIGNMENT, FSL_FEATURE_L1DCACHE_LINESIZE_BYTE)
+#else
+#define FSL_ENET_BUFF_ALIGNMENT ENET_BUFF_ALIGNMENT
+#endif
+#else
+#define FSL_ENET_BUFF_ALIGNMENT ENET_BUFF_ALIGNMENT
+#endif
+
+/* The maximum length of lwIP frame to transmit. */
+#define MAX_TX_FRAMELEN (ENET_FRAME_MAX_FRAMELEN - ENET_FRAME_CRC_LEN)
+
+/* The maximum length of frame to receive from ENET. */
+#define MAX_RX_FRAMELEN (ENET_FRAME_MAX_FRAMELEN)
+
 /* The length of RX buffer. */
 #ifndef ENET_RXBUFF_SIZE
-#define ENET_RXBUFF_SIZE (ENET_FRAME_MAX_FRAMELEN)
+#define ENET_RXBUFF_SIZE (MAX_RX_FRAMELEN)
 #endif
 
 /* The number of ENET buffers needed to receive frame of maximum length. */
-#define MAX_BUFFERS_PER_FRAME \
-                              \
-    ((ENET_FRAME_MAX_FRAMELEN / ENET_RXBUFF_SIZE) + ((ENET_FRAME_MAX_FRAMELEN % ENET_RXBUFF_SIZE == 0) ? 0 : 1))
+#define MAX_BUFFERS_PER_FRAME                                                           \
+    (MAX_RX_FRAMELEN / CONSTANT_SIZEALIGN(ENET_RXBUFF_SIZE, FSL_ENET_BUFF_ALIGNMENT)) + \
+        ((MAX_RX_FRAMELEN % CONSTANT_SIZEALIGN(ENET_RXBUFF_SIZE, FSL_ENET_BUFF_ALIGNMENT) == 0) ? 0 : 1)
 
 /* The length of TX buffer. */
 #ifndef ENET_TXBUFF_SIZE
-#define ENET_TXBUFF_SIZE (ENET_FRAME_MAX_FRAMELEN)
+#define ENET_TXBUFF_SIZE (MAX_TX_FRAMELEN)
 #endif
 
 /* The number of buffer descriptors in ENET RX ring. */
@@ -116,28 +140,19 @@
 #define ENET_TXBD_NUM (3)
 #endif
 
-#if defined(FSL_SDK_ENABLE_DRIVER_CACHE_CONTROL) && FSL_SDK_ENABLE_DRIVER_CACHE_CONTROL
-#if defined(FSL_FEATURE_L2CACHE_LINESIZE_BYTE) && \
-    ((!defined(FSL_SDK_DISBLE_L2CACHE_PRESENT)) || (FSL_SDK_DISBLE_L2CACHE_PRESENT == 0))
-#if defined(FSL_FEATURE_L1DCACHE_LINESIZE_BYTE)
-#define FSL_CACHE_LINESIZE_MAX  MAX(FSL_FEATURE_L1DCACHE_LINESIZE_BYTE, FSL_FEATURE_L2CACHE_LINESIZE_BYTE)
-#define FSL_ENET_BUFF_ALIGNMENT MAX(ENET_BUFF_ALIGNMENT, FSL_CACHE_LINESIZE_MAX)
-#else
-#define FSL_ENET_BUFF_ALIGNMENT MAX(ENET_BUFF_ALIGNMENT, FSL_FEATURE_L2CACHE_LINESIZE_BYTE)
-#endif
-#elif defined(FSL_FEATURE_L1DCACHE_LINESIZE_BYTE)
-#define FSL_ENET_BUFF_ALIGNMENT MAX(ENET_BUFF_ALIGNMENT, FSL_FEATURE_L1DCACHE_LINESIZE_BYTE)
-#else
-#define FSL_ENET_BUFF_ALIGNMENT ENET_BUFF_ALIGNMENT
-#endif
-#else
-#define FSL_ENET_BUFF_ALIGNMENT ENET_BUFF_ALIGNMENT
+#if (CONSTANT_SIZEALIGN(ENET_TXBUFF_SIZE, FSL_ENET_BUFF_ALIGNMENT) * ENET_TXBD_NUM) < (MAX_TX_FRAMELEN)
+#warning \
+    "The combined size of TX buffers is not enough to hold a frame of maximum length. \
+It may be or may not be possible to transmit such a frame, depending if the ENET DMA is faster \
+than submitting of subsequent buffers (with chunks of the frame data) or not."
 #endif
 
 typedef uint8_t rx_buffer_t[SDK_SIZEALIGN(ENET_RXBUFF_SIZE, FSL_ENET_BUFF_ALIGNMENT)];
 typedef uint8_t tx_buffer_t[SDK_SIZEALIGN(ENET_TXBUFF_SIZE, FSL_ENET_BUFF_ALIGNMENT)];
 
-#include "enet_sanitychecks.h"
+#include "kinetis_configchecks.h"
+
+#define ENET_HW_CHKSUM (CHECKSUM_GEN_IP == 0)
 
 /*!
  * @brief Used to wrap received data in a pbuf to be passed into lwIP
@@ -174,6 +189,8 @@ struct ethernetif
     phy_speed_t last_speed;
     phy_duplex_t last_duplex;
     bool last_link_up;
+
+    uint32_t intGpioHdl[((HAL_GPIO_HANDLE_SIZE + sizeof(uint32_t) - 1U) / sizeof(uint32_t))];
 };
 
 /*******************************************************************************
@@ -217,7 +234,10 @@ static void ethernet_callback(ENET_Type *base,
             {
                 xResult =
                     xEventGroupSetBitsFromISR(ethernetif->enetTransmitAccessEvent, ethernetif->txFlag, &taskToWake);
-                if ((pdPASS == xResult) && (pdTRUE == taskToWake))
+                LWIP_ASSERT(
+                    "xEventGroupSetBitsFromISR failed, increase configTIMER_QUEUE_LENGTH or configTIMER_TASK_PRIORITY",
+                    pdPASS == xResult);
+                if (pdPASS == xResult)
                 {
                     portYIELD_FROM_ISR(taskToWake);
                 }
@@ -326,6 +346,7 @@ static void *ethernetif_rx_alloc(ENET_Type *base, void *userData, uint8_t ringId
     struct ethernetif *ethernetif = netif->state;
     void *buffer                  = NULL;
     int i;
+    (void)ringId;
 
     SYS_ARCH_DECL_PROTECT(old_level);
     SYS_ARCH_PROTECT(old_level);
@@ -340,6 +361,15 @@ static void *ethernetif_rx_alloc(ENET_Type *base, void *userData, uint8_t ringId
         }
     }
 
+#if ETH_DISABLE_RX_INT_WHEN_OUT_OF_BUFFERS
+    if (buffer == NULL)
+    {
+        ENET_DisableInterrupts(base, (uint32_t)kENET_RxFrameInterrupt);
+    }
+#else
+    (void)base;
+#endif
+
     SYS_ARCH_UNPROTECT(old_level);
 
     return buffer;
@@ -353,6 +383,7 @@ static void ethernetif_rx_free(ENET_Type *base, void *buffer, void *userData, ui
     struct netif *netif           = (struct netif *)userData;
     struct ethernetif *ethernetif = netif->state;
     int idx                       = ((rx_buffer_t *)buffer) - ethernetif->RxDataBuff;
+    (void)ringId;
     LWIP_ASSERT("Freed buffer out of range", ((idx >= 0) && (idx < ENET_RXBUFF_NUM)));
 
     SYS_ARCH_DECL_PROTECT(old_level);
@@ -360,6 +391,12 @@ static void ethernetif_rx_free(ENET_Type *base, void *buffer, void *userData, ui
 
     LWIP_ASSERT("ethernetif_rx_free: freeing unallocated buffer", ethernetif->RxPbufs[idx].buffer_used);
     ethernetif->RxPbufs[idx].buffer_used = false;
+
+#if ETH_DISABLE_RX_INT_WHEN_OUT_OF_BUFFERS
+    ENET_EnableInterrupts(base, (uint32_t)kENET_RxFrameInterrupt);
+#else
+    (void)base;
+#endif
 
     SYS_ARCH_UNPROTECT(old_level);
 }
@@ -381,9 +418,9 @@ void ethernetif_plat_init(struct netif *netif,
     buffCfg[0].rxBuffSizeAlign = sizeof(rx_buffer_t); /* Aligned receive data buffer size. */
     buffCfg[0].txBuffSizeAlign = sizeof(tx_buffer_t); /* Aligned transmit data buffer size. */
     buffCfg[0].rxBdStartAddrAlign =
-        &(ethernetif->RxBuffDescrip[0]); /* Aligned receive buffer descriptor start address. */
+        &(ethernetif->RxBuffDescrip[0]);              /* Aligned receive buffer descriptor start address. */
     buffCfg[0].txBdStartAddrAlign =
-        &(ethernetif->TxBuffDescrip[0]); /* Aligned transmit buffer descriptor start address. */
+        &(ethernetif->TxBuffDescrip[0]);              /* Aligned transmit buffer descriptor start address. */
     buffCfg[0].rxBufferAlign =
         NULL; /* Receive data buffer start address. NULL when buffers are allocated by callback for RX zero-copy. */
     buffCfg[0].txBufferAlign = &(ethernetif->TxDataBuff[0][0]); /* Transmit data buffer start address. */
@@ -461,6 +498,16 @@ void ethernetif_plat_init(struct netif *netif,
         ethernetif->RxPbufs[i].netif                  = netif;
     }
 
+#if ENET_HW_CHKSUM == 1
+    config.txAccelerConfig |= kENET_TxAccelProtoCheckEnabled | kENET_TxAccelIpCheckEnabled;
+    config.rxAccelerConfig |=
+        kENET_RxAccelProtoCheckEnabled | kENET_RxAccelIpCheckEnabled | kENET_RxAccelMacCheckEnabled;
+    config.macSpecialConfig &= ~(kENET_ControlStoreAndFwdDisable);
+#else
+    config.txAccelerConfig = 0;
+    config.rxAccelerConfig = 0;
+#endif
+
     /* Initialize the ENET module. */
     ENET_Init(ethernetif->base, &ethernetif->handle, &config, &buffCfg[0], netif->hwaddr, ethernetifConfig->srcClockHz);
 
@@ -476,6 +523,24 @@ phy_handle_t *ethernetif_get_phy(struct netif *netif_)
 {
     struct ethernetif *eif = netif_->state;
     return eif->phyHandle;
+}
+
+hal_gpio_handle_t ethernetif_get_int_gpio_hdl(struct netif *netif_)
+{
+    struct ethernetif *eif = netif_->state;
+    return (hal_gpio_handle_t)eif->intGpioHdl;
+}
+
+phy_speed_t ethernetif_get_link_speed(struct netif *netif_)
+{
+    struct ethernetif *eif = netif_->state;
+    return eif->last_speed;
+}
+
+phy_duplex_t ethernetif_get_link_duplex(struct netif *netif_)
+{
+    struct ethernetif *eif = netif_->state;
+    return eif->last_duplex;
 }
 
 void ethernetif_on_link_up(struct netif *netif_, phy_speed_t speed, phy_duplex_t duplex)
@@ -503,7 +568,7 @@ void ethernetif_on_link_down(struct netif *netif_)
  */
 static unsigned char *enet_get_tx_buffer(struct ethernetif *ethernetif)
 {
-    static unsigned char ucBuffer[ENET_FRAME_MAX_FRAMELEN];
+    static unsigned char ucBuffer[MAX_TX_FRAMELEN];
     return ucBuffer;
 }
 
@@ -621,10 +686,10 @@ static struct pbuf *ethernetif_rx_frame_to_pbufs(struct ethernetif *ethernetif, 
 
 struct pbuf *ethernetif_linkinput(struct netif *netif)
 {
-    struct ethernetif *ethernetif = netif->state;
-    enet_buffer_struct_t buffers[MAX_BUFFERS_PER_FRAME];
-    enet_rx_frame_struct_t rxFrame = {.rxBuffArray = &buffers[0]};
-    struct pbuf *p                 = NULL;
+    struct ethernetif *ethernetif                       = netif->state;
+    enet_buffer_struct_t buffers[MAX_BUFFERS_PER_FRAME] = {{0}};
+    enet_rx_frame_struct_t rxFrame                      = {.rxBuffArray = &buffers[0]};
+    struct pbuf *p                                      = NULL;
     status_t status;
 
     /* Read frame. */
@@ -684,29 +749,28 @@ err_t ethernetif_linkoutput(struct netif *netif, struct pbuf *p)
     pbuf_header(p, -ETH_PAD_SIZE); /* drop the padding word */
 #endif
 
-    if (p->len == p->tot_len)
+    if (p->tot_len > MAX_TX_FRAMELEN)
     {
-        /* No pbuf chain, don't have to copy -> faster. */
-        pucBuffer = (unsigned char *)p->payload;
+        result = ERR_BUF;
     }
     else
     {
-        /* pbuf chain, copy into contiguous ucBuffer. */
-        if (p->tot_len > ENET_FRAME_MAX_FRAMELEN)
+        if (p->len == p->tot_len)
         {
-            return ERR_BUF;
+            /* No pbuf chain, don't have to copy -> faster. */
+            pucBuffer = (unsigned char *)p->payload;
         }
         else
         {
+            /* pbuf chain, copy into contiguous ucBuffer. */
             uCopied = pbuf_copy_partial(p, pucBuffer, p->tot_len, 0);
             LWIP_ASSERT("uCopied != p->tot_len", uCopied == p->tot_len);
         }
+
+        /* Send frame. */
+        result = enet_send_frame(ethernetif, pucBuffer, p->tot_len);
     }
 
-    /* Send frame. */
-    result = enet_send_frame(ethernetif, pucBuffer, p->tot_len);
-
-    MIB2_STATS_NETIF_ADD(netif, ifoutoctets, p->tot_len);
     if (((u8_t *)p->payload)[0] & 1)
     {
         /* broadcast or multicast packet*/
@@ -717,13 +781,22 @@ err_t ethernetif_linkoutput(struct netif *netif, struct pbuf *p)
         /* unicast packet */
         MIB2_STATS_NETIF_INC(netif, ifoutucastpkts);
     }
-    /* increase ifoutdiscards or ifouterrors on error */
 
 #if ETH_PAD_SIZE
     pbuf_header(p, ETH_PAD_SIZE); /* reclaim the padding word */
 #endif
 
-    LINK_STATS_INC(link.xmit);
+    /* Increment statistics counters accordingly. */
+    if (result != ERR_OK)
+    {
+        LINK_STATS_INC(link.err);
+        MIB2_STATS_NETIF_INC(netif, ifouterrors);
+    }
+    else
+    {
+        LINK_STATS_INC(link.xmit);
+        MIB2_STATS_NETIF_ADD(netif, ifoutoctets, p->tot_len);
+    }
 
     return result;
 }
@@ -778,8 +851,8 @@ err_t ethernetif1_init(struct netif *netif)
     static struct ethernetif ethernetif_1;
     AT_NONCACHEABLE_SECTION_ALIGN(static enet_rx_bd_struct_t rxBuffDescrip_1[ENET_RXBD_NUM], FSL_ENET_BUFF_ALIGNMENT);
     AT_NONCACHEABLE_SECTION_ALIGN(static enet_tx_bd_struct_t txBuffDescrip_1[ENET_TXBD_NUM], FSL_ENET_BUFF_ALIGNMENT);
-    AT_NONCACHEABLE_SECTION_ALIGN(static rx_buffer_t rxDataBuff_1[ENET_RXBUFF_NUM], FSL_ENET_BUFF_ALIGNMENT);
-    AT_NONCACHEABLE_SECTION_ALIGN(static tx_buffer_t txDataBuff_1[ENET_TXBD_NUM], FSL_ENET_BUFF_ALIGNMENT);
+    SDK_ALIGN(static rx_buffer_t rxDataBuff_1[ENET_RXBUFF_NUM], FSL_ENET_BUFF_ALIGNMENT);
+    SDK_ALIGN(static tx_buffer_t txDataBuff_1[ENET_TXBD_NUM], FSL_ENET_BUFF_ALIGNMENT);
 
     ethernetif_config_t *cfg = (ethernetif_config_t *)netif->state;
 

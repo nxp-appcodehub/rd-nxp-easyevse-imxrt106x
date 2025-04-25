@@ -16,10 +16,10 @@
 
 void se05x_host_configure()
 {
-    gpio_pin_config_t reset_pin_cfg = {kGPIO_DigitalOutput, 0, SE_RESET_LOGIC};
-	GPIO_PinInit(SE05X_ENA_HOST_PORT, SE05X_ENA_HOST_PIN, &reset_pin_cfg);
+    gpio_pin_config_t reset_pin_cfg = {kGPIO_DigitalOutput, SE_RESET_LOGIC, kGPIO_NoIntmode};
+    GPIO_PinInit(SE05X_ENA_HOST_PORT, SE05X_ENA_HOST_PIN, &reset_pin_cfg);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_AD_B0_10_GPIO1_IO10, 0U);
     return;
-
 }
 
 /*
@@ -30,7 +30,7 @@ void se05x_host_configure()
 
 void se05x_host_powerdown()
 {
-	GPIO_PinWrite(SE05X_ENA_HOST_PORT, SE05X_ENA_HOST_PIN, !SE_RESET_LOGIC);
+    GPIO_PinWrite(SE05X_ENA_HOST_PORT, SE05X_ENA_HOST_PIN, !SE_RESET_LOGIC);
     return;
 }
 
@@ -42,6 +42,6 @@ void se05x_host_powerdown()
 
 void se05x_host_powerup()
 {
-	GPIO_PinWrite(SE05X_ENA_HOST_PORT, SE05X_ENA_HOST_PIN, SE_RESET_LOGIC);
+    GPIO_PinWrite(SE05X_ENA_HOST_PORT, SE05X_ENA_HOST_PIN, SE_RESET_LOGIC);
     return;
 }

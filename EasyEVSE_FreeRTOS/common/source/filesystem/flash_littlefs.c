@@ -1,10 +1,10 @@
 /*
- * Copyright 2022 NXP.
- * This software is owned or controlled by NXP and may only be used strictly in accordance with the
- * license terms that accompany it. By explittlefs_ressly accepting such terms or by downloading, installing,
- * activating and/or otherwise using the software, you are agreeing that you have read, and that you
- * agree to comply with and are bound by, such license terms. If you do not agree to be bound by the
- * applicable license terms, then you may not retain, install, activate or otherwise use the software.
+ * Copyright 2022,2025 NXP.
+ * NXP Proprietary. This software is owned or controlled by NXP and may only be used strictly in
+ * accordance with the applicable license terms. By expressly accepting such terms or by downloading, installing,
+ * activating and/or otherwise using the software, you are agreeing that you have read, and that you agree to comply
+ * with and are bound by, such license terms. If you do not agree to be bound by the applicable license terms, then you
+ * may not retain, install, activate or otherwise use the software.
  */
 
 #include <filesystem/flash_littlefs.h>
@@ -71,7 +71,7 @@ static const encrypt_ctx_t s_flashLittlefsEncCtx = {
 #endif /* FS_ENCRYPTION_SUPPORTED */
 
 static uint32_t s_ErasedBlocks[LFS_SECTORS / 32] = {0x0};
-static littlefs_t s_LittlefsHandler          = {};
+static littlefs_t s_LittlefsHandler              = {};
 
 AT_NONCACHEABLE_SECTION_ALIGN(static uint8_t s_CacheBuffer[LFS_CACHE_SIZE], 8);
 AT_NONCACHEABLE_SECTION_ALIGN(static uint8_t s_ReadBuffer[LFS_CACHE_SIZE], 8);
@@ -303,7 +303,7 @@ static int LFS_GetDefaultConfig(struct lfs_config *lfsc)
 static flash_fs_status_t LFS_CheckBasePath(const char *name)
 {
     flash_fs_status_t ret = FLASH_FS_OK;
-    uint8_t offset            = strlen(name);
+    uint8_t offset        = strlen(name);
 
     while ((name[offset] != '/') && (offset > 0))
     {
@@ -341,8 +341,8 @@ static flash_fs_status_t LFS_CheckBasePath(const char *name)
 static flash_fs_status_t LFS_SaveFileContent(file_meta_t *file_meta, uint8_t *dataIn, uint32_t dataLenIn)
 {
     flash_fs_status_t ret = FLASH_FS_OK;
-    uint8_t *data             = NULL;
-    uint32_t len              = 0;
+    uint8_t *data         = NULL;
+    uint32_t len          = 0;
 
 #if FS_ENCRYPTION_SUPPORTED
     if (file_meta->encryptInfo.useEncryption)
@@ -356,7 +356,7 @@ static flash_fs_status_t LFS_SaveFileContent(file_meta_t *file_meta, uint8_t *da
         }
         else
         {
-            status =  Encrypt_AES_CBC_PKCS7(&s_flashLittlefsEncCtx, dataIn, dataLenIn, data, len);
+            status = Encrypt_AES_CBC_PKCS7(&s_flashLittlefsEncCtx, dataIn, dataLenIn, data, len);
             if (status == ENCRYPT_STATUS_OK)
             {
                 file_meta->encryptInfo.dataPlainLen = dataLenIn;
@@ -396,9 +396,9 @@ static flash_fs_status_t LFS_SaveFileContent(file_meta_t *file_meta, uint8_t *da
 }
 
 static flash_fs_status_t LFS_GetFileContent(file_meta_t *file_meta,
-                                                uint32_t offset,
-                                                uint8_t *dataOut,
-                                                uint32_t *dataLenOut)
+                                            uint32_t offset,
+                                            uint8_t *dataOut,
+                                            uint32_t *dataLenOut)
 {
     flash_fs_status_t ret = FLASH_FS_OK;
     uint8_t *data         = NULL;
@@ -521,7 +521,7 @@ static flash_fs_status_t LFS_GetFileContent(file_meta_t *file_meta,
 flash_fs_status_t FLASH_LITTLEFS_Init(uint8_t erase)
 {
     flash_fs_status_t ret = FLASH_FS_OK;
-    int32_t littlefs_res      = 0;
+    int32_t littlefs_res  = 0;
 
     if (s_LittlefsHandler.lfsMounted == true)
     {
@@ -587,7 +587,7 @@ flash_fs_status_t FLASH_LITTLEFS_Save(const char *name, uint8_t *data, uint32_t 
 {
     file_meta_t file_meta;
     flash_fs_status_t ret = FLASH_FS_OK;
-    int32_t littlefs_res      = 0;
+    int32_t littlefs_res  = 0;
 
     if ((name == NULL) || (data == NULL) || (len == 0))
     {
@@ -634,7 +634,7 @@ flash_fs_status_t FLASH_LITTLEFS_Append(const char *name, uint8_t *data, uint32_
 {
     file_meta_t file_meta;
     flash_fs_status_t ret = FLASH_FS_OK;
-    int32_t littlefs_res      = 0;
+    int32_t littlefs_res  = 0;
 
     if ((name == NULL) || (data == NULL) || (len == 0))
     {
@@ -740,7 +740,7 @@ flash_fs_status_t FLASH_LITTLEFS_Read(const char *name, uint8_t *data, uint32_t 
 {
     file_meta_t file_meta;
     flash_fs_status_t ret = FLASH_FS_OK;
-    int32_t littlefs_res      = 0;
+    int32_t littlefs_res  = 0;
 
     if ((name == NULL) || (len == NULL))
     {
@@ -813,7 +813,7 @@ exit:
 flash_fs_status_t FLASH_LITTLEFS_Erase(const char *name)
 {
     flash_fs_status_t ret = FLASH_FS_OK;
-    int32_t littlefs_res      = 0;
+    int32_t littlefs_res  = 0;
 
     if (name == NULL)
     {
@@ -848,7 +848,7 @@ flash_fs_status_t FLASH_LITTLEFS_Erase(const char *name)
 flash_fs_status_t FLASH_LITTLEFS_Deinit(uint8_t erase)
 {
     flash_fs_status_t ret = FLASH_FS_OK;
-    int32_t littlefs_res      = 0;
+    int32_t littlefs_res  = 0;
 
     if (_lock(s_LittlefsHandler.lock))
     {
@@ -868,7 +868,7 @@ flash_fs_status_t FLASH_LITTLEFS_Deinit(uint8_t erase)
     }
     else
     {
-       // Encrypt_Deinit_Slot(&s_flashLittlefsEncCtx);
+        // Encrypt_Deinit_Slot(&s_flashLittlefsEncCtx);
         s_LittlefsHandler.lfsMounted = false;
         vSemaphoreDelete(s_LittlefsHandler.lock);
         s_LittlefsHandler.lock = NULL;
@@ -904,7 +904,7 @@ flash_fs_status_t FLASH_LITTLEFS_SetCbs(flash_fs_cbs_t *cbs)
 flash_fs_status_t FLASH_LITTLEFS_Mkdir(const char *name)
 {
     flash_fs_status_t ret = FLASH_FS_OK;
-    int32_t littlefs_res      = 0;
+    int32_t littlefs_res  = 0;
 
     if (name == NULL)
     {
@@ -939,7 +939,7 @@ flash_fs_status_t FLASH_LITTLEFS_Mkdir(const char *name)
 flash_fs_status_t FLASH_LITTLEFS_Mkfile(const char *name, bool encrypt)
 {
     flash_fs_status_t ret = FLASH_FS_OK;
-    int32_t littlefs_res      = 0;
+    int32_t littlefs_res  = 0;
     file_meta_t file_meta;
 
     if (name == NULL)
@@ -1000,7 +1000,7 @@ flash_fs_status_t FLASH_LITTLEFS_Mkfile(const char *name, bool encrypt)
 flash_fs_status_t FLASH_LITTLEFS_Format()
 {
     flash_fs_status_t ret = FLASH_FS_OK;
-    int32_t littlefs_res      = 0;
+    int32_t littlefs_res  = 0;
     if (_lock(s_LittlefsHandler.lock))
     {
         return FLASH_FS_ENOLOCK;
@@ -1019,7 +1019,7 @@ flash_fs_status_t FLASH_LITTLEFS_Format()
 flash_fs_status_t FLASH_LITTLEFS_Rename(const char *oldName, const char *newName)
 {
     flash_fs_status_t ret = FLASH_FS_OK;
-    int32_t littlefs_res      = 0;
+    int32_t littlefs_res  = 0;
     file_meta_t file_meta;
 
     if ((oldName == NULL) || (newName == NULL))
@@ -1070,7 +1070,7 @@ flash_fs_status_t FLASH_LITTLEFS_Rename(const char *oldName, const char *newName
 
 flash_fs_status_t FLASH_LITTLEFS_Cleanup(uint32_t timeout_ms)
 {
-    flash_fs_status_t ret             = FLASH_FS_OK;
+    flash_fs_status_t ret                 = FLASH_FS_OK;
     int32_t littlefs_res                  = 0;
     uint32_t usedBlocks[LFS_SECTORS / 32] = {0};
     uint32_t startTime, currentTime, emptyBlocks;

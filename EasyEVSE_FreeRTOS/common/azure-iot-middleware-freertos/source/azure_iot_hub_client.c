@@ -60,6 +60,12 @@
 
 #define azureiothubMAX_SIZE_FOR_UINT32                 ( 10 )
 #define azureiothubHMACBufferLength                    ( 48 )
+
+#define OUTGOING_PUBLISH_COUNT 30
+#define INCOMING_PUBLISH_COUNT 30
+
+static MQTTPubAckInfo_t outgoingPublishes[OUTGOING_PUBLISH_COUNT];
+static MQTTPubAckInfo_t incomingPublishes[INCOMING_PUBLISH_COUNT];
 /*-----------------------------------------------------------*/
 
 /**
@@ -467,35 +473,39 @@ static AzureIoTResult_t prvWaitForSubAck( AzureIoTHubClient_t * pxAzureIoTHubCli
                                           uint32_t ulTimeoutMilliseconds )
 {
     AzureIoTResult_t xResult = eAzureIoTErrorSubackWaitTimeout;
-    uint32_t ulWaitTime;
+    AzureIoTMQTTResult_t mqttResult = eAzureIoTMQTTFailed;
+    int32_t remainingTime = ulTimeoutMilliseconds;
+    uint32_t max_loop_runs = 10000;
+
+    if (ulTimeoutMilliseconds < ((MQTT_SEND_TIMEOUT_MS + MQTT_RECV_POLLING_TIMEOUT_MS) * max_loop_runs))
+    {
+        remainingTime = (MQTT_SEND_TIMEOUT_MS + MQTT_RECV_POLLING_TIMEOUT_MS) * max_loop_runs;
+    }
 
     AZLogDebug( ( "Waiting for sub ack id: %d", pxContext->_internal.usMqttSubPacketID ) );
 
-    do
+    while ( (pxContext->_internal.usState != azureiothubTOPIC_SUBSCRIBE_STATE_SUBACK) && (remainingTime > 0) )
     {
-        if( pxContext->_internal.usState == azureiothubTOPIC_SUBSCRIBE_STATE_SUBACK )
-        {
-            xResult = eAzureIoTSuccess;
-            break;
-        }
+		if( (mqttResult = AzureIoTMQTT_ProcessLoop( &pxAzureIoTHubClient->_internal.xMQTTContext )) != eAzureIoTMQTTSuccess )
+		{
+			if ((mqttResult == eAzureIoTMQTTNeedMoreBytes) || (mqttResult == eAzureIoTMQTTNoDataAvailable))
+			{
+				/* Only a partial MQTT packet was received. Retry after a small delay.*/
+			}
+			else
+			{
+                xResult = eAzureIoTErrorFailed;
+                break;
+			}
+		}
+		else
+		{
+			xResult = eAzureIoTSuccess;
+		}
 
-        if( ulTimeoutMilliseconds > azureiothubSUBACK_WAIT_INTERVAL_MS )
-        {
-            ulTimeoutMilliseconds -= azureiothubSUBACK_WAIT_INTERVAL_MS;
-            ulWaitTime = azureiothubSUBACK_WAIT_INTERVAL_MS;
-        }
-        else
-        {
-            ulWaitTime = ulTimeoutMilliseconds;
-            ulTimeoutMilliseconds = 0;
-        }
-
-        if( AzureIoTMQTT_ProcessLoop( &pxAzureIoTHubClient->_internal.xMQTTContext, ulWaitTime ) != eAzureIoTMQTTSuccess )
-        {
-            xResult = eAzureIoTErrorFailed;
-            break;
-        }
-    } while( ulTimeoutMilliseconds );
+		vTaskDelay(sampleazureiotconfigPOLL_WAIT_INTERVAL_MS);
+		remainingTime -= sampleazureiotconfigPOLL_WAIT_INTERVAL_MS;
+    }
 
     if( pxContext->_internal.usState == azureiothubTOPIC_SUBSCRIBE_STATE_SUBACK )
     {
@@ -683,7 +693,9 @@ AzureIoTResult_t AzureIoTHubClient_Init( AzureIoTHubClient_t * pxAzureIoTHubClie
         /* Initialize AzureIoTMQTT library. */
         else if( ( xMQTTResult = AzureIoTMQTT_Init( &( pxAzureIoTHubClient->_internal.xMQTTContext ), pxTransportInterface,
                                                     prvGetTimeMs, prvEventCallback,
-                                                    pucNetworkBuffer, ulNetworkBufferLength ) ) != eAzureIoTMQTTSuccess )
+                                                    pucNetworkBuffer, ulNetworkBufferLength,
+                                                    outgoingPublishes, OUTGOING_PUBLISH_COUNT,
+                                                    incomingPublishes, INCOMING_PUBLISH_COUNT ) ) != eAzureIoTMQTTSuccess )
         {
             AZLogError( ( "Failed to initialize AzureIoTMQTT_Init: MQTT error=0x%08x", xMQTTResult ) );
             xResult = eAzureIoTErrorInitFailed;
@@ -789,6 +801,11 @@ AzureIoTResult_t AzureIoTHubClient_Connect( AzureIoTHubClient_t * pxAzureIoTHubC
             xConnectInfo.usUserNameLength = ( uint16_t ) xMQTTUserNameLength;
             xConnectInfo.usKeepAliveSeconds = azureiothubKEEP_ALIVE_TIMEOUT_SECONDS;
             xConnectInfo.usPasswordLength = ( uint16_t ) ulPasswordLength;
+
+            if (xConnectInfo.usPasswordLength == 0)
+            {
+                xConnectInfo.pcPassword = NULL;
+            }
 
             /* Send MQTT CONNECT packet to broker. Last Will and Testament is not used. */
             if( ( xMQTTResult = AzureIoTMQTT_Connect( &( pxAzureIoTHubClient->_internal.xMQTTContext ),
@@ -908,10 +925,9 @@ AzureIoTResult_t AzureIoTHubClient_SendTelemetry( AzureIoTHubClient_t * pxAzureI
 }
 /*-----------------------------------------------------------*/
 
-AzureIoTResult_t AzureIoTHubClient_ProcessLoop( AzureIoTHubClient_t * pxAzureIoTHubClient,
-                                                uint32_t ulTimeoutMilliseconds )
+AzureIoTResult_t AzureIoTHubClient_ProcessLoop( AzureIoTHubClient_t * pxAzureIoTHubClient )
 {
-    AzureIoTMQTTResult_t xMQTTResult;
+    AzureIoTMQTTResult_t xMQTTResult = eAzureIoTSuccess;
     AzureIoTResult_t xResult;
 
     if( pxAzureIoTHubClient == NULL )
@@ -919,17 +935,27 @@ AzureIoTResult_t AzureIoTHubClient_ProcessLoop( AzureIoTHubClient_t * pxAzureIoT
         AZLogError( ( "AzureIoTHubClient_ProcessLoop failed: invalid argument" ) );
         xResult = eAzureIoTErrorInvalidArgument;
     }
-    else if( ( xMQTTResult = AzureIoTMQTT_ProcessLoop( &( pxAzureIoTHubClient->_internal.xMQTTContext ),
-                                                       ulTimeoutMilliseconds ) ) != eAzureIoTMQTTSuccess )
-    {
-        AZLogError( ( "AzureIoTMQTT_ProcessLoop failed: ProcessLoopDuration=%u, MQTT error=0x%08x",
-                      ( uint16_t ) ulTimeoutMilliseconds, ( uint16_t ) xMQTTResult ) );
-        xResult = eAzureIoTErrorFailed;
-    }
     else
     {
-        xResult = eAzureIoTSuccess;
+        xMQTTResult = AzureIoTMQTT_ProcessLoop( &( pxAzureIoTHubClient->_internal.xMQTTContext ));
+        while (xMQTTResult != eAzureIoTMQTTSuccess)
+        {
+            if ((xMQTTResult == eAzureIoTMQTTNeedMoreBytes) || (xMQTTResult == eAzureIoTMQTTNoDataAvailable))
+            {
+                /* Only a partial MQTT packet was received. Retry after a small delay.*/
+                xMQTTResult = AzureIoTMQTT_ProcessLoop( &( pxAzureIoTHubClient->_internal.xMQTTContext ));
+            }
+            else
+            {
+                AZLogError(("AzureIoTMQTT_ProcessLoop failed: MQTT error=0x%08x", (uint16_t) xMQTTResult));
+                break;
+            }
+        }
     }
+
+    AZLogDebug( ( "AzureIoTMQTT_ProcessLoop result: xMQTTResult=%u", xMQTTResult));
+
+    xResult = (xMQTTResult == eAzureIoTMQTTSuccess) ? eAzureIoTSuccess : eAzureIoTErrorFailed;
 
     return xResult;
 }
@@ -938,7 +964,7 @@ AzureIoTResult_t AzureIoTHubClient_ProcessLoop( AzureIoTHubClient_t * pxAzureIoT
 AzureIoTResult_t AzureIoTHubClient_SubscribeCloudToDeviceMessage( AzureIoTHubClient_t * pxAzureIoTHubClient,
                                                                   AzureIoTHubClientCloudToDeviceMessageCallback_t xCallback,
                                                                   void * prvCallbackContext,
-                                                                  uint32_t ulTimeoutMilliseconds )
+																  uint32_t ulTimeoutMilliseconds )
 {
     AzureIoTMQTTSubscribeInfo_t xMqttSubscription = { 0 };
     AzureIoTMQTTResult_t xMQTTResult;
@@ -976,8 +1002,7 @@ AzureIoTResult_t AzureIoTHubClient_SubscribeCloudToDeviceMessage( AzureIoTHubCli
             pxContext->_internal.callbacks.xCloudToDeviceMessageCallback = xCallback;
             pxContext->_internal.pvCallbackContext = prvCallbackContext;
 
-            if( ( xResult = prvWaitForSubAck( pxAzureIoTHubClient, pxContext,
-                                              ulTimeoutMilliseconds ) ) != eAzureIoTSuccess )
+            if( ( xResult = prvWaitForSubAck( pxAzureIoTHubClient, pxContext, ulTimeoutMilliseconds ) ) != eAzureIoTSuccess )
             {
                 AZLogError( ( "Wait for cloud to device sub ack failed : error=0x%08x", xResult ) );
                 memset( pxContext, 0, sizeof( AzureIoTHubClientReceiveContext_t ) );
@@ -1072,8 +1097,7 @@ AzureIoTResult_t AzureIoTHubClient_SubscribeCommand( AzureIoTHubClient_t * pxAzu
             pxContext->_internal.callbacks.xCommandCallback = xCallback;
             pxContext->_internal.pvCallbackContext = prvCallbackContext;
 
-            if( ( xResult = prvWaitForSubAck( pxAzureIoTHubClient, pxContext,
-                                              ulTimeoutMilliseconds ) ) != eAzureIoTSuccess )
+            if( ( xResult = prvWaitForSubAck( pxAzureIoTHubClient, pxContext, ulTimeoutMilliseconds ) ) != eAzureIoTSuccess )
             {
                 AZLogError( ( "Wait for command sub ack failed: error=0x%08x", xResult ) );
                 memset( pxContext, 0, sizeof( AzureIoTHubClientReceiveContext_t ) );
@@ -1245,8 +1269,7 @@ AzureIoTResult_t AzureIoTHubClient_SubscribeProperties( AzureIoTHubClient_t * px
             pxContext->_internal.callbacks.xPropertiesCallback = xCallback;
             pxContext->_internal.pvCallbackContext = prvCallbackContext;
 
-            if( ( xResult = prvWaitForSubAck( pxAzureIoTHubClient, pxContext,
-                                              ulTimeoutMilliseconds ) ) != eAzureIoTSuccess )
+            if( ( xResult = prvWaitForSubAck( pxAzureIoTHubClient, pxContext, ulTimeoutMilliseconds ) ) != eAzureIoTSuccess )
             {
                 AZLogError( ( "Wait for properties sub ack failed: error=0x%08x", xResult ) );
                 memset( pxContext, 0, sizeof( AzureIoTHubClientReceiveContext_t ) );

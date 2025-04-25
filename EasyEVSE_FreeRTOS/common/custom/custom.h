@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 NXP
+ * Copyright 2023-2025 NXP
  * NXP Proprietary. This software is owned or controlled by NXP and may only be used strictly in
  * accordance with the applicable license terms. By expressly accepting such terms or by downloading, installing,
  * activating and/or otherwise using the software, you are agreeing that you have read, and that you agree to
@@ -15,9 +15,6 @@ extern "C" {
 
 #include "gui_guider.h"
 
-#define RED_LED       0xfc0702
-#define GREEEN_LED    0x40d440
-
 /**
  * @brief Create a demo application
  * @param None
@@ -29,7 +26,7 @@ void custom_init(lv_ui *ui);
  * @brief Load another screen and update widgets
  * @param *new_screen pointer to the screen that should be loaded
  * @return None
-*/
+ */
 void ui_ChangeScreen(lv_obj_t *new_screen);
 
 /**
@@ -45,6 +42,13 @@ void update_meter_data(void);
  * @return None
  */
 void read_NFC_UID(void);
+
+/*
+ * @brief This function is called when button stop_resume_btn is pressed
+ * @param None
+ * @return None
+ */
+void EVSE_Pause_Resume(void);
 
 #ifdef __cplusplus
 }

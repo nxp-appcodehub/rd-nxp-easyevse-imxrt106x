@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 NXP
+ * Copyright 2023-2025 NXP
  * NXP Proprietary. This software is owned or controlled by NXP and may only be used strictly in
  * accordance with the applicable license terms. By expressly accepting such terms or by downloading, installing,
  * activating and/or otherwise using the software, you are agreeing that you have read, and that you agree to comply
@@ -15,12 +15,12 @@
 #include "azure_iot_hub_client.h"
 #include "EVSE_ChargingProtocol.h"
 
-#define MAX_BATTERY_LEVEL     100
-#define EVSE_ID_MAX_SIZE      10
-#define METHOD_NAME_MAX_SIZE  21
+#define MAX_BATTERY_LEVEL    100
+#define EVSE_ID_MAX_SIZE     10
+#define METHOD_NAME_MAX_SIZE 24
 
-#define MAX_IRMS    800
-#define MAX_VRMS    600
+#define MAX_IRMS 800
+#define MAX_VRMS 600
 
 typedef enum
 {
@@ -51,35 +51,35 @@ typedef struct _meter_data
     float vrms; /* meter measured voltage */
     float wh;   /* meter measured power */
 
-    double Q;    /* meter measured  Re-Active Power  */
-    double S;    /* meter measured  Apparent Power   */
+    double Q;   /* meter measured  Re-Active Power  */
+    double S;   /* meter measured  Apparent Power   */
 
     uint8_t meterState;
-    const char *EVSE_ChargeState ; /* Charge state moves from A to D for charging and E..F for errors */
+    const char *EVSE_ChargeState;      /* Charge state moves from A to D for charging and E..F for errors */
     const char *EVSE_ChargingProtocol; /* BASIC or ISO15118 */
 } meter_data_t;
-
 
 /*! @brief Evse data structure. */
 typedef struct evse_data_t
 {
-    uint32_t EVSE_Temperature;      /* Current EVSE local temperature */
+    uint32_t EVSE_Temperature; /* Current EVSE local temperature */
     uint32_t EVSE_GridPowerLimit;
     uint32_t EVSE_Rating;
 
     uint32_t EVSE_Uptime;
-    float EVSE_ChargeCost;          /* Charge cost */
-    bool EVSE_IsCharging;           /* True if car is charging */
+    float EVSE_ChargeCost; /* Charge cost */
+    bool EVSE_IsCharging;  /* True if car is charging */
+    charging_directions_t EVSE_ChargingDirection;
     uint8_t SIGBRD_HW_version;
     uint8_t SIGBRD_SW_version_major;
     uint8_t SIGBRD_SW_version_minor;
     uint8_t SIGBRD_SW_version_bugfix;
     char EVSE_Id[EVSE_ID_MAX_SIZE]; /* EVSE ID */
     /* Charging station specifics */
-    double latitude;                /* Evse location latitude 51.50263*/
-    double longitude;               /* Evse location longitude -0.15087*/
-    double altitude;                /* Evse location altitude */
-    uint32_t stationFirmwareV;         /* RT1064 firmware version number */
+    double latitude;           /* Evse location latitude 51.50263*/
+    double longitude;          /* Evse location longitude -0.15087*/
+    double altitude;           /* Evse location altitude */
+    uint32_t stationFirmwareV; /* RT1064 firmware version number */
 } evse_data_t;
 
 typedef enum
@@ -126,23 +126,27 @@ const evse_data_t *EVSE_Meter_GetEVSEData(void);
 /**
  * @brief Get the firmware version running on the EVSE
  *
- * @return EVSE firmware version in format MMmmFF, where M = FIRMWARE_VERSION_MAJOR, m = FIRMWARE_VERSION_MINOR, F = FIRMWARE_VERSION_HOTFIX.
+ * @return EVSE firmware version in format MMmmFF, where M = FIRMWARE_VERSION_MAJOR, m = FIRMWARE_VERSION_MINOR, F =
+ * FIRMWARE_VERSION_HOTFIX.
  */
 uint32_t EVSE_Meter_GetFirmwareVersion(void);
 
 /**
  * @brief Parse e reply from a Meter device to obtain the I R P Q S
- * 
- * @param meter_reply buffer that contains raw data from the meter device 
+ *
+ * @param meter_reply buffer that contains raw data from the meter device
  * @param reply_size the size of the buffer
- * @param meter_data_t *parsed_meter_data 
+ * @param meter_data_t *parsed_meter_data
  * @param found_fileds filed which were found in the raw data stream
  */
-void EVSE_Meter_ParseMeterReply(uint8_t *meter_reply, uint32_t reply_size, meter_data_t *parsed_meter_data, uint32_t *found_fields);
+void EVSE_Meter_ParseMeterReply(uint8_t *meter_reply,
+                                uint32_t reply_size,
+                                meter_data_t *parsed_meter_data,
+                                uint32_t *found_fields);
 
 /**
  * @brief Update the meter data from an external source. This will force parameter calculation and UI update
- * 
+ *
  * @param new_meter_data pointer of the new meter data
  * @param fields_to_update fields data are valid in the new meter_data
  */
@@ -172,11 +176,15 @@ meter_status_t serialize_telemetry_action(uint8_t *buffer, uint32_t buffer_size,
  * Creates a json payload to answer a terminate charging command and updates the charging state on the metering board.
  * @param buffer         Pointer to the buffer where the payload is to be stored
  *        buffer_size    Size of the buffer where the payload is to be stored
+ *        is_terminate   True for a terminate charge command and false for a suspend charge command
  *        bytes_copied   Number of bytes successfully added to the buffer
  * @return kMeterStatus_Success on succes
  *         kMeterStatus_Fail on failure
  */
-meter_status_t serialize_terminate_charging(uint8_t *buffer, uint32_t buffer_size, uint32_t *bytes_copied);
+meter_status_t serialize_terminate_charging(uint8_t *buffer,
+                                            uint32_t buffer_size,
+                                            bool is_teminate,
+                                            uint32_t *bytes_copied);
 
 /**
  * Builds a json response message containing current local property settings.
@@ -191,12 +199,11 @@ meter_status_t serialize_reported_property(uint8_t *buffer, uint32_t buffer_size
 /**
  * Builds a json response message containing the properties that were updated locally to match the cloud settings.
  * @param status                An acknowledgment code that uses an HTTP status code (for success the status is 200)
- *        version               An acknowledgment version that refers to the version of the desired property (extracted from the corresponding cloud message)
- *        description           An acknowledgment description of the property update message
- *        PropertiesToUpdate    Byte that encodes the updated properties that need to be reported back to cloud
- *        buffer                Pointer to the buffer where the payload is to be stored
- *        buffer_size           Size of the buffer where the payload is to be stored
- *        bytes_copied          Number of bytes successfully added to the buffer
+ *        version               An acknowledgment version that refers to the version of the desired property (extracted
+ * from the corresponding cloud message) description           An acknowledgment description of the property update
+ * message PropertiesToUpdate    Byte that encodes the updated properties that need to be reported back to cloud buffer
+ * Pointer to the buffer where the payload is to be stored buffer_size           Size of the buffer where the payload is
+ * to be stored bytes_copied          Number of bytes successfully added to the buffer
  * @return kMeterStatus_Success on success
  *         kMeterStatus_Fail on failure
  */
@@ -215,12 +222,14 @@ meter_status_t serialize_reported_property_update(uint32_t status,
  * {"desired":{<list of properties with values>},"$version":value}.
  *
  * @param pxMessage [in]             Pointer to the property update message
- *        version   [out]            Pointer to the version of the desired property that was extracted from the parsed message
- *        toUpdate  [out]            Pointer to the properties updated according to the cloud message
+ *        version   [out]            Pointer to the version of the desired property that was extracted from the parsed
+ * message toUpdate  [out]            Pointer to the properties updated according to the cloud message
  * @return kMeterStatus_Success      on success
  *         kMeterStatus_Fail         on failure
  */
-meter_status_t do_property_update_locally(AzureIoTHubClientPropertiesResponse_t *pxMessage, uint32_t* version, uint8_t* toUpdate);
+meter_status_t do_property_update_locally(AzureIoTHubClientPropertiesResponse_t *pxMessage,
+                                          uint32_t *version,
+                                          uint8_t *toUpdate);
 
 /**
  * Parses a property request message and updates local values to match the cloud settings.

@@ -14,27 +14,9 @@
 #include "fsl_clock.h"
 #endif /* FSL_FEATURE_SOC_LPI2C_COUNT */
 
-#include "EVSE_Utils.h"
-
-#if defined(FSL_FEATURE_SOC_LPI2C_COUNT) && FSL_FEATURE_SOC_LPI2C_COUNT > 0
-
-#if defined(__GNUC__)
-#pragma GCC push_options
-#pragma GCC optimize("O0")
-#endif
-/* Select USB1 PLL (480 MHz) as master lpi2c clock source */
-#   define LPI2C_CLOCK_SOURCE_SELECT (0U)
-/* Clock divider for master lpi2c clock source */
-#   define LPI2C_CLOCK_SOURCE_DIVIDER (0U)
-/* Get frequency of lpi2c clock */
-#   define LPI2C_CLOCK_FREQUENCY ((CLOCK_GetFreq(kCLOCK_Usb1PllClk) / 8) / (LPI2C_CLOCK_SOURCE_DIVIDER + 1U))
-
-#   define AX_I2CM              LPI2C1
-#   define AX_LPI2C_CLK_SRC     LPI2C_CLOCK_FREQUENCY
-#   define AX_I2CM_IRQN         LPI2C1_IRQn
-#   define USE_LIP2C            1
-
-#endif /* FSL_FEATURE_SOC_LPI2C_COUNT */
+#if FSL_FEATURE_SOC_PIT_COUNT
+#include "fsl_pit.h"
+#endif /* FSL_FEATURE_SOC_PIT_COUNT */
 
 /*
  * Platform based definitions for Enable pin
@@ -43,7 +25,40 @@
  */
 
 #define SE05X_ENA_HOST_PORT BOARD_USER_LED_GPIO
-#define SE05X_ENA_HOST_PIN  11U
+#define SE05X_ENA_HOST_PIN  10U
+
+#if defined(FSL_FEATURE_SOC_LPI2C_COUNT) && FSL_FEATURE_SOC_LPI2C_COUNT > 0
+
+#if defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC optimize("O0")
+#endif
+
+/* Select USB1 PLL (480 MHz) as master lpi2c clock source */
+#define LPI2C_CLOCK_SOURCE_SELECT (0U)
+/* Clock divider for master lpi2c clock source */
+#define LPI2C_CLOCK_SOURCE_DIVIDER (0U)
+/* Get frequency of lpi2c clock */
+#define LPI2C_CLOCK_FREQUENCY ((CLOCK_GetFreq(kCLOCK_Usb1PllClk) / 8) / (LPI2C_CLOCK_SOURCE_DIVIDER + 1U))
+
+#define AX_I2CM          LPI2C1
+#define AX_LPI2C_CLK_SRC LPI2C_CLOCK_FREQUENCY
+#define AX_I2CM_IRQN     LPI2C1_IRQn
+#define USE_LIP2C        1
+
+#if defined(__GNUC__)
+#pragma GCC pop_options
+#endif
+
+#endif /* FSL_FEATURE_SOC_LPI2C_COUNT */
+
+#if FSL_FEATURE_SOC_PIT_COUNT
+#define SE_PIT_RESET_HANDLER PIT0_IRQHandler
+#define PIT_BASE_ADDR        PIT
+#define PIT_IRQ_ID           PIT_IRQn
+/* Get source clock for PIT driver */
+#define PIT_SOURCE_CLOCK CLOCK_GetFreq(kCLOCK_OscClk)
+#endif /* FSL_FEATURE_SOC_PIT_COUNT */
 
 /*
  * Where applicable, Configure the PINs on the Host

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 NXP
+ * Copyright 2023-2025 NXP
  * NXP Proprietary. This software is owned or controlled by NXP and may only be used strictly in
  * accordance with the applicable license terms. By expressly accepting such terms or by downloading, installing,
  * activating and/or otherwise using the software, you are agreeing that you have read, and that you agree to comply
@@ -51,17 +51,16 @@
 #define METER_LABEL_STRING_SIZE 3
 #define METER_VALUE_STRING_SIZE 7
 
-#define DOUBLE_DECIMAL_PLACE_DIGITS       (2)
+#define DOUBLE_DECIMAL_PLACE_DIGITS (2)
 
-#define MAX_EVSE_CURRENT                  (16)
+#define MAX_EVSE_CURRENT (16)
 
-#define GRID_UPDATE_BIT                    0x1
-#define TARIFF_RATE_UPDATE_BIT             0x2
-#define TARIFF_COST_UPDATE_BIT             0x4
+#define GRID_UPDATE_BIT        0x1
+#define TARIFF_RATE_UPDATE_BIT 0x2
+#define TARIFF_COST_UPDATE_BIT 0x4
 
-#define MAJOR_VERSION_MULTIPLIER           10000U
-#define MINOR_VERSION_MULTIPLIER           100U
-
+#define MAJOR_VERSION_MULTIPLIER 10000U
+#define MINOR_VERSION_MULTIPLIER 100U
 
 /*! @brief Properties data structure. */
 typedef struct _twin_property_data
@@ -85,15 +84,9 @@ SemaphoreHandle_t xMutexUart;
 static EventGroupHandle_t meter_event_flags = NULL;
 
 static const char *EVSE_LABEL_strings[6] = {
-        [METER_FIELD_IRMS]  = "[1]",
-        [METER_FIELD_VRMS]  = "[2]",
-        [METER_FIELD_WH]    = "[3]",
-        [METER_FIELD_STATE] = "[4]",
-        [METER_FIELD_Q]     = "[5]",
-        [METER_FIELD_S]     = "[6]"
-    };
-static const char *EVSE_CHARGE_STATE_strings[7] = {"Z", "A", "B", "C",
-        "D", "E", "F"};
+    [METER_FIELD_IRMS] = "[1]",  [METER_FIELD_VRMS] = "[2]", [METER_FIELD_WH] = "[3]",
+    [METER_FIELD_STATE] = "[4]", [METER_FIELD_Q] = "[5]",    [METER_FIELD_S] = "[6]"};
+static const char *EVSE_CHARGE_STATE_strings[7] = {"Z", "A", "B", "C", "D", "E", "F"};
 
 /* Telemetry */
 static const az_span telemetry_name_temperature      = AZ_SPAN_LITERAL_FROM_STR("Temperature");
@@ -119,37 +112,39 @@ static const az_span telemetry_name_energyrequested  = AZ_SPAN_LITERAL_FROM_STR(
 static const az_span telemetry_name_energydelivered  = AZ_SPAN_LITERAL_FROM_STR("EnergyDelivered");
 static const az_span telemetry_name_chargingprotocol = AZ_SPAN_LITERAL_FROM_STR("Protocol");
 static const az_span telemetry_name_ischarging       = AZ_SPAN_LITERAL_FROM_STR("IsCharging");
+static const az_span telemetry_name_chargedirection  = AZ_SPAN_LITERAL_FROM_STR("ChargeDirection");
 
 /* Twin properties */
-static const az_span property_name_gridpowerlimit  = AZ_SPAN_LITERAL_FROM_STR("GridPowerLimit");
-static const az_span property_name_tariffrate      = AZ_SPAN_LITERAL_FROM_STR("TariffRate");
-static const az_span property_name_tariffcost      = AZ_SPAN_LITERAL_FROM_STR("TariffCost");
+static const az_span property_name_gridpowerlimit = AZ_SPAN_LITERAL_FROM_STR("GridPowerLimit");
+static const az_span property_name_tariffrate     = AZ_SPAN_LITERAL_FROM_STR("TariffRate");
+static const az_span property_name_tariffcost     = AZ_SPAN_LITERAL_FROM_STR("TariffCost");
 
-/* Device command */
+/* Device commands */
 const char method_name_terminate[METHOD_NAME_MAX_SIZE] = "TerminateChargeCycle";
+const char method_name_suspend[METHOD_NAME_MAX_SIZE]   = "SuspendChargeCycle";
 
 /* Other information */
-const az_span method_status_name     = AZ_SPAN_LITERAL_FROM_STR("status");
-const az_span method_status_ok       = AZ_SPAN_LITERAL_FROM_STR("OK");
+const az_span method_status_name = AZ_SPAN_LITERAL_FROM_STR("status");
+const az_span method_status_ok   = AZ_SPAN_LITERAL_FROM_STR("OK");
 
-static const az_span desired_property_name              = AZ_SPAN_LITERAL_FROM_STR("desired");
-static const az_span desired_version_property_name      = AZ_SPAN_LITERAL_FROM_STR("$version");
+static const az_span desired_property_name         = AZ_SPAN_LITERAL_FROM_STR("desired");
+static const az_span desired_version_property_name = AZ_SPAN_LITERAL_FROM_STR("$version");
 
 static const az_span reported_value_property_name       = AZ_SPAN_LITERAL_FROM_STR("value");
 static const az_span reported_status_property_name      = AZ_SPAN_LITERAL_FROM_STR("ac");
 static const az_span reported_version_property_name     = AZ_SPAN_LITERAL_FROM_STR("av");
 static const az_span reported_description_property_name = AZ_SPAN_LITERAL_FROM_STR("ad");
 
-const az_span success_response_description    = AZ_SPAN_LITERAL_FROM_STR("success");
+const az_span success_response_description = AZ_SPAN_LITERAL_FROM_STR("success");
 
 /* Device data */
-static uint32_t evseRating          = 16;  /* Current rating of charging point in Amps*/
-static uint32_t chargingRate        = 0;   /* Actual kw in use */
+static uint32_t evseRating   = 16; /* Current rating of charging point in Amps*/
+static uint32_t chargingRate = 0;  /* Actual kw in use */
 #if (ENABLE_SIGBOARD == 1)
-static  uint32_t SIGBRD_HW_version        = INVALID_SIGBOARD_HW_VERSION;
-static  uint32_t SIGBRD_SW_version_major  = 0;
-static  uint32_t SIGBRD_SW_version_minor  = 0;
-static  uint32_t SIGBRD_SW_version_bugfix = 0;
+static uint32_t SIGBRD_HW_version        = INVALID_SIGBOARD_HW_VERSION;
+static uint32_t SIGBRD_SW_version_major  = 0;
+static uint32_t SIGBRD_SW_version_minor  = 0;
+static uint32_t SIGBRD_SW_version_bugfix = 0;
 #else
 static const uint8_t SIGBRD_HW_version        = 0;
 static const uint8_t SIGBRD_SW_version_major  = 0;
@@ -158,9 +153,9 @@ static const uint8_t SIGBRD_SW_version_bugfix = 0;
 #endif /* ENABLE_SIGBOARD */
 
 /* Various auxiliary variables */
-static char timeBuff[12]    = "00H:00M:00S";   /* Time remaining in iso8601 format */
-static char chargeStatus[2] = "D";             /* Charge state moves from A to D for charging and E..F for errors */
-//static char isCharging[4]   = "NO";            /* 'YES', if the station is charging, 'NO' if it doesn't */
+static char timeBuff[12]    = "00H:00M:00S"; /* Time remaining in iso8601 format */
+static char chargeStatus[2] = "D";           /* Charge state moves from A to D for charging and E..F for errors */
+// static char isCharging[4]   = "NO";            /* 'YES', if the station is charging, 'NO' if it doesn't */
 static char oldMeterState;
 az_span TimeStr;
 az_span StateStr;
@@ -187,58 +182,54 @@ static void meter_request_task(void *pvParameters);
  */
 static void meter_refresh_task(void *pvParameters);
 
-
 /*******************************************************************************
  * Code
  ******************************************************************************/
 
 static void EVSE_Meter_Data_Init(void)
 {
+    strcpy(evse_data.EVSE_Id, "10071856");                        /* Charging station SN as Hex string */
+    evse_data.latitude         = 51.50263;                        /* Evse location latitude 51.50263*/
+    evse_data.longitude        = -0.15087;                        /* Evse location longitude -0.15087*/
+    evse_data.altitude         = 0.0;                             /* Evse location altitude */
+    evse_data.stationFirmwareV = EVSE_Meter_GetFirmwareVersion(); /* RT1064 firmware version number */
 
-   strcpy(evse_data.EVSE_Id, "10071856");                         /* Charging station SN as Hex string */
-   evse_data.latitude         = 51.50263;                         /* Evse location latitude 51.50263*/
-   evse_data.longitude        = -0.15087;                         /* Evse location longitude -0.15087*/
-   evse_data.altitude         = 0.0;                              /* Evse location altitude */
-   evse_data.stationFirmwareV = EVSE_Meter_GetFirmwareVersion();  /* RT1064 firmware version number */
+    evse_data.EVSE_Temperature    = 25;
+    evse_data.EVSE_GridPowerLimit = 32;
+    evse_data.EVSE_Rating         = 16;
+    evse_data.EVSE_Uptime         = 0;
+    evse_data.EVSE_ChargeCost     = 0;     /* Charge cost */
+    evse_data.EVSE_IsCharging     = false; /* True if car is charging */
 
-   evse_data.EVSE_Temperature    = 25;
-   evse_data.EVSE_GridPowerLimit = 32;
-   evse_data.EVSE_Rating         = 16;
-   evse_data.EVSE_Uptime         = 0;
-   evse_data.EVSE_ChargeCost     = 0;     /* Charge cost */
-   evse_data.EVSE_IsCharging     = false; /* True if car is charging */
+    meter_data.irms             = 2.0;
+    meter_data.vrms             = 230.0;
+    meter_data.wh               = 890.0;
+    meter_data.Q                = 890.0;
+    meter_data.S                = 890.0;
+    meter_data.EVSE_ChargeState = NULL;
 
-   meter_data.irms = 2.0;
-   meter_data.vrms = 230.0;
-   meter_data.wh   = 890.0;
-   meter_data.Q    = 890.0;
-   meter_data.S    = 890.0;
-   meter_data.EVSE_ChargeState = NULL;
+    property_data.GridPowerLimit = 32;
+    property_data.TariffRate     = 0;
+    property_data.TariffCost     = 0.10;
+    property_data.updated        = 0x0;
 
-   property_data.GridPowerLimit = 32;
-   property_data.TariffRate     = 0;
-   property_data.TariffCost     = 0.10;
-   property_data.updated        = 0x0;
-
-   EVSE_ChargingProtocol_SetMaxCurrent(MIN(evse_data.EVSE_Rating, evse_data.EVSE_GridPowerLimit));
-
+    EVSE_ChargingProtocol_SetMaxCurrent(MIN(evse_data.EVSE_Rating, evse_data.EVSE_GridPowerLimit));
 }
 
 void EVSE_Meter_Init(void)
 {
-
 #if ((ENABLE_SIGBOARD == 0) || (METER_SIGBOARD_LPUART_SHARED == 0))
 
     lpuart_config_t uart_config;
     /* Set up Meter UART
-      * config.baudRate_Bps = 115200U;
-      * config.parityMode = kLPUART_ParityDisabled;
-      * config.stopBitCount = kLPUART_OneStopBit;
-      * config.txFifoWatermark = 0;
-      * config.rxFifoWatermark = 0;
-      * config.enableTx = false;
-      * config.enableRx = false;
-      */
+     * config.baudRate_Bps = 115200U;
+     * config.parityMode = kLPUART_ParityDisabled;
+     * config.stopBitCount = kLPUART_OneStopBit;
+     * config.txFifoWatermark = 0;
+     * config.rxFifoWatermark = 0;
+     * config.enableTx = false;
+     * config.enableRx = false;
+     */
     LPUART_GetDefaultConfig(&uart_config);
     uart_config.baudRate_Bps = 115200U;
     uart_config.enableTx     = true;
@@ -248,9 +239,8 @@ void EVSE_Meter_Init(void)
     rxIndex = 0;
 
     /* Enable on RX interrupt. */
-    LPUART_EnableInterrupts(METER_LPUART, kLPUART_RxDataRegFullInterruptEnable|kLPUART_RxOverrunInterruptEnable);
+    LPUART_EnableInterrupts(METER_LPUART, kLPUART_RxDataRegFullInterruptEnable | kLPUART_RxOverrunInterruptEnable);
     EnableIRQWithPriority(METER_LPUART_IRQn, 3);
-
 
     /* Create MuteX to handle UART access between Host and Meter */
     xMutexUart = xSemaphoreCreateMutex();
@@ -303,7 +293,7 @@ void METER_LPUART_IRQHandler(void)
     uart_status = LPUART_GetStatusFlags(METER_LPUART);
 
     /* Check overrun and clear if any. */
-    if ((kLPUART_RxOverrunFlag) & uart_status)
+    if ((kLPUART_RxOverrunFlag)&uart_status)
     {
         LPUART_ClearStatusFlags(METER_LPUART, kLPUART_RxOverrunFlag);
         /* Set meter_event_flags to signal overrun meter_refresh thread.  */
@@ -389,7 +379,6 @@ static void meter_request_task(void *pvParameters)
             pdFALSE,                                   /* Don't wait for both bits, either bit unblocks task. */
             pdMS_TO_TICKS(METER_REQUEST_INTERVAL_MS)); /* Block for a maximum of METER_REQUEST_INTERVAL_MS ms. */
 
-
         meter_send(command_all);
         request_data = true;
 
@@ -418,12 +407,12 @@ static void meter_refresh_task(void *pvParameters)
     {
         /* Wait for meter_event_flags which is set by the METER_LPUART_IRQHandler only when full packet received from
          * Meter. */
-        event_bits =
-            xEventGroupWaitBits(meter_event_flags,               /* The event group handle. */
-                                METER_FLAG | METER_OVERRUN_FLAG | METER_REFRESH_DATA, /* The bit pattern the event group is waiting for. */
-                                pdTRUE,                          /* The bit pattern will be cleared automatically. */
-                                pdFALSE,        /* Don't wait for both bits, either bit unblock task. */
-                                portMAX_DELAY); /* Block indefinitely to wait for the condition to be met. */
+        event_bits = xEventGroupWaitBits(
+            meter_event_flags,                                    /* The event group handle. */
+            METER_FLAG | METER_OVERRUN_FLAG | METER_REFRESH_DATA, /* The bit pattern the event group is waiting for. */
+            pdTRUE,                                               /* The bit pattern will be cleared automatically. */
+            pdFALSE,        /* Don't wait for both bits, either bit unblock task. */
+            portMAX_DELAY); /* Block indefinitely to wait for the condition to be met. */
 
         if ((event_bits & METER_OVERRUN_FLAG) == METER_OVERRUN_FLAG)
         {
@@ -450,15 +439,15 @@ static void meter_refresh_task(void *pvParameters)
                 EVSE_UI_SetEvent(EVSE_UI_ChargingSession);
             }
 
-            /* Trigger UI update */
-            EVSE_UI_SetEvent(EVSE_UI_TelemetryData);
-
             if (request_data == true)
             {
                 /* Announce telemetry data can be processed and sent to cloud */
                 EVSE_Cloud_TelemetryReadyEvent();
                 request_data = false;
             }
+
+            /* Trigger UI update */
+            EVSE_UI_SetEvent(EVSE_UI_TelemetryData);
         }
     }
 }
@@ -468,8 +457,8 @@ void EVSE_Set_MeterEvent(meter_events_t event)
     if (meter_event_flags != NULL)
     {
         BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-        BaseType_t xResult = pdFAIL;
-        uint32_t fromISR = __get_IPSR();
+        BaseType_t xResult                  = pdFAIL;
+        uint32_t fromISR                    = __get_IPSR();
 
         if (fromISR)
         {
@@ -493,12 +482,12 @@ void EVSE_Set_MeterEvent(meter_events_t event)
 static void convert_time_remaining(uint32_t timeToCharge)
 {
     uint32_t hhremain = 0; /* time remaining in hours */
-    uint8_t mmremain = 0; /* time remaining in minutes */
-    uint8_t ssremain = 0; /* time remaining in seconds */
+    uint8_t mmremain  = 0; /* time remaining in minutes */
+    uint8_t ssremain  = 0; /* time remaining in seconds */
 
-    char HHstr[3]    = "00";
-    char MMstr[3]    = "00";
-    char SSstr[3]    = "00";
+    char HHstr[3] = "00";
+    char MMstr[3] = "00";
+    char SSstr[3] = "00";
     char *searchptr;
 
     ssremain = (timeToCharge % 60);
@@ -556,7 +545,7 @@ const bool EVSE_Meter_CheckValidMeterData(void)
 {
     bool result = true;
 
-    if(meter_data.irms > MAX_IRMS)
+    if (meter_data.irms > MAX_IRMS)
     {
         result = false;
     }
@@ -575,12 +564,12 @@ const bool EVSE_Meter_CheckValidMeterData(void)
 const meter_data_t *EVSE_Meter_GetMeterData(void)
 {
     meter_data.EVSE_ChargeState = EVSE_ChargingProtocol_GetCPStateString();
-    if(EVSE_Meter_CheckValidMeterData())
+    if (EVSE_Meter_CheckValidMeterData())
     {
-        meter_data.S = meter_data.irms * meter_data.vrms;
-        double S_squre = pow(meter_data.S, 2);
+        meter_data.S    = meter_data.irms * meter_data.vrms;
+        double S_squre  = pow(meter_data.S, 2);
         double P_square = pow(meter_data.wh, 2);
-        meter_data.Q = sqrt(S_squre - P_square);
+        meter_data.Q    = sqrt(S_squre - P_square);
     }
     else
     {
@@ -593,20 +582,21 @@ const meter_data_t *EVSE_Meter_GetMeterData(void)
 const evse_data_t *EVSE_Meter_GetEVSEData(void)
 {
     static evse_data_t evse_data_copy;
-    evse_data_copy.EVSE_Temperature         = evse_data.EVSE_Temperature;
-    evse_data_copy.EVSE_GridPowerLimit      = property_data.GridPowerLimit;
-    evse_data_copy.EVSE_Rating              = evse_data.EVSE_Rating;
-    evse_data_copy.EVSE_Uptime              = EVSE_GetSecondsSinceBoot();
-    evse_data_copy.EVSE_ChargeCost          = evse_data.EVSE_ChargeCost;
-    evse_data_copy.EVSE_IsCharging          = EVSE_ChargingProtocol_isCharging();
+    evse_data_copy.EVSE_Temperature       = evse_data.EVSE_Temperature;
+    evse_data_copy.EVSE_GridPowerLimit    = property_data.GridPowerLimit;
+    evse_data_copy.EVSE_Rating            = evse_data.EVSE_Rating;
+    evse_data_copy.EVSE_Uptime            = EVSE_GetSecondsSinceBoot();
+    evse_data_copy.EVSE_ChargeCost        = evse_data.EVSE_ChargeCost;
+    evse_data_copy.EVSE_IsCharging        = EVSE_ChargingProtocol_isCharging();
+    evse_data_copy.EVSE_ChargingDirection = EVSE_ChargingProtocol_ChargingDirection();
 #if ENABLE_SIGBOARD
     if (SIGBRD_HW_version == INVALID_SIGBOARD_HW_VERSION)
     {
-        SIGBRD_GetGetHWVersion (&SIGBRD_HW_version);
+        SIGBRD_GetGetHWVersion(&SIGBRD_HW_version);
     }
     if (SIGBRD_SW_version_major == 0)
     {
-        SIGBRD_GetSWVersion (&SIGBRD_SW_version_major, &SIGBRD_SW_version_minor, &SIGBRD_SW_version_bugfix);
+        SIGBRD_GetSWVersion(&SIGBRD_SW_version_major, &SIGBRD_SW_version_minor, &SIGBRD_SW_version_bugfix);
     }
 #endif /* ENABLE_SIGBOARD */
     evse_data_copy.SIGBRD_HW_version        = SIGBRD_HW_version;
@@ -620,7 +610,8 @@ const evse_data_t *EVSE_Meter_GetEVSEData(void)
 
 uint32_t EVSE_Meter_GetFirmwareVersion(void)
 {
-    return (FIRMWARE_VERSION_MAJOR * MAJOR_VERSION_MULTIPLIER + FIRMWARE_VERSION_MINOR * MINOR_VERSION_MULTIPLIER + FIRMWARE_VERSION_HOTFIX);
+    return (FIRMWARE_VERSION_MAJOR * MAJOR_VERSION_MULTIPLIER + FIRMWARE_VERSION_MINOR * MINOR_VERSION_MULTIPLIER +
+            FIRMWARE_VERSION_HOTFIX);
 }
 
 void EVSE_Meter_SetMeterData(const meter_data_t *new_meter_data, uint32_t fields_to_update)
@@ -644,9 +635,9 @@ void EVSE_Meter_SetMeterData(const meter_data_t *new_meter_data, uint32_t fields
     }
     if ((fields_to_update & (1 << METER_FIELD_STATE)) == (1 << METER_FIELD_STATE))
     {
-        oldMeterState                = meter_data.meterState;
-        meter_data.meterState        = new_meter_data->meterState;
-        meter_data.EVSE_ChargeState  = new_meter_data->EVSE_ChargeState;
+        oldMeterState               = meter_data.meterState;
+        meter_data.meterState       = new_meter_data->meterState;
+        meter_data.EVSE_ChargeState = new_meter_data->EVSE_ChargeState;
     }
     if ((fields_to_update & (1 << METER_FIELD_Q)) == (1 << METER_FIELD_Q))
     {
@@ -663,7 +654,10 @@ void EVSE_Meter_SetMeterData(const meter_data_t *new_meter_data, uint32_t fields
     }
 }
 
-void EVSE_Meter_ParseMeterReply(uint8_t *meter_reply, uint32_t reply_size, meter_data_t *parsed_meter_data, uint32_t *found_fields)
+void EVSE_Meter_ParseMeterReply(uint8_t *meter_reply,
+                                uint32_t reply_size,
+                                meter_data_t *parsed_meter_data,
+                                uint32_t *found_fields)
 {
     uint32_t chartoprocess                       = reply_size;
     uint32_t len                                 = 0;
@@ -681,7 +675,6 @@ void EVSE_Meter_ParseMeterReply(uint8_t *meter_reply, uint32_t reply_size, meter
         *found_fields = 0;
         memset(parsed_meter_data, 0, sizeof(meter_data_t));
     }
-
 
     /* Set pointer to start of receiver array. */
     str_ptr = &meter_reply[0];
@@ -713,11 +706,11 @@ void EVSE_Meter_ParseMeterReply(uint8_t *meter_reply, uint32_t reply_size, meter
         }
         else if (strcmp(EVSE_LABEL_strings[METER_FIELD_STATE], data_label) == 0)
         {
-            parsed_meter_data->meterState  = ret / 1;
-            if ((parsed_meter_data->meterState  < 1) || (parsed_meter_data->meterState  > 6))
+            parsed_meter_data->meterState = ret / 1;
+            if ((parsed_meter_data->meterState < 1) || (parsed_meter_data->meterState > 6))
             {
                 parsed_meter_data->EVSE_ChargeState = EVSE_CHARGE_STATE_strings[0];
-                parsed_meter_data->meterState        = 0;
+                parsed_meter_data->meterState       = 0;
             }
             else
             {
@@ -738,9 +731,9 @@ void EVSE_Meter_ParseMeterReply(uint8_t *meter_reply, uint32_t reply_size, meter
         }
 
         /* Point to the next meter value. */
-        ptr            = ptr + METER_LABEL_STRING_SIZE;
-        str_ptr        = ptr;
-        chartoprocess  -= (len + METER_LABEL_STRING_SIZE);
+        ptr     = ptr + METER_LABEL_STRING_SIZE;
+        str_ptr = ptr;
+        chartoprocess -= (len + METER_LABEL_STRING_SIZE);
 
         if ((chartoprocess >= reply_size))
         {
@@ -767,7 +760,7 @@ meter_status_t serialize_telemetry_action_on_connect(uint8_t *buffer, uint32_t b
     StateStr = az_span_create_from_str(chargeStatus);
 
     /* Pack EVSE ID and vehicle ID. */
-    EvseStr  = az_span_create_from_str(evse_data.EVSE_Id);
+    EvseStr = az_span_create_from_str(evse_data.EVSE_Id);
 
     az_span buff_span = az_span_create(buffer, buffer_size);
 
@@ -820,8 +813,8 @@ meter_status_t serialize_telemetry_action(uint8_t *buffer, uint32_t buffer_size,
     az_span VehicleStr = az_span_create_from_str(vehicle_data->vehicleID);
 
     az_span ProtocolStr = az_span_create_from_str(vehicle_data->protocol);
-    az_span StateStr = az_span_create_from_str(chargeStatus);
-    az_span IsChrgStr = az_span_create_from_str(EVSE_ChargingProtocol_isChargingString());
+    az_span StateStr    = az_span_create_from_str(chargeStatus);
+    az_span IsChrgStr   = az_span_create_from_str(EVSE_ChargingProtocol_isChargingString());
 
     az_span AuthStr;
     if (vehicle_data->vehicleAuth == true)
@@ -831,6 +824,20 @@ meter_status_t serialize_telemetry_action(uint8_t *buffer, uint32_t buffer_size,
     else
     {
         AuthStr = az_span_create_from_str("FAIL");
+    }
+
+    az_span DirectionStr;
+    if (EVSE_ChargingProtocol_ChargingDirection() == EVSE_G2V)
+    {
+        DirectionStr = az_span_create_from_str("GridToVehicle");
+    }
+    else if (EVSE_ChargingProtocol_ChargingDirection() == EVSE_V2G)
+    {
+        DirectionStr = az_span_create_from_str("VehicleToGrid");
+    }
+    else if (EVSE_ChargingProtocol_ChargingDirection() == EVSE_NoChargingDirection)
+    {
+        DirectionStr = az_span_create_from_str("NoChargingDirection");
     }
 
     az_span buff_span = az_span_create(buffer, buffer_size);
@@ -865,11 +872,14 @@ meter_status_t serialize_telemetry_action(uint8_t *buffer, uint32_t buffer_size,
           az_result_succeeded(az_json_writer_append_string(&json_builder, IsChrgStr)) &&
           az_result_succeeded(az_json_writer_append_property_name(&json_builder, telemetry_name_chargestatus)) &&
           az_result_succeeded(az_json_writer_append_string(&json_builder, StateStr)) &&
+          az_result_succeeded(az_json_writer_append_property_name(&json_builder, telemetry_name_chargedirection)) &&
+          az_result_succeeded(az_json_writer_append_string(&json_builder, DirectionStr)) &&
 
           az_result_succeeded(az_json_writer_append_property_name(&json_builder, telemetry_name_chargerate)) &&
           az_result_succeeded(az_json_writer_append_int32(&json_builder, chargingRate)) &&
           az_result_succeeded(az_json_writer_append_property_name(&json_builder, telemetry_name_chargecost)) &&
-          az_result_succeeded(az_json_writer_append_double(&json_builder, evse_data.EVSE_ChargeCost, DOUBLE_DECIMAL_PLACE_DIGITS)) &&
+          az_result_succeeded(
+              az_json_writer_append_double(&json_builder, evse_data.EVSE_ChargeCost, DOUBLE_DECIMAL_PLACE_DIGITS)) &&
 
           az_result_succeeded(az_json_writer_append_property_name(&json_builder, telemetry_name_energyrequested)) &&
           az_result_succeeded(az_json_writer_append_int32(&json_builder, vehicle_data->requestedEnergy)) &&
@@ -902,7 +912,8 @@ meter_status_t serialize_reported_property(uint8_t *buffer, uint32_t buffer_size
         !az_result_failed(az_json_writer_append_property_name(&json_builder, property_name_gridpowerlimit)) &&
         !az_result_failed(az_json_writer_append_int32(&json_builder, property_data.GridPowerLimit)) &&
         !az_result_failed(az_json_writer_append_property_name(&json_builder, property_name_tariffcost)) &&
-        !az_result_failed(az_json_writer_append_double(&json_builder, property_data.TariffCost, DOUBLE_DECIMAL_PLACE_DIGITS)) &&
+        !az_result_failed(
+            az_json_writer_append_double(&json_builder, property_data.TariffCost, DOUBLE_DECIMAL_PLACE_DIGITS)) &&
         !az_result_failed(az_json_writer_append_property_name(&json_builder, property_name_tariffrate)) &&
         !az_result_failed(az_json_writer_append_int32(&json_builder, property_data.TariffRate)) &&
         !az_result_failed(az_json_writer_append_end_object(&json_builder)))
@@ -944,8 +955,7 @@ meter_status_t serialize_reported_property_update(uint32_t status,
         if (updateGrid > 0)
         {
             /* Add Grid Power Limit Property */
-            if (az_result_failed(
-                    az_json_writer_append_property_name(&json_builder, property_name_gridpowerlimit)) ||
+            if (az_result_failed(az_json_writer_append_property_name(&json_builder, property_name_gridpowerlimit)) ||
                 az_result_failed(az_json_writer_append_begin_object(&json_builder)) ||
                 az_result_failed(az_json_writer_append_property_name(&json_builder, reported_value_property_name)) ||
                 az_result_failed(az_json_writer_append_int32(&json_builder, property_data.GridPowerLimit)) ||
@@ -989,8 +999,7 @@ meter_status_t serialize_reported_property_update(uint32_t status,
         if (updateTariffCost > 0)
         {
             /* Add tariff cost Property */
-            if (az_result_failed(
-                    az_json_writer_append_property_name(&json_builder, property_name_tariffcost)) ||
+            if (az_result_failed(az_json_writer_append_property_name(&json_builder, property_name_tariffcost)) ||
                 az_result_failed(az_json_writer_append_begin_object(&json_builder)) ||
                 az_result_failed(az_json_writer_append_property_name(&json_builder, reported_value_property_name)) ||
                 az_result_failed(az_json_writer_append_double(&json_builder, property_data.TariffCost, 2)) ||
@@ -1029,10 +1038,12 @@ meter_status_t serialize_reported_property_update(uint32_t status,
 }
 
 /* Build json paylod to terminate charge cycle. */
-meter_status_t serialize_terminate_charging(uint8_t *buffer, uint32_t buffer_size, uint32_t *bytes_copied)
+meter_status_t serialize_terminate_charging(uint8_t *buffer,
+                                            uint32_t buffer_size,
+                                            bool is_terminate,
+                                            uint32_t *bytes_copied)
 {
     az_json_writer json_builder;
-    uint8_t command_state = 'A';
 
     az_span response = az_span_create(buffer, buffer_size);
 
@@ -1043,14 +1054,22 @@ meter_status_t serialize_terminate_charging(uint8_t *buffer, uint32_t buffer_siz
         az_result_succeeded(az_json_writer_append_string(&json_builder, method_status_ok)) &&
         az_result_succeeded(az_json_writer_append_end_object(&json_builder)))
     {
-        /* Update charging state in internal structure. */
-        meter_data.EVSE_ChargeState = EVSE_CHARGE_STATE_strings[1]; /* "A" */
+        if (is_terminate)
+        {
+            uint8_t command_state = 'A';
 
-        //TODO
+            /* Update charging state in internal structure. */
+            meter_data.EVSE_ChargeState = EVSE_CHARGE_STATE_strings[1]; /* "A" */
 
-        EVSE_ChargingProtocol_SetEvent(EVSE_Charging_EVSEStopCharging);
-        /* Send command to Meter board. */
-        meter_send(command_state);
+            EVSE_ChargingProtocol_SetEvent(EVSE_Charging_EVSEStopCharging);
+            /* Send command to Meter board. */
+            //    meter_send(command_state);
+        }
+        else
+        {
+            EVSE_ChargingProtocol_SetEvent(EVSE_Charging_EVSESuspendCharging);
+            EVSE_ChargingProtocol_SetChargingState(EVSE_ChargingPaused);
+        }
 
         *bytes_copied = (uint32_t)az_span_size(az_json_writer_get_bytes_used_in_destination(&json_builder));
         LOG_METERING(("%s", buffer));
@@ -1069,18 +1088,18 @@ static uint8_t evse_json_child_token_move(az_json_reader *json_reader, az_span p
 {
     while (az_result_succeeded(az_json_reader_next_token(json_reader)))
     {
-        if ((json_reader -> token.kind == AZ_JSON_TOKEN_PROPERTY_NAME) &&
-            az_json_token_is_text_equal(&(json_reader -> token), property_name))
+        if ((json_reader->token.kind == AZ_JSON_TOKEN_PROPERTY_NAME) &&
+            az_json_token_is_text_equal(&(json_reader->token), property_name))
         {
-           if (az_result_failed(az_json_reader_next_token(json_reader)))
-           {
-               configPRINTF((error("Failed to read next token\r\n")));
-               return 1;
-           }
+            if (az_result_failed(az_json_reader_next_token(json_reader)))
+            {
+                configPRINTF((error("Failed to read next token\r\n")));
+                return 1;
+            }
 
-           return 0;
+            return 0;
         }
-        else if (json_reader -> token.kind == AZ_JSON_TOKEN_BEGIN_OBJECT)
+        else if (json_reader->token.kind == AZ_JSON_TOKEN_BEGIN_OBJECT)
         {
             if (az_result_failed(az_json_reader_skip_children(json_reader)))
             {
@@ -1088,7 +1107,7 @@ static uint8_t evse_json_child_token_move(az_json_reader *json_reader, az_span p
                 return 1;
             }
         }
-        else if (json_reader -> token.kind == AZ_JSON_TOKEN_END_OBJECT)
+        else if (json_reader->token.kind == AZ_JSON_TOKEN_END_OBJECT)
         {
             return 1;
         }
@@ -1098,12 +1117,12 @@ static uint8_t evse_json_child_token_move(az_json_reader *json_reader, az_span p
 }
 
 /* Extracts the value of the version field. */
-static meter_status_t evse_get_version(const az_json_reader *json_reader, uint32_t* version)
+static meter_status_t evse_get_version(const az_json_reader *json_reader, uint32_t *version)
 {
     az_json_reader copy_json_reader = *json_reader;
 
     if (evse_json_child_token_move(&copy_json_reader, desired_version_property_name) ||
-           az_result_failed(az_json_token_get_int32(&(copy_json_reader.token), version)))
+        az_result_failed(az_json_token_get_int32(&(copy_json_reader.token), version)))
     {
         configPRINTF(("Failed to get version\r\n"));
         return kMeterStatus_Fail;
@@ -1133,7 +1152,7 @@ static meter_status_t evse_set_properties(const az_json_reader *json_reader)
 
     /* Update Grid Power Limit */
     if (!(evse_json_child_token_move(&copy_json_reader, property_name_gridpowerlimit)) &&
-            (!az_result_failed(az_json_token_get_int32(&(copy_json_reader.token), &parsed_int))))
+        (!az_result_failed(az_json_token_get_int32(&(copy_json_reader.token), &parsed_int))))
     {
         property_data.GridPowerLimit = parsed_int;
 
@@ -1159,7 +1178,7 @@ static meter_status_t evse_set_properties(const az_json_reader *json_reader)
 
     /* Update Tariff Rate */
     if (!(evse_json_child_token_move(&copy_json_reader, property_name_tariffrate)) &&
-            (!az_result_failed(az_json_token_get_int32(&(copy_json_reader.token), &parsed_int))))
+        (!az_result_failed(az_json_token_get_int32(&(copy_json_reader.token), &parsed_int))))
     {
         property_data.TariffRate = parsed_int;
         configPRINTF(("Updated tariff rate to %d", property_data.TariffRate));
@@ -1170,7 +1189,7 @@ static meter_status_t evse_set_properties(const az_json_reader *json_reader)
 
     /* Update Tariff Cost */
     if (!(evse_json_child_token_move(&copy_json_reader, property_name_tariffcost)) &&
-            (!az_result_failed(az_json_token_get_double(&(copy_json_reader.token), &parsed_float))))
+        (!az_result_failed(az_json_token_get_double(&(copy_json_reader.token), &parsed_float))))
     {
         property_data.TariffCost = parsed_float;
         configPRINTF(("Updated tariff cost to %.2f", property_data.TariffCost));
@@ -1196,12 +1215,14 @@ static meter_status_t evse_set_properties(const az_json_reader *json_reader)
  * token will fail as it is currently pointing at end of the slice. To overcome this
  * we use more than one json reader.
  */
-meter_status_t do_property_update_locally(AzureIoTHubClientPropertiesResponse_t *pxMessage, uint32_t* version, uint8_t* toUpdate)
+meter_status_t do_property_update_locally(AzureIoTHubClientPropertiesResponse_t *pxMessage,
+                                          uint32_t *version,
+                                          uint8_t *toUpdate)
 {
     az_json_reader json_reader;
     az_span twin_span;
     static uint32_t propertyUpdateVersion = 0;
-    meter_status_t status = kMeterStatus_Fail;
+    meter_status_t status                 = kMeterStatus_Fail;
 
     if ((pxMessage == NULL) || (version == NULL) || (toUpdate == NULL))
     {
@@ -1212,7 +1233,7 @@ meter_status_t do_property_update_locally(AzureIoTHubClientPropertiesResponse_t 
     twin_span = az_span_create((uint8_t *)pxMessage->pvMessagePayload, (uint32_t)pxMessage->ulPayloadLength);
 
     if (az_result_failed(az_json_reader_init(&json_reader, twin_span, NULL)) ||
-            az_result_failed(az_json_reader_next_token(&json_reader)))
+        az_result_failed(az_json_reader_next_token(&json_reader)))
     {
         configPRINTF((error("Failed to initialize json reader\r\n")));
         return kMeterStatus_Fail;
@@ -1260,7 +1281,6 @@ meter_status_t do_property_sync_locally(AzureIoTHubClientPropertiesResponse_t *p
     uint32_t version      = 0;
     meter_status_t status = kMeterStatus_Fail;
 
-
     if ((pxMessage == NULL))
     {
         configPRINTF(("Empty property message"));
@@ -1270,7 +1290,7 @@ meter_status_t do_property_sync_locally(AzureIoTHubClientPropertiesResponse_t *p
     twin_span = az_span_create((uint8_t *)pxMessage->pvMessagePayload, (uint32_t)pxMessage->ulPayloadLength);
 
     if (az_result_failed(az_json_reader_init(&json_reader, twin_span, NULL)) ||
-            az_result_failed(az_json_reader_next_token(&json_reader)))
+        az_result_failed(az_json_reader_next_token(&json_reader)))
     {
         configPRINTF(("Failed to initialize json reader"));
         return kMeterStatus_Fail;
@@ -1293,7 +1313,6 @@ meter_status_t do_property_sync_locally(AzureIoTHubClientPropertiesResponse_t *p
         configPRINTF(("Cloud has no properties to sync with. Will send the local properties"));
         return kMeterStatus_Success;
     }
-
 
     /* Set properties found in the remaining json slice. */
     status = evse_set_properties(&json_reader);

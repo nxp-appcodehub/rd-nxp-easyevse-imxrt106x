@@ -1,6 +1,5 @@
 /*
- * Copyright 2018-2019 NXP
- * All rights reserved.
+ * Copyright 2018-2019,2025 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -83,7 +82,10 @@ void BOARD_LPI2C_Init(LPI2C_Type *base, uint32_t clkSrc_Hz)
 {
     uint32_t instance                  = LPI2C_GetInstance(base);
     lpi2c_master_config_t masterConfig = {0};
-    EVSE_LPI2C_InitMutex(instance);
+    if (EVSE_LPI2C_InitMutex(instance) == EVSE_Peripheral_AlreadyInit)
+    {
+        return;
+    }
     EVSE_LPI2C_GetMutex(instance);
     /*
      * masterConfig.debugEnable = false;
@@ -102,6 +104,9 @@ void BOARD_LPI2C_Init(LPI2C_Type *base, uint32_t clkSrc_Hz)
 #else
     LPI2C_MasterInit(base, &masterConfig, clkSrc_Hz);
 #endif
+
+    LPI2C_MasterCheckAndClearError(base, LPI2C_MasterGetStatusFlags(base));
+
     EVSE_LPI2C_PostMutex(instance);
 }
 
@@ -467,12 +472,6 @@ uint32_t BOARD_GetMDIOClock(void)
     return CLOCK_GetFreq(kCLOCK_IpgClk);
 }
 
-void BOARD_InitModuleClock(void)
-{
-    const clock_enet_pll_config_t config = {.enableClkOutput = true, .enableClkOutput25M = false, .loopDivider = 1};
-    CLOCK_InitEnetPll(&config);
-}
-
 void BOARD_RelocateVectorTableToRam(void)
 {
     uint32_t n;
@@ -571,4 +570,21 @@ status_t BOARD_LPSPI_Exchange(LPSPI_Type *base, lpspi_transfer_t *transfer, uint
     }
 
     return status;
+}
+
+status_t BOARD_EnableETH()
+{
+    gpio_pin_config_t gpio_config        = {kGPIO_DigitalOutput, 0, kGPIO_NoIntmode};
+    const clock_enet_pll_config_t config_clock = {.enableClkOutput = true, .enableClkOutput25M = false, .loopDivider = 1};
+
+    CLOCK_InitEnetPll(&config_clock);
+    IOMUXC_EnableMode(IOMUXC_GPR, kIOMUXC_GPR_ENET1TxClkOutputDir, true);
+
+    GPIO_PinInit(BOARD_ENET_INT_GPIO, BOARD_ENET_INIT_PIN, &gpio_config);
+    GPIO_PinInit(BOARD_ENET_RESET_GPIO, BOARD_ENET_RESET_PIN, &gpio_config);
+    /* pull up the ENET_INT before RESET. */
+    GPIO_WritePinOutput(BOARD_ENET_INT_GPIO, BOARD_ENET_INIT_PIN, 1);
+    GPIO_WritePinOutput(BOARD_ENET_RESET_GPIO, BOARD_ENET_RESET_PIN, 0);
+    SDK_DelayAtLeastUs(10000, CLOCK_GetFreq(kCLOCK_CpuClk));
+    GPIO_WritePinOutput(BOARD_ENET_RESET_GPIO, BOARD_ENET_RESET_PIN, 1);
 }

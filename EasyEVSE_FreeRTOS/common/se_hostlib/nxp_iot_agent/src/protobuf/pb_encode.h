@@ -1,23 +1,23 @@
 /*
  * Copyright (c) 2011 Petteri Aimonen <jpa at nanopb.mail.kapsi.fi>
- *
- * This software is provided 'as-is', without any express or
- * implied warranty. In no event will the authors be held liable
+ * 
+ * This software is provided 'as-is', without any express or 
+ * implied warranty. In no event will the authors be held liable 
  * for any damages arising from the use of this software.
- *
- * Permission is granted to anyone to use this software for any
- * purpose, including commercial applications, and to alter it and
+ * 
+ * Permission is granted to anyone to use this software for any 
+ * purpose, including commercial applications, and to alter it and 
  * redistribute it freely, subject to the following restrictions:
- *
- * 1. The origin of this software must not be misrepresented; you
- *    must not claim that you wrote the original software. If you use
- *    this software in a product, an acknowledgment in the product
+ * 
+ * 1. The origin of this software must not be misrepresented; you 
+ *    must not claim that you wrote the original software. If you use 
+ *    this software in a product, an acknowledgment in the product 
  *    documentation would be appreciated but is not required.
- *
- * 2. Altered source versions must be plainly marked as such, and
+ * 
+ * 2. Altered source versions must be plainly marked as such, and 
  *    must not be misrepresented as being the original software.
- *
- * 3. This notice may not be removed or altered from any source
+ * 
+ * 3. This notice may not be removed or altered from any source 
  *    distribution.
  */
 
@@ -131,21 +131,16 @@ pb_ostream_t pb_ostream_from_buffer(pb_byte_t *buf, size_t bufsize);
  *    printf("Message size is %d\n", stream.bytes_written);
  */
 #ifndef PB_NO_ERRMSG
-#define PB_OSTREAM_SIZING \
-    {                     \
-        0, 0, 0, 0, 0     \
-    }
+#define PB_OSTREAM_SIZING {0,0,0,0,0}
 #else
-#define PB_OSTREAM_SIZING \
-    {                     \
-        0, 0, 0, 0        \
-    }
+#define PB_OSTREAM_SIZING {0,0,0,0}
 #endif
 
 /* Function to write into a pb_ostream_t stream. You can use this if you need
  * to append or prepend some custom headers to the message.
  */
 bool pb_write(pb_ostream_t *stream, const pb_byte_t *buf, size_t count);
+
 
 /************************************************
  * Helper functions for writing field callbacks *

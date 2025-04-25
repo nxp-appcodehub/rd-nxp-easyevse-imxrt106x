@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2015 - 2016, Freescale Semiconductor, Inc.
- * Copyright 2016 - 2017, 2024 NXP
+ * Copyright 2016 - 2017 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -23,7 +23,6 @@
 #include "usb_device_ch9.h"
 
 #include "usb_device_descriptor.h"
-#include "fsl_component_serial_port_usb.h"
 #include "virtual_com.h"
 #if (defined(FSL_FEATURE_SOC_SYSMPU_COUNT) && (FSL_FEATURE_SOC_SYSMPU_COUNT > 0U))
 #include "fsl_sysmpu.h"
@@ -31,6 +30,11 @@
 
 #if ((defined FSL_FEATURE_SOC_USBPHY_COUNT) && (FSL_FEATURE_SOC_USBPHY_COUNT > 0U))
 #include "usb_phy.h"
+#endif
+#if defined(FSL_FEATURE_USB_KHCI_KEEP_ALIVE_ENABLED) && (FSL_FEATURE_USB_KHCI_KEEP_ALIVE_ENABLED > 0U) && \
+    defined(USB_DEVICE_CONFIG_KEEP_ALIVE_MODE) && (USB_DEVICE_CONFIG_KEEP_ALIVE_MODE > 0U) &&             \
+    defined(FSL_FEATURE_USB_KHCI_USB_RAM) && (FSL_FEATURE_USB_KHCI_USB_RAM > 0U)
+extern uint8_t USB_EnterLowpowerMode(void);
 #endif
 /*******************************************************************************
  * Definitions
@@ -67,14 +71,13 @@ typedef struct _serial_usb_cdc_state
     volatile uint8_t attach; /* A flag to indicate whether a usb device is attached. 1: attached, 0: not attached */
     uint8_t speed;           /* Speed of USB device. USB_SPEED_FULL/USB_SPEED_LOW/USB_SPEED_HIGH.                 */
     volatile uint8_t
-        startTransactions; /* A flag to indicate whether a CDC device is ready to transmit and receive data.    */
+        startTransactions;   /* A flag to indicate whether a CDC device is ready to transmit and receive data.    */
     uint8_t currentConfiguration;                                           /* Current configuration value. */
     uint8_t currentInterfaceAlternateSetting[USB_CDC_VCOM_INTERFACE_COUNT]; /* Current alternate setting value for each
                                                                                interface. */
     uint8_t instance;                                                       /* The instance of the interface */
     uint8_t irqNumber;                                                      /* The IRQ number of the interface */
 } serial_usb_cdc_state_t;
-
 /*******************************************************************************
  * Prototypes
  ******************************************************************************/
@@ -85,6 +88,12 @@ void USB_DeviceIsrEnable(void);
 void USB_DeviceTaskFn(void *deviceHandle);
 #endif
 
+#if (defined(USB_DEVICE_CONFIG_LPCIP3511HS) && (USB_DEVICE_CONFIG_LPCIP3511HS > 0U))
+#if !((defined FSL_FEATURE_SOC_USBPHY_COUNT) && (FSL_FEATURE_SOC_USBPHY_COUNT > 0U))
+void USB_DeviceHsPhyChirpIssueWorkaround(void);
+void USB_DeviceDisconnected(void);
+#endif
+#endif
 void BOARD_DbgConsole_Deinit(void);
 void BOARD_DbgConsole_Init(void);
 usb_status_t USB_DeviceCdcVcomCallback(class_handle_t handle, uint32_t event, void *param);
@@ -140,92 +149,21 @@ static usb_device_class_config_list_struct_t s_cdcAcmConfigList = {
     1,
 };
 
+#if defined(FSL_FEATURE_USB_KHCI_KEEP_ALIVE_ENABLED) && (FSL_FEATURE_USB_KHCI_KEEP_ALIVE_ENABLED > 0U) && \
+    defined(USB_DEVICE_CONFIG_KEEP_ALIVE_MODE) && (USB_DEVICE_CONFIG_KEEP_ALIVE_MODE > 0U) &&             \
+    defined(FSL_FEATURE_USB_KHCI_USB_RAM) && (FSL_FEATURE_USB_KHCI_USB_RAM > 0U)
+volatile static uint8_t s_waitForDataReceive = 0;
+volatile static uint8_t s_comOpen            = 0;
+#endif
+
 static serial_usb_cdc_state_t *s_UsbCdcHead;
 
 /*******************************************************************************
  * Code
  ******************************************************************************/
 
-static usb_status_t USB_DeviceAddItem(serial_usb_cdc_state_t **head, serial_usb_cdc_state_t *node)
-{
-    serial_usb_cdc_state_t *p = *head;
-    uint32_t regPrimask;
-
-    regPrimask = DisableGlobalIRQ();
-
-    if (NULL == p)
-    {
-        *head = node;
-    }
-    else
-    {
-        while (NULL != p->next)
-        {
-            if (p == node)
-            {
-                EnableGlobalIRQ(regPrimask);
-                return kStatus_USB_Error;
-            }
-            p = p->next;
-        }
-
-        p->next = node;
-    }
-    node->next = NULL;
-    EnableGlobalIRQ(regPrimask);
-    return kStatus_USB_Success;
-}
-static usb_status_t USB_DeviceRemoveItem(serial_usb_cdc_state_t **head, serial_usb_cdc_state_t *node)
-{
-    serial_usb_cdc_state_t *p = *head;
-    serial_usb_cdc_state_t *q = NULL;
-    uint32_t regPrimask;
-
-    regPrimask = DisableGlobalIRQ();
-    while (NULL != p)
-    {
-        if (p == node)
-        {
-            if (NULL == q)
-            {
-                *head = p->next;
-            }
-            else
-            {
-                q->next = p->next;
-            }
-            break;
-        }
-        else
-        {
-            q = p;
-            p = p->next;
-        }
-    }
-    EnableGlobalIRQ(regPrimask);
-    return kStatus_USB_Success;
-}
-
 #if (defined(USB_DEVICE_CONFIG_EHCI) && (USB_DEVICE_CONFIG_EHCI > 0U))
-void USB_OTG2_IRQHandler(void);
-void USB_OTG2_IRQHandler(void)
-{
-    serial_usb_cdc_state_t *serialUsbCdc = s_UsbCdcHead;
-
-    while (NULL != serialUsbCdc)
-    {
-        if ((uint8_t)kSerialManager_UsbControllerEhci1 == serialUsbCdc->instance)
-        {
-            USB_DeviceEhciIsrFunction(serialUsbCdc->deviceHandle);
-        }
-        serialUsbCdc = serialUsbCdc->next;
-    }
-}
-#endif
-
-#if defined(USB_DEVICE_CONFIG_EHCI) && (USB_DEVICE_CONFIG_EHCI > 0U)
-void USBHS_IRQHandler(void);
-void USBHS_IRQHandler(void)
+void USB_OTG1_IRQHandler(void)
 {
     serial_usb_cdc_state_t *serialUsbCdc = s_UsbCdcHead;
 
@@ -238,6 +176,20 @@ void USBHS_IRQHandler(void)
         serialUsbCdc = serialUsbCdc->next;
     }
     SDK_ISR_EXIT_BARRIER;
+}
+
+void USB_OTG2_IRQHandler(void)
+{
+    serial_usb_cdc_state_t *serialUsbCdc = s_UsbCdcHead;
+
+    while (NULL != serialUsbCdc)
+    {
+        if ((uint8_t)kSerialManager_UsbControllerEhci1 == serialUsbCdc->instance)
+        {
+            USB_DeviceEhciIsrFunction(serialUsbCdc->deviceHandle);
+        }
+        serialUsbCdc = serialUsbCdc->next;
+    }
 }
 #endif
 
@@ -273,13 +225,13 @@ void USB_DeviceIsrEnable(void)
     NVIC_SetPriority((IRQn_Type)irqNumber, USB_DEVICE_INTERRUPT_PRIORITY);
     EnableIRQ((IRQn_Type)irqNumber);
 }
-
 #if USB_DEVICE_CONFIG_USE_TASK
 void USB_DeviceTaskFn(void *deviceHandle)
 {
     USB_DeviceEhciTaskFunction(deviceHandle);
 }
 #endif
+
 /*!
  * @brief CDC class specific callback function.
  *
@@ -308,46 +260,46 @@ usb_status_t USB_DeviceCdcVcomCallback(class_handle_t handle, uint32_t event, vo
     {
         case kUSB_DeviceCdcEventSendResponse:
         {
-        	if ((1 == s_UsbCdcHead->attach))
-        	{
-            if ((epCbParam->length != 0) &&
-                (0U == (epCbParam->length % g_UsbDeviceCdcVcomDicEndpoints[0].maxPacketSize)))
+            if ((1 == s_UsbCdcHead->attach))
             {
-                /* If the last packet is the size of endpoint, then send also zero-ended packet,
-                 ** meaning that we want to inform the host that we do not have any additional
-                 ** data, so it can flush the output.
-                 */
-                error = USB_DeviceCdcAcmSend(handle, USB_CDC_VCOM_BULK_IN_ENDPOINT, NULL, 0);
-            }
-            else
-            {
-                s_UsbCdcHead->tx.busy = 0;
-
-                if ((NULL != s_UsbCdcHead->tx.callback))
+                if ((epCbParam->length != 0) &&
+                    (0U == (epCbParam->length % g_UsbDeviceCdcVcomDicEndpoints[0].maxPacketSize)))
                 {
-                    serial_manager_callback_message_t msg;
-                    serial_manager_status_t serialManagerStatus = kStatus_SerialManager_Success;
-                    msg.buffer                                  = s_UsbCdcHead->tx.buffer;
-                    msg.length                                  = s_UsbCdcHead->tx.length;
-                    if (USB_UNINITIALIZED_VAL_32 == epCbParam->length)
+                    /* If the last packet is the size of endpoint, then send also zero-ended packet,
+                     ** meaning that we want to inform the host that we do not have any additional
+                     ** data, so it can flush the output.
+                     */
+                    error = USB_DeviceCdcAcmSend(handle, USB_CDC_VCOM_BULK_IN_ENDPOINT, NULL, 0);
+                }
+                else
+                {
+                    s_UsbCdcHead->tx.busy = 0;
+
+                    if ((NULL != s_UsbCdcHead->tx.callback))
                     {
-                         serialManagerStatus = kStatus_SerialManager_Canceled;
+                        serial_manager_callback_message_t msg;
+                        serial_manager_status_t serialManagerStatus = kStatus_SerialManager_Success;
+                        msg.buffer                                  = s_UsbCdcHead->tx.buffer;
+                        msg.length                                  = s_UsbCdcHead->tx.length;
+                        if (USB_UNINITIALIZED_VAL_32 == epCbParam->length)
+                        {
+                            serialManagerStatus = kStatus_SerialManager_Canceled;
+                        }
+                        s_UsbCdcHead->tx.callback(s_UsbCdcHead->tx.callbackParam, &msg, serialManagerStatus);
                     }
-                    s_UsbCdcHead->tx.callback(s_UsbCdcHead->tx.callbackParam, &msg, serialManagerStatus);
                 }
             }
-        }
         }
         break;
         case kUSB_DeviceCdcEventRecvResponse:
         {
-        	s_UsbCdcHead->rx.busy = 0U;
-        	if ((1 == s_UsbCdcHead->startTransactions))
-        	{
-        		serial_manager_status_t callbackStatus = kStatus_SerialManager_Success;
-        		serial_manager_callback_message_t msg;
-        		if ((NULL != s_UsbCdcHead->rx.callback))
-        		{
+            s_UsbCdcHead->rx.busy = 0U;
+            if ((1 == s_UsbCdcHead->startTransactions))
+            {
+                serial_manager_status_t callbackStatus = kStatus_SerialManager_Success;
+                serial_manager_callback_message_t msg;
+                if ((NULL != s_UsbCdcHead->rx.callback))
+                {
                     msg.buffer = epCbParam->buffer;
                     msg.length = epCbParam->length;
                     if (USB_UNINITIALIZED_VAL_32 == msg.length)
@@ -471,9 +423,9 @@ usb_status_t USB_DeviceCdcVcomCallback(class_handle_t handle, uint32_t event, vo
             acmInfo->serialStateBuf[1] = USB_DEVICE_CDC_NOTIF_SERIAL_STATE; /* bNotification */
             acmInfo->serialStateBuf[2] = 0x00;                              /* wValue */
             acmInfo->serialStateBuf[3] = 0x00;
-            acmInfo->serialStateBuf[4] = 0x00; /* wIndex */
+            acmInfo->serialStateBuf[4] = 0x00;                              /* wIndex */
             acmInfo->serialStateBuf[5] = 0x00;
-            acmInfo->serialStateBuf[6] = UART_BITMAP_SIZE; /* wLength */
+            acmInfo->serialStateBuf[6] = UART_BITMAP_SIZE;                  /* wLength */
             acmInfo->serialStateBuf[7] = 0x00;
             /* Notify to host the line state */
             acmInfo->serialStateBuf[4] = acmReqParam->interfaceIndex;
@@ -506,7 +458,7 @@ usb_status_t USB_DeviceCdcVcomCallback(class_handle_t handle, uint32_t event, vo
 
             if (1U == s_UsbCdcHead->attach)
             {
-            	s_UsbCdcHead->startTransactions = 1;
+                s_UsbCdcHead->startTransactions = 1;
             }
             error = kStatus_USB_Success;
         }
@@ -541,9 +493,19 @@ usb_status_t USB_DeviceCallback(usb_device_handle handle, uint32_t event, void *
     {
         case kUSB_DeviceEventBusReset:
         {
-        	s_UsbCdcHead->attach               = 0;
-        	s_UsbCdcHead->currentConfiguration = 0U;
-            error                          = kStatus_USB_Success;
+            s_UsbCdcHead->attach               = 0;
+            s_UsbCdcHead->currentConfiguration = 0U;
+            error                              = kStatus_USB_Success;
+
+#if (defined(USB_DEVICE_CONFIG_LPCIP3511HS) && (USB_DEVICE_CONFIG_LPCIP3511HS > 0U))
+#if !((defined FSL_FEATURE_SOC_USBPHY_COUNT) && (FSL_FEATURE_SOC_USBPHY_COUNT > 0U))
+            /* The work-around is used to fix the HS device Chirping issue.
+             * Please refer to the implementation for the detail information.
+             */
+            USB_DeviceHsPhyChirpIssueWorkaround();
+#endif
+#endif
+
 #if (defined(USB_DEVICE_CONFIG_EHCI) && (USB_DEVICE_CONFIG_EHCI > 0U)) || \
     (defined(USB_DEVICE_CONFIG_LPCIP3511HS) && (USB_DEVICE_CONFIG_LPCIP3511HS > 0U))
             /* Get USB speed to configure the device, including max packet size and interval of the endpoints. */
@@ -554,17 +516,29 @@ usb_status_t USB_DeviceCallback(usb_device_handle handle, uint32_t event, void *
 #endif
         }
         break;
+#if (defined(USB_DEVICE_CONFIG_DETACH_ENABLE) && (USB_DEVICE_CONFIG_DETACH_ENABLE > 0U))
+        case kUSB_DeviceEventDetach:
+        {
+#if (defined(USB_DEVICE_CONFIG_LPCIP3511HS) && (USB_DEVICE_CONFIG_LPCIP3511HS > 0U))
+#if !((defined FSL_FEATURE_SOC_USBPHY_COUNT) && (FSL_FEATURE_SOC_USBPHY_COUNT > 0U))
+            USB_DeviceDisconnected();
+#endif
+#endif
+            error = kStatus_USB_Success;
+        }
+        break;
+#endif
         case kUSB_DeviceEventSetConfiguration:
             if (0U == (*temp8))
             {
-            	s_UsbCdcHead->attach               = 0;
-            	s_UsbCdcHead->currentConfiguration = 0U;
+                s_UsbCdcHead->attach               = 0;
+                s_UsbCdcHead->currentConfiguration = 0U;
                 error                              = kStatus_USB_Success;
             }
             else if (USB_CDC_VCOM_CONFIGURE_INDEX == (*temp8))
             {
-            	s_UsbCdcHead->attach               = 1;
-            	s_UsbCdcHead->currentConfiguration = *temp8;
+                s_UsbCdcHead->attach               = 1;
+                s_UsbCdcHead->currentConfiguration = *temp8;
                 error                              = kStatus_USB_Success;
                 /* Schedule buffer for receive */
                 USB_DeviceCdcAcmRecv(s_UsbCdcHead->cdcAcmHandle, USB_CDC_VCOM_BULK_OUT_ENDPOINT, s_currRecvBuf,
@@ -584,7 +558,7 @@ usb_status_t USB_DeviceCallback(usb_device_handle handle, uint32_t event, void *
                 {
                     if (alternateSetting < USB_CDC_VCOM_COMM_INTERFACE_ALTERNATE_COUNT)
                     {
-                    	s_UsbCdcHead->currentInterfaceAlternateSetting[interface] = alternateSetting;
+                        s_UsbCdcHead->currentInterfaceAlternateSetting[interface] = alternateSetting;
                         error                                                     = kStatus_USB_Success;
                     }
                 }
@@ -592,7 +566,7 @@ usb_status_t USB_DeviceCallback(usb_device_handle handle, uint32_t event, void *
                 {
                     if (alternateSetting < USB_CDC_VCOM_DATA_INTERFACE_ALTERNATE_COUNT)
                     {
-                    	s_UsbCdcHead->currentInterfaceAlternateSetting[interface] = alternateSetting;
+                        s_UsbCdcHead->currentInterfaceAlternateSetting[interface] = alternateSetting;
                         error                                                     = kStatus_USB_Success;
                     }
                 }
@@ -678,6 +652,67 @@ void USB_DeviceTask(void *handle)
 }
 #endif
 
+static usb_status_t USB_DeviceAddItem(serial_usb_cdc_state_t **head, serial_usb_cdc_state_t *node)
+{
+    serial_usb_cdc_state_t *p = *head;
+    uint32_t regPrimask;
+
+    regPrimask = DisableGlobalIRQ();
+
+    if (NULL == p)
+    {
+        *head = node;
+    }
+    else
+    {
+        while (NULL != p->next)
+        {
+            if (p == node)
+            {
+                EnableGlobalIRQ(regPrimask);
+                return kStatus_USB_Error;
+            }
+            p = p->next;
+        }
+
+        p->next = node;
+    }
+    node->next = NULL;
+    EnableGlobalIRQ(regPrimask);
+    return kStatus_USB_Success;
+}
+
+static usb_status_t USB_DeviceRemoveItem(serial_usb_cdc_state_t **head, serial_usb_cdc_state_t *node)
+{
+    serial_usb_cdc_state_t *p = *head;
+    serial_usb_cdc_state_t *q = NULL;
+    uint32_t regPrimask;
+
+    regPrimask = DisableGlobalIRQ();
+    while (NULL != p)
+    {
+        if (p == node)
+        {
+            if (NULL == q)
+            {
+                *head = p->next;
+            }
+            else
+            {
+                q->next = p->next;
+            }
+            break;
+        }
+        else
+        {
+            q = p;
+            p = p->next;
+        }
+    }
+    EnableGlobalIRQ(regPrimask);
+    return kStatus_USB_Success;
+}
+
 static void USB_DeviceIsrEnable_SerialUsbCdc(serial_usb_cdc_state_t *serialUsbCdc)
 {
 #if defined(USB_DEVICE_CONFIG_EHCI) && (USB_DEVICE_CONFIG_EHCI > 0U)
@@ -740,7 +775,6 @@ serial_manager_status_t Serial_UsbCdcInit(serial_handle_t serialHandle, void *co
     }
     else
     {
-        usb_echo("USB device class initialized\r\n");
         serialUsbCdc->cdcAcmHandle = s_cdcAcmConfigList.config->classHandle;
     }
 
@@ -790,20 +824,6 @@ serial_manager_status_t Serial_UsbCdcWrite(serial_handle_t serialHandle, uint8_t
     {
         return kStatus_SerialManager_Busy;
     }
-
-#if (defined(USB_CDC_SERIAL_MANAGER_RUN_NO_HOST) && (USB_CDC_SERIAL_MANAGER_RUN_NO_HOST == 1))
-    /* Prevents SerialManager_Write from blocking when no USB Host is attached */
-    if ((serialUsbCdc->attach == 0U))
-    {
-        return kStatus_SerialManager_NotConnected;
-    }
-
-    /* Prevents SerialManager_Write from blocking when USB Host is attached but CDC terminal is closed */
-    if ((serialUsbCdc->attach == 1U) && (serialUsbCdc->startTransactions == 0U))
-    {
-        return kStatus_SerialManager_NotConnected;
-    }
-#endif /* USB_CDC_SERIAL_MANAGER_RUN_NO_HOST == 1 */
 
     serialUsbCdc->tx.busy          = 1U;
     serialUsbCdc->tx.waiting4Prime = 0U;
@@ -898,6 +918,38 @@ serial_manager_status_t Serial_UsbCdcCancelWrite(serial_handle_t serialHandle)
     return kStatus_SerialManager_Success;
 }
 
+serial_manager_status_t Serial_UsbCdcInstallTxCallback(serial_handle_t serialHandle,
+                                                       serial_manager_callback_t callback,
+                                                       void *callbackParam)
+{
+    serial_usb_cdc_state_t *serialUsbCdc;
+
+    assert(serialHandle);
+
+    serialUsbCdc = (serial_usb_cdc_state_t *)serialHandle;
+
+    serialUsbCdc->tx.callback      = callback;
+    serialUsbCdc->tx.callbackParam = callbackParam;
+
+    return kStatus_SerialManager_Success;
+}
+
+serial_manager_status_t Serial_UsbCdcInstallRxCallback(serial_handle_t serialHandle,
+                                                       serial_manager_callback_t callback,
+                                                       void *callbackParam)
+{
+    serial_usb_cdc_state_t *serialUsbCdc;
+
+    assert(serialHandle);
+
+    serialUsbCdc = (serial_usb_cdc_state_t *)serialHandle;
+
+    serialUsbCdc->rx.callback      = callback;
+    serialUsbCdc->rx.callbackParam = callbackParam;
+
+    return kStatus_SerialManager_Success;
+}
+
 void Serial_UsbCdcIsrFunction(serial_handle_t serialHandle)
 {
     serial_usb_cdc_state_t *serialUsbCdc;
@@ -943,34 +995,16 @@ void Serial_UsbCdcIsrFunction(serial_handle_t serialHandle)
 #endif
 }
 
-serial_manager_status_t Serial_UsbCdcInstallTxCallback(serial_handle_t serialHandle,
-                                                       serial_manager_callback_t callback,
-                                                       void *callbackParam)
+serial_manager_status_t Serial_UsbCdcGetConnectedStatus(serial_handle_t serialHandle)
 {
+#if (defined(USB_CDC_SERIAL_MANAGER_RUN_NO_HOST) && (USB_CDC_SERIAL_MANAGER_RUN_NO_HOST == 1))
     serial_usb_cdc_state_t *serialUsbCdc;
-
     assert(serialHandle);
-
     serialUsbCdc = (serial_usb_cdc_state_t *)serialHandle;
-
-    serialUsbCdc->tx.callback      = callback;
-    serialUsbCdc->tx.callbackParam = callbackParam;
-
+    return ((serialUsbCdc->attach == 1U) && (serialUsbCdc->startTransactions == 1U)) ?
+               kStatus_SerialManager_Success :
+               kStatus_SerialManager_NotConnected;
+#else /* USB_CDC_SERIAL_MANAGER_RUN_NO_HOST == 1 */
     return kStatus_SerialManager_Success;
-}
-
-serial_manager_status_t Serial_UsbCdcInstallRxCallback(serial_handle_t serialHandle,
-                                                       serial_manager_callback_t callback,
-                                                       void *callbackParam)
-{
-    serial_usb_cdc_state_t *serialUsbCdc;
-
-    assert(serialHandle);
-
-    serialUsbCdc = (serial_usb_cdc_state_t *)serialHandle;
-
-    serialUsbCdc->rx.callback      = callback;
-    serialUsbCdc->rx.callbackParam = callbackParam;
-
-    return kStatus_SerialManager_Success;
+#endif
 }

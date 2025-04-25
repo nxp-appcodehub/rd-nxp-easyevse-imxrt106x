@@ -52,7 +52,7 @@
 #define BOARD_UART_IRQ_HANDLER LPUART1_IRQHandler
 #endif
 #ifndef BOARD_DEBUG_UART_BAUDRATE
-#define BOARD_DEBUG_UART_BAUDRATE (115200U)
+#define BOARD_DEBUG_UART_BAUDRATE (230400U)
 #endif
 
 /*! @brief The USER_LED used for board */
@@ -76,8 +76,11 @@
                   0x1 ^ GPIO_PinRead(BOARD_USER_LED_GPIO, BOARD_USER_LED_GPIO_PIN)) /*!< Toggle target USER_LED */
 
 /*! @brief Define the port interrupt number for the board switches */
+#ifndef BOARD_USER_BUTTON_GPIO_PORT
+#define BOARD_USER_BUTTON_GPIO_PORT (5U)
+#endif
 #ifndef BOARD_USER_BUTTON_GPIO
-#define BOARD_USER_BUTTON_GPIO GPIO5
+#define BOARD_USER_BUTTON_GPIO GPIO_BASE_PTRS[BOARD_USER_BUTTON_GPIO_PORT]
 #endif
 #ifndef BOARD_USER_BUTTON_GPIO_PIN
 #define BOARD_USER_BUTTON_GPIO_PIN (0U)
@@ -88,9 +91,6 @@
 
 /*! @brief The board flash size */
 #define BOARD_FLASH_SIZE (0x800000U)
-
-/*! @brief The ENET PHY address. */
-#define BOARD_ENET0_PHY_ADDRESS (0x02U) /* Phy address of enet port 0. */
 
 /* USB PHY condfiguration */
 #define BOARD_USB_PHY_D_CAL     (0x0CU)
@@ -266,6 +266,22 @@
 #define FS_SIZE 0x100000
 #endif
 
+/* Ethernet configuration. */
+
+/*! @brief The ENET PHY address. */
+#define BOARD_ENET0_PHY_ADDRESS (0x02U) /* Phy address of enet port 0. */
+
+#define BOARD_ENET_INT_GPIO     (GPIO1)
+#define BOARD_ENET_INIT_PIN     (10U)
+#define BOARD_ENET_RESET_GPIO   (GPIO1)
+#define BOARD_ENET_RESET_PIN    (9U)
+
+#define EVSE_ETH_ENET         ENET
+#define EVSE_ETH_PHY_ADDRESS  BOARD_ENET0_PHY_ADDRESS
+#define EVSE_ETH_PHY_OPS      &phyksz8081_ops
+#define EVSE_ETH_PHY_RESOURCE &s_phy_resource
+#define EVSE_ETH_CLOCK_FREQ   CLOCK_GetFreq(kCLOCK_IpgClk)
+
 #if defined(__cplusplus)
 extern "C" {
 #endif /* __cplusplus */
@@ -334,8 +350,6 @@ void BOARD_RelocateVectorTableToRam(void);
 /* return the ENET MDIO interface clock frequency */
 uint32_t BOARD_GetMDIOClock(void);
 
-void BOARD_InitModuleClock(void);
-
 /**
  * @brief Init the LPSPI for a Multithread system
  * 
@@ -362,6 +376,12 @@ status_t BOARD_LPSPI_Exchange(LPSPI_Type *base, lpspi_transfer_t *transfer, uint
  * @return status_t
  */
 status_t BOARD_LPSPI_ReserveExchange(LPSPI_Type *base, uint8_t reserve);
+
+/**
+ * @brief Activate the ETH interface
+ *
+ */
+status_t BOARD_EnableETH();
 
 #define BOARD_SDRAM_ALIGN(var, alignbytes) \
     __attribute__((section("Boardsdram,\"aw\",%nobits @"))) var __attribute__((aligned(alignbytes)))

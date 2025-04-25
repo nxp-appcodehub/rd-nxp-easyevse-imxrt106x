@@ -77,7 +77,7 @@
 /**
  * The maximum number of services per netif
  * recommended to be two times greater than number of matter fabrics supported
-*/
+ */
 #ifndef MDNS_MAX_SERVICES
 #define MDNS_MAX_SERVICES 10
 #endif
@@ -87,7 +87,8 @@
 #define LWIP_MDNS_SEARCH 0
 #endif
 
-/* Provide strncasecmp to lwIP so it does not provide it's own lwip_strnicmp implementation along the strncasecmp from toolchain */
+/* Provide strncasecmp to lwIP so it does not provide it's own lwip_strnicmp implementation along the strncasecmp from
+ * toolchain */
 #ifndef lwip_strnicmp
 #define lwip_strnicmp strncasecmp
 #endif
@@ -303,7 +304,7 @@ void sys_mark_tcpip_thread(void);
 #endif
 
 #ifndef SNTP_SERVER_DNS
-#define SNTP_SERVER_DNS   1
+#define SNTP_SERVER_DNS 1
 #endif
 
 #ifndef SNTP_SET_SYSTEM_TIME
@@ -324,7 +325,7 @@ Some MCU allow computing and verifying the IP, UDP, TCP and ICMP checksums by ha
  - To use this feature let the following define uncommented.
  - To disable it and process by CPU comment the  the checksum.
 */
-//#define CHECKSUM_BY_HARDWARE
+// #define CHECKSUM_BY_HARDWARE
 
 #ifdef CHECKSUM_BY_HARDWARE
 /* CHECKSUM_GEN_IP==0: Generate checksums by hardware for outgoing IP packets.*/
@@ -380,44 +381,44 @@ Some MCU allow computing and verifying the IP, UDP, TCP and ICMP checksums by ha
 
 /* Define list logs enable */
 #define MEMP_OVERFLOW_CHECK (0)
-#define MEMP_SANITY_CHECK (0)
-#define MDNS_DEBUG (LWIP_DBG_OFF)
-#define MEM_DEBUG (LWIP_DBG_OFF)
-#define MEMP_DEBUG (LWIP_DBG_OFF)
-#define PBUF_DEBUG (LWIP_DBG_OFF)
-#define API_LIB_DEBUG (LWIP_DBG_OFF)
-#define API_MSG_DEBUG (LWIP_DBG_OFF)
-#define TCPIP_DEBUG (LWIP_DBG_OFF)
-#define NETIF_DEBUG (LWIP_DBG_OFF)
-#define SOCKETS_DEBUG (LWIP_DBG_OFF)
-#define DEMO_DEBUG (LWIP_DBG_OFF)
-#define DHCP_DEBUG (LWIP_DBG_OFF)
-#define AUTOIP_DEBUG (LWIP_DBG_OFF)
-#define ETHARP_DEBUG (LWIP_DBG_OFF)
-#define IP_DEBUG (LWIP_DBG_OFF)
-#define IP_REASS_DEBUG (LWIP_DBG_OFF)
-#define IP6_DEBUG (LWIP_DBG_OFF)
-#define RAW_DEBUG (LWIP_DBG_OFF)
-#define ICMP_DEBUG (LWIP_DBG_OFF)
-#define UDP_DEBUG (LWIP_DBG_OFF)
-#define TCP_DEBUG (LWIP_DBG_OFF)
-#define TCP_INPUT_DEBUG (LWIP_DBG_OFF)
-#define TCP_OUTPUT_DEBUG (LWIP_DBG_OFF)
-#define TCP_RTO_DEBUG (LWIP_DBG_OFF)
-#define TCP_CWND_DEBUG (LWIP_DBG_OFF)
-#define TCP_WND_DEBUG (LWIP_DBG_OFF)
-#define TCP_FR_DEBUG (LWIP_DBG_OFF)
-#define TCP_QLEN_DEBUG (LWIP_DBG_OFF)
-#define TCP_RST_DEBUG (LWIP_DBG_OFF)
-#define PPP_DEBUG (LWIP_DBG_OFF)
-#define SNTP_DEBUG (LWIP_DBG_OFF)
+#define MEMP_SANITY_CHECK   (0)
+#define MDNS_DEBUG          (LWIP_DBG_OFF)
+#define MEM_DEBUG           (LWIP_DBG_OFF)
+#define MEMP_DEBUG          (LWIP_DBG_OFF)
+#define PBUF_DEBUG          (LWIP_DBG_OFF)
+#define API_LIB_DEBUG       (LWIP_DBG_OFF)
+#define API_MSG_DEBUG       (LWIP_DBG_OFF)
+#define TCPIP_DEBUG         (LWIP_DBG_OFF)
+#define NETIF_DEBUG         (LWIP_DBG_OFF)
+#define SOCKETS_DEBUG       (LWIP_DBG_OFF)
+#define DEMO_DEBUG          (LWIP_DBG_OFF)
+#define DHCP_DEBUG          (LWIP_DBG_OFF)
+#define AUTOIP_DEBUG        (LWIP_DBG_OFF)
+#define ETHARP_DEBUG        (LWIP_DBG_OFF)
+#define IP_DEBUG            (LWIP_DBG_OFF)
+#define IP_REASS_DEBUG      (LWIP_DBG_OFF)
+#define IP6_DEBUG           (LWIP_DBG_OFF)
+#define RAW_DEBUG           (LWIP_DBG_OFF)
+#define ICMP_DEBUG          (LWIP_DBG_OFF)
+#define UDP_DEBUG           (LWIP_DBG_OFF)
+#define TCP_DEBUG           (LWIP_DBG_OFF)
+#define TCP_INPUT_DEBUG     (LWIP_DBG_OFF)
+#define TCP_OUTPUT_DEBUG    (LWIP_DBG_OFF)
+#define TCP_RTO_DEBUG       (LWIP_DBG_OFF)
+#define TCP_CWND_DEBUG      (LWIP_DBG_OFF)
+#define TCP_WND_DEBUG       (LWIP_DBG_OFF)
+#define TCP_FR_DEBUG        (LWIP_DBG_OFF)
+#define TCP_QLEN_DEBUG      (LWIP_DBG_OFF)
+#define TCP_RST_DEBUG       (LWIP_DBG_OFF)
+#define PPP_DEBUG           (LWIP_DBG_OFF)
+#define SNTP_DEBUG          (LWIP_DBG_OFF)
 
-//#define LWIP_DEBUG
-
+// #define LWIP_DEBUG
+#ifdef LWIP_DEBUG
 #ifndef LWIP_PLATFORM_DIAG
 #include "FreeRTOSConfig.h"
 #define LWIP_PLATFORM_DIAG(x) configPRINTF(x)
-
+#endif
 #endif
 
 #ifdef LWIP_DEBUG
@@ -472,7 +473,7 @@ Some MCU allow computing and verifying the IP, UDP, TCP and ICMP checksums by ha
  */
 #define DEFAULT_ACCEPTMBOX_SIZE 12
 
-#define LWIP_DNS 	1
+#define LWIP_DNS 1
 
 #if (LWIP_DNS || LWIP_IGMP || LWIP_IPV6) && !defined(LWIP_RAND)
 /* TODO make it random */
@@ -493,7 +494,7 @@ uint32_t EVSE_Random(void);
  * LWIP_NETIF_LINK_CALLBACK==1: Support a callback function from an interface
  * whenever the link changes (i.e., link down)
  */
-#define LWIP_NETIF_LINK_CALLBACK        1
+#define LWIP_NETIF_LINK_CALLBACK 1
 
 /**
  * IP_REASS_MAX_PBUFS: Number of buffers reserved for IP fragment reassembly.

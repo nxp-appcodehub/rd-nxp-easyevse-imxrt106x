@@ -67,6 +67,10 @@ static AzureIoTMQTTResult_t prvTranslateToAzureIoTMQTTResult( MQTTStatus_t xResu
             xReturn = eAzureIoTMQTTKeepAliveTimeout;
             break;
 
+        case MQTTNeedMoreBytes:
+            xReturn = eAzureIoTMQTTNeedMoreBytes;
+            break;
+
         default:
             xReturn = eAzureIoTMQTTFailed;
             break;
@@ -80,7 +84,11 @@ AzureIoTMQTTResult_t AzureIoTMQTT_Init( AzureIoTMQTTHandle_t xContext,
                                         AzureIoTMQTTGetCurrentTimeFunc_t xGetTimeFunction,
                                         AzureIoTMQTTEventCallback_t xUserCallback,
                                         uint8_t * pucNetworkBuffer,
-                                        size_t xNetworkBufferLength )
+                                        size_t xNetworkBufferLength,
+                                        MQTTPubAckInfo_t * outgoingPublishesBuffer,
+                                        size_t outgoingPublishesBufferLength,
+                                        MQTTPubAckInfo_t * incomingPublishesBuffer,
+                                        size_t incomingPublishesBufferLength )
 {
     MQTTFixedBuffer_t xBuffer = { pucNetworkBuffer, xNetworkBufferLength };
     MQTTStatus_t xResult;
@@ -98,6 +106,18 @@ AzureIoTMQTTResult_t AzureIoTMQTT_Init( AzureIoTMQTTHandle_t xContext,
                          ( MQTTGetCurrentTimeFunc_t ) xGetTimeFunction,
                          ( MQTTEventCallback_t ) xUserCallback,
                          &xBuffer );
+
+    if ((outgoingPublishesBuffer == NULL) && (incomingPublishesBuffer == NULL))
+    {
+        /* No need to enable QoS1 and/or QoS2 */
+        return prvTranslateToAzureIoTMQTTResult( xResult );
+    }
+
+    if(( xResult == MQTTSuccess ))
+    {
+        /* Enable QoS1 and/or QoS2 */
+        xResult = MQTT_InitStatefulQoS( xContext, outgoingPublishesBuffer, outgoingPublishesBufferLength, incomingPublishesBuffer, incomingPublishesBufferLength);
+    }
 
     return prvTranslateToAzureIoTMQTTResult( xResult );
 }
@@ -174,12 +194,11 @@ AzureIoTMQTTResult_t AzureIoTMQTT_Disconnect( AzureIoTMQTTHandle_t xContext )
     return prvTranslateToAzureIoTMQTTResult( xResult );
 }
 
-AzureIoTMQTTResult_t AzureIoTMQTT_ProcessLoop( AzureIoTMQTTHandle_t xContext,
-                                               uint32_t ulMilliseconds )
+AzureIoTMQTTResult_t AzureIoTMQTT_ProcessLoop( AzureIoTMQTTHandle_t xContext)
 {
     MQTTStatus_t xResult;
 
-    xResult = MQTT_ProcessLoop( xContext, ulMilliseconds );
+    xResult = MQTT_ProcessLoop( xContext );
 
     return prvTranslateToAzureIoTMQTTResult( xResult );
 }

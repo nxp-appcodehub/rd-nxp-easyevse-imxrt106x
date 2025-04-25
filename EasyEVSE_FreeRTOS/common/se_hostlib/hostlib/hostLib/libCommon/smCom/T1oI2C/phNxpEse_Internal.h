@@ -34,9 +34,6 @@ typedef enum
    ESE_STATUS_OPEN,
 } phNxpEse_LibStatus;
 
-/* Macros definition */
-#define MAX_DATA_LEN      260
-
 /* I2C Control structure */
 typedef struct phNxpEse_Context
 {

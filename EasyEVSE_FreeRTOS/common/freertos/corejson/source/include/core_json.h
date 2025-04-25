@@ -35,7 +35,7 @@
 
 /* *INDENT-OFF* */
 #ifdef __cplusplus
-extern "C" {
+    extern "C" {
 #endif
 /* *INDENT-ON* */
 
@@ -88,7 +88,8 @@ typedef enum
  * @endcode
  */
 /* @[declare_json_validate] */
-JSONStatus_t JSON_Validate(const char *buf, size_t max);
+JSONStatus_t JSON_Validate( const char * buf,
+                            size_t max );
 /* @[declare_json_validate] */
 
 /**
@@ -168,15 +169,15 @@ JSONStatus_t JSON_Validate(const char *buf, size_t max);
  * @note The maximum index value is ~2 billion ( 2^31 - 9 ).
  */
 /* @[declare_json_search] */
-#define JSON_Search(buf, max, query, queryLength, outValue, outValueLength) \
-    JSON_SearchT(buf, max, query, queryLength, outValue, outValueLength, NULL)
+#define JSON_Search( buf, max, query, queryLength, outValue, outValueLength ) \
+    JSON_SearchT( buf, max, query, queryLength, outValue, outValueLength, NULL )
 /* @[declare_json_search] */
 
 /**
  * @brief The largest value usable as an array index in a query
  * for JSON_Search(), ~2 billion.
  */
-#define MAX_INDEX_VALUE (0x7FFFFFF7) /* 2^31 - 9 */
+#define MAX_INDEX_VALUE    ( 0x7FFFFFF7 )   /* 2^31 - 9 */
 
 /**
  * @ingroup json_enum_types
@@ -208,13 +209,13 @@ typedef enum
  * @param[out] outType  An enum indicating the JSON-specific type of the value.
  */
 /* @[declare_json_searcht] */
-JSONStatus_t JSON_SearchT(char *buf,
-                          size_t max,
-                          const char *query,
-                          size_t queryLength,
-                          char **outValue,
-                          size_t *outValueLength,
-                          JSONTypes_t *outType);
+JSONStatus_t JSON_SearchT( char * buf,
+                           size_t max,
+                           const char * query,
+                           size_t queryLength,
+                           char ** outValue,
+                           size_t * outValueLength,
+                           JSONTypes_t * outType );
 /* @[declare_json_searcht] */
 
 /**
@@ -231,13 +232,13 @@ JSONStatus_t JSON_SearchT(char *buf,
  * @param[out] outType  An enum indicating the JSON-specific type of the value.
  */
 /* @[declare_json_searchconst] */
-JSONStatus_t JSON_SearchConst(const char *buf,
-                              size_t max,
-                              const char *query,
-                              size_t queryLength,
-                              const char **outValue,
-                              size_t *outValueLength,
-                              JSONTypes_t *outType);
+JSONStatus_t JSON_SearchConst( const char * buf,
+                               size_t max,
+                               const char * query,
+                               size_t queryLength,
+                               const char ** outValue,
+                               size_t * outValueLength,
+                               JSONTypes_t * outType );
 /* @[declare_json_searchconst] */
 
 /**
@@ -246,9 +247,9 @@ JSONStatus_t JSON_SearchConst(const char *buf,
  */
 typedef struct
 {
-    const char *key;      /**< @brief Pointer to the code point sequence for key. */
+    const char * key;     /**< @brief Pointer to the code point sequence for key. */
     size_t keyLength;     /**< @brief Length of the code point sequence for key. */
-    const char *value;    /**< @brief Pointer to the code point sequence for value. */
+    const char * value;   /**< @brief Pointer to the code point sequence for value. */
     size_t valueLength;   /**< @brief Length of the code point sequence for value. */
     JSONTypes_t jsonType; /**< @brief JSON-specific type of the value. */
 } JSONPair_t;
@@ -322,12 +323,16 @@ typedef struct
  * @endcode
  */
 /* @[declare_json_iterate] */
-JSONStatus_t JSON_Iterate(const char *buf, size_t max, size_t *start, size_t *next, JSONPair_t *outPair);
+JSONStatus_t JSON_Iterate( const char * buf,
+                           size_t max,
+                           size_t * start,
+                           size_t * next,
+                           JSONPair_t * outPair );
 /* @[declare_json_iterate] */
 
 /* *INDENT-OFF* */
 #ifdef __cplusplus
-}
+    }
 #endif
 /* *INDENT-ON* */
 

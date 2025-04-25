@@ -6,19 +6,7 @@
  * \author Adriaan de Jong <dejong@fox-it.com>
  *
  *  Copyright The Mbed TLS Contributors
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License"); you may
- *  not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
  */
 
 #include "common.h"
@@ -37,7 +25,6 @@
 #include "mbedtls/sha1.h"
 #include "mbedtls/sha256.h"
 #include "mbedtls/sha512.h"
-#include "mbedtls/sha224_nxp_mbedtls.h"
 
 #include "mbedtls/platform.h"
 
@@ -306,10 +293,6 @@ void mbedtls_md_free(mbedtls_md_context_t *ctx)
 #endif
 #if defined(MBEDTLS_SHA256_C)
             case MBEDTLS_MD_SHA224:
-#if defined(MBEDTLS_SHA224_C)
-                mbedtls_sha224_free(ctx->md_ctx);
-                break;
-#endif /* MBEDTLS_SHA224_C */
             case MBEDTLS_MD_SHA256:
                 mbedtls_sha256_free(ctx->md_ctx);
                 break;
@@ -448,10 +431,6 @@ int mbedtls_md_setup(mbedtls_md_context_t *ctx, const mbedtls_md_info_t *md_info
 #endif
 #if defined(MBEDTLS_SHA256_C)
         case MBEDTLS_MD_SHA224:
-#if defined(MBEDTLS_SHA224_C)
-            ALLOC(sha224);
-            break;
-#endif /* MBEDTLS_SHA224_C */
         case MBEDTLS_MD_SHA256:
             ALLOC(sha256);
             break;
@@ -509,11 +488,7 @@ int mbedtls_md_starts(mbedtls_md_context_t *ctx)
 #endif
 #if defined(MBEDTLS_SHA256_C)
         case MBEDTLS_MD_SHA224:
-#if defined(MBEDTLS_SHA224_C)
-            return mbedtls_sha224_starts_ret(ctx->md_ctx, 1);
-#else
             return mbedtls_sha256_starts_ret(ctx->md_ctx, 1);
-#endif /* MBEDTLS_SHA224_C */
         case MBEDTLS_MD_SHA256:
             return mbedtls_sha256_starts_ret(ctx->md_ctx, 0);
 #endif
@@ -559,9 +534,6 @@ int mbedtls_md_update(mbedtls_md_context_t *ctx, const unsigned char *input, siz
 #endif
 #if defined(MBEDTLS_SHA256_C)
         case MBEDTLS_MD_SHA224:
-#if defined(MBEDTLS_SHA224_C)
-            return mbedtls_sha224_update_ret(ctx->md_ctx, input, ilen);
-#endif /* MBEDTLS_SHA224_C */
         case MBEDTLS_MD_SHA256:
             return mbedtls_sha256_update_ret(ctx->md_ctx, input, ilen);
 #endif
@@ -606,9 +578,6 @@ int mbedtls_md_finish(mbedtls_md_context_t *ctx, unsigned char *output)
 #endif
 #if defined(MBEDTLS_SHA256_C)
         case MBEDTLS_MD_SHA224:
-#if defined(MBEDTLS_SHA224_C)
-            return mbedtls_sha224_finish_ret(ctx->md_ctx, output);
-#endif /* MBEDTLS_SHA224_C */
         case MBEDTLS_MD_SHA256:
             return mbedtls_sha256_finish_ret(ctx->md_ctx, output);
 #endif

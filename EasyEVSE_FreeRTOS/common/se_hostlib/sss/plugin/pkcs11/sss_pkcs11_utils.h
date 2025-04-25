@@ -13,8 +13,6 @@
 /* ********************** Defines ********************** */
 #define ERR_BASE64_BUFFER_TOO_SMALL -0x002A  /**< Output buffer too small. */
 #define ERR_BASE64_INVALID_CHARACTER -0x002C /**< Invalid character in input. */
-/* Enable cloud demos in standard package testing */
-#define SSS_PKCS11_ENABLE_CLOUD_DEMO 1
 
 /**
  * DER constants
@@ -46,8 +44,9 @@
 #define ASN1_TAG_CONSTRUCTED 0x20
 #define ASN1_TAG_CONTEXT_SPECIFIC 0x80
 
-/* ********************** Structrues and Typedefs ********************** */
+/* ********************** Enums ********************** */
 
+/* ********************** Structrues and Typedefs ********************** */
 /**
  * Handling key parse structure.
  */
@@ -57,26 +56,29 @@ typedef struct sss_pkcs11_key_parse
     uint8_t *pbuff;
     size_t buffLen;
     size_t keyBitLen;
+
 } sss_pkcs11_key_parse_t;
 
 /* ********************** Function Declaration ********************** */
 
-int pkcs11_parse_Cert(uint8_t *pCert, size_t certLen);
+int port_parseCert(uint8_t *pCert, size_t certLen);
 
-int pkcs11_parse_PrivateKey(
+int port_parsePrivateKey(
     CK_ATTRIBUTE_PTR pTemplate, CK_ULONG ulCount, CK_ULONG_PTR index, sss_pkcs11_key_parse_t *keyParse);
 
-int pkcs11_parse_PublicKey(
+int port_parsePublicKey(
     CK_ATTRIBUTE_PTR pTemplate, CK_ULONG ulCount, CK_ULONG_PTR index, sss_pkcs11_key_parse_t *keyParse);
 
-int pkcs11_parse_Convert_PemToDer(const unsigned char *input, size_t ilen, unsigned char *output, size_t *olen);
+int port_parseConvertPemToDer(const unsigned char *input, size_t ilen, unsigned char *output, size_t *olen);
 
-CK_RV pkcs11_parseCert_GetAttr(
+CK_RV port_parseCertGetAttr(
     CK_ATTRIBUTE_TYPE attributeType, uint8_t *pCert, size_t certLen, uint8_t *pData, CK_ULONG *ulAttrLength);
 
-CK_RV pkcs11_create_raw_privateKey(CK_ATTRIBUTE_PTR pxTemplate, CK_ULONG ulCount, uint8_t *key, size_t *keyLen);
+CK_RV CreateRawPrivateKey(CK_ATTRIBUTE_PTR pxTemplate, CK_ULONG ulCount, uint8_t *key, size_t *keyLen);
 
-CK_RV pkcs11_create_raw_publicKey(CK_ATTRIBUTE_PTR pxTemplate, CK_ULONG ulCount, uint8_t *key, size_t *keyLen);
+CK_RV CreateRawPublicKey(CK_ATTRIBUTE_PTR pxTemplate, CK_ULONG ulCount, uint8_t *key, size_t *keyLen);
+
+//mbedtls_ecp_group_id EcParametersToGrpId(uint8_t *ecparameters, size_t len);
 
 int sss_util_asn1_get_len(unsigned char **p, const unsigned char *end, size_t *len);
 
@@ -84,8 +86,8 @@ int sss_util_asn1_get_tag(unsigned char **p, const unsigned char *end, size_t *l
 
 int base64_decode(unsigned char *dst, size_t dlen, size_t *olen, const unsigned char *src, size_t slen);
 
-int pkcs11_private_key_parse(CK_ATTRIBUTE_PTR pTemplate, CK_ULONG ulCount, uint8_t *pKey, size_t keyLen);
+int private_key_parse(CK_ATTRIBUTE_PTR pTemplate, CK_ULONG ulCount, uint8_t *pKey, size_t keyLen);
 
-int pkcs11_public_key_parse(CK_ATTRIBUTE_PTR pTemplate, CK_ULONG ulCount, uint8_t *pKey, size_t keyLen);
+int public_key_parse(CK_ATTRIBUTE_PTR pTemplate, CK_ULONG ulCount, uint8_t *pKey, size_t keyLen);
 
 #endif // __SSS_PKCS11_PORT_H__

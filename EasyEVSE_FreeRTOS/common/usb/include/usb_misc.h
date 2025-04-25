@@ -34,8 +34,7 @@
 extern "C" {
 #endif /* __cplusplus */
 
-/* For configPRINTF */
-#include "FreeRTOSConfig.h"
+extern int DbgConsole_Printf(const char *fmt_s, ...);
 
 #if defined(__cplusplus)
 }
@@ -50,7 +49,7 @@ extern "C" {
 #if defined(SDK_DEBUGCONSOLE) && (SDK_DEBUGCONSOLE == 0U)
 #define usb_echo printf
 #elif defined(SDK_DEBUGCONSOLE) && (SDK_DEBUGCONSOLE == 1U)
-#define usb_echo(x)  configPRINTF((x))
+#define usb_echo DbgConsole_Printf
 #elif defined(SDK_DEBUGCONSOLE) && (SDK_DEBUGCONSOLE == 2U)
 static inline int USB_DbgConsole_Disabled(void)
 {

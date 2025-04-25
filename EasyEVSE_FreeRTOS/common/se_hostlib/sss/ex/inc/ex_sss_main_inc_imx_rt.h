@@ -54,34 +54,33 @@ void IOMUXC_SelectENETClock(void)
 }
 #endif // CPU_MIMXRT1176DVMAA_cm7
 
-// to do mm
-extern void BOARD_InitModuleClock(void);
-// void BOARD_InitModuleClock(void)
-//{
-// #if defined(CPU_MIMXRT1062DVL6A)  || defined (CPU_MIMXRT1062DVL6B)
-//     const clock_enet_pll_config_t config = {.enableClkOutput = true, .enableClkOutput25M = false, .loopDivider = 1};
-//     CLOCK_InitEnetPll(&config);
-// #elif defined(CPU_MIMXRT1176DVMAA_cm7)
-//     const clock_sys_pll1_config_t sysPll1Config = {
-//         .pllDiv2En = true,
-//     };
-//     CLOCK_InitSysPll1(&sysPll1Config);
-//
-// #ifdef EXAMPLE_USE_100M_ENET_PORT
-//     clock_root_config_t rootCfg = {.mux = 4, .div = 10}; /* Generate 50M root clock. */
-//     CLOCK_SetRootClock(kCLOCK_Root_Enet1, &rootCfg);
-// #else
-//     clock_root_config_t rootCfg = {.mux = 4, .div = 4}; /* Generate 125M root clock. */
-//     CLOCK_SetRootClock(kCLOCK_Root_Enet2, &rootCfg);
-// #endif
-//
-//     /* Select syspll2pfd3, 528*18/24 = 396M */
-//     CLOCK_InitPfd(kCLOCK_PllSys2, kCLOCK_Pfd3, 24);
-//     rootCfg.mux = 7;
-//     rootCfg.div = 2;
-//     CLOCK_SetRootClock(kCLOCK_Root_Bus, &rootCfg); /* Generate 198M bus clock. */
-// #endif // CPU_MIMXRT1062DVL6A || CPU_MIMXRT1062DVL6B
-// }
+
+void BOARD_InitModuleClock(void)
+{
+#if defined(CPU_MIMXRT1062DVL6A)  || defined (CPU_MIMXRT1062DVL6B)
+    const clock_enet_pll_config_t config = {.enableClkOutput = true, .enableClkOutput25M = false, .loopDivider = 1};
+    CLOCK_InitEnetPll(&config);
+#elif defined(CPU_MIMXRT1176DVMAA_cm7)
+    const clock_sys_pll1_config_t sysPll1Config = {
+        .pllDiv2En = true,
+    };
+    CLOCK_InitSysPll1(&sysPll1Config);
+
+#ifdef EXAMPLE_USE_100M_ENET_PORT
+    clock_root_config_t rootCfg = {.mux = 4, .div = 10}; /* Generate 50M root clock. */
+    CLOCK_SetRootClock(kCLOCK_Root_Enet1, &rootCfg);
+#else
+    clock_root_config_t rootCfg = {.mux = 4, .div = 4}; /* Generate 125M root clock. */
+    CLOCK_SetRootClock(kCLOCK_Root_Enet2, &rootCfg);
+#endif
+
+    /* Select syspll2pfd3, 528*18/24 = 396M */
+    CLOCK_InitPfd(kCLOCK_PllSys2, kCLOCK_Pfd3, 24);
+    rootCfg.mux = 7;
+    rootCfg.div = 2;
+    CLOCK_SetRootClock(kCLOCK_Root_Bus, &rootCfg); /* Generate 198M bus clock. */
+#endif // CPU_MIMXRT1062DVL6A || CPU_MIMXRT1062DVL6B
+}
 
 void ex_sss_main_ksdk_bm()
 {

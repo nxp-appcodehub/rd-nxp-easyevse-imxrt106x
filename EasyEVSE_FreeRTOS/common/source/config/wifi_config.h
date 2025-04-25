@@ -10,6 +10,10 @@
 
 #define CONFIG_WIFI_MAX_PRIO (configMAX_PRIORITIES - 1)
 
+#if (EASYEVSE == 1)
+#define CONFIG_WIFI_IND_DNLD 1
+#endif /* EASYEVSE == 1 */
+
 #ifndef RW610
 #define CONFIG_MAX_AP_ENTRIES 10
 #else
@@ -69,7 +73,6 @@
 #define CONFIG_WIFI_EU_CRYPTO
 #define CONFIG_EXT_SCAN_SUPPORT
 #endif
-
 
 /* Logs */
 #define CONFIG_ENABLE_ERROR_LOGS   1

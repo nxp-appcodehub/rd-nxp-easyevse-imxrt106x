@@ -30,10 +30,7 @@
 #define SD8801
 #define SDMMCHOST_OPERATION_VOLTAGE_1V8
 #define WIFI_BT_USE_USD_INTERFACE
-#define WLAN_ED_MAC_CTRL                        \
-    {                                           \
-        .ed_ctrl_2g = 0x1, .ed_offset_2g = 0x1B \
-    }
+#define WLAN_ED_MAC_CTRL {.ed_ctrl_2g = 0x1, .ed_offset_2g = 0x1B}
 
 /* AzureWave AW-NM191MA */
 #elif defined(WIFI_88W8801_BOARD_AW_NM191MA)
@@ -41,10 +38,7 @@
 #define SD8801
 #define SDMMCHOST_OPERATION_VOLTAGE_1V8
 #define WIFI_BT_USE_M2_INTERFACE
-#define WLAN_ED_MAC_CTRL                        \
-    {                                           \
-        .ed_ctrl_2g = 0x1, .ed_offset_2g = 0x1B \
-    }
+#define WLAN_ED_MAC_CTRL {.ed_ctrl_2g = 0x1, .ed_offset_2g = 0x1B}
 
 /* AzureWave AW-AM457-uSD */
 #elif defined(WIFI_IW416_BOARD_AW_AM457_USD)
@@ -53,10 +47,7 @@
 #define SDMMCHOST_OPERATION_VOLTAGE_1V8
 #define WIFI_BT_USE_USD_INTERFACE
 #define OVERRIDE_CALIBRATION_DATA "WIFI_IW416_BOARD_AW_AM457_CAL_DATA_EXT.h"
-#define WLAN_ED_MAC_CTRL                                                               \
-    {                                                                                  \
-        .ed_ctrl_2g = 0x1, .ed_offset_2g = 0x9, .ed_ctrl_5g = 0x1, .ed_offset_5g = 0xC \
-    }
+#define WLAN_ED_MAC_CTRL          {.ed_ctrl_2g = 0x1, .ed_offset_2g = 0x9, .ed_ctrl_5g = 0x1, .ed_offset_5g = 0xC}
 
 /* AzureWave AW-AM457MA */
 #elif defined(WIFI_IW416_BOARD_AW_AM457MA)
@@ -65,10 +56,7 @@
 #define SDMMCHOST_OPERATION_VOLTAGE_1V8
 #define WIFI_BT_USE_M2_INTERFACE
 #define OVERRIDE_CALIBRATION_DATA "WIFI_IW416_BOARD_AW_AM457_CAL_DATA_EXT.h"
-#define WLAN_ED_MAC_CTRL                                                               \
-    {                                                                                  \
-        .ed_ctrl_2g = 0x1, .ed_offset_2g = 0x9, .ed_ctrl_5g = 0x1, .ed_offset_5g = 0xC \
-    }
+#define WLAN_ED_MAC_CTRL          {.ed_ctrl_2g = 0x1, .ed_offset_2g = 0x9, .ed_ctrl_5g = 0x1, .ed_offset_5g = 0xC}
 
 /* AzureWave AW-AM510-uSD */
 #elif defined(WIFI_IW416_BOARD_AW_AM510_USD)
@@ -76,10 +64,7 @@
 #define SD8978
 #define SDMMCHOST_OPERATION_VOLTAGE_1V8
 #define WIFI_BT_USE_USD_INTERFACE
-#define WLAN_ED_MAC_CTRL                                                               \
-    {                                                                                  \
-        .ed_ctrl_2g = 0x1, .ed_offset_2g = 0x9, .ed_ctrl_5g = 0x1, .ed_offset_5g = 0xC \
-    }
+#define WLAN_ED_MAC_CTRL {.ed_ctrl_2g = 0x1, .ed_offset_2g = 0x9, .ed_ctrl_5g = 0x1, .ed_offset_5g = 0xC}
 
 /* AzureWave AW-AM510MA */
 #elif defined(WIFI_IW416_BOARD_AW_AM510MA)
@@ -87,10 +72,7 @@
 #define SD8978
 #define SDMMCHOST_OPERATION_VOLTAGE_1V8
 #define WIFI_BT_USE_M2_INTERFACE
-#define WLAN_ED_MAC_CTRL                                                               \
-    {                                                                                  \
-        .ed_ctrl_2g = 0x1, .ed_offset_2g = 0x9, .ed_ctrl_5g = 0x1, .ed_offset_5g = 0xC \
-    }
+#define WLAN_ED_MAC_CTRL {.ed_ctrl_2g = 0x1, .ed_offset_2g = 0x9, .ed_ctrl_5g = 0x1, .ed_offset_5g = 0xC}
 
 /* AzureWave AW-CM358-uSD */
 #elif defined(WIFI_88W8987_BOARD_AW_CM358_USD)
@@ -99,10 +81,7 @@
 #define SDMMCHOST_OPERATION_VOLTAGE_1V8
 #define SD_TIMING_MAX kSD_TimingDDR50Mode
 #define WIFI_BT_USE_USD_INTERFACE
-#define WLAN_ED_MAC_CTRL                                                               \
-    {                                                                                  \
-        .ed_ctrl_2g = 0x1, .ed_offset_2g = 0x9, .ed_ctrl_5g = 0x1, .ed_offset_5g = 0xC \
-    }
+#define WLAN_ED_MAC_CTRL {.ed_ctrl_2g = 0x1, .ed_offset_2g = 0x9, .ed_ctrl_5g = 0x1, .ed_offset_5g = 0xC}
 
 /* AzureWave AW-CM358MA */
 #elif defined(WIFI_88W8987_BOARD_AW_CM358MA)
@@ -111,10 +90,7 @@
 #define SDMMCHOST_OPERATION_VOLTAGE_1V8
 #define SD_TIMING_MAX kSD_TimingDDR50Mode
 #define WIFI_BT_USE_M2_INTERFACE
-#define WLAN_ED_MAC_CTRL                                                               \
-    {                                                                                  \
-        .ed_ctrl_2g = 0x1, .ed_offset_2g = 0x9, .ed_ctrl_5g = 0x1, .ed_offset_5g = 0xC \
-    }
+#define WLAN_ED_MAC_CTRL {.ed_ctrl_2g = 0x1, .ed_offset_2g = 0x9, .ed_ctrl_5g = 0x1, .ed_offset_5g = 0xC}
 
 /* Murata 2DS + Murata uSD-M.2 adapter */
 #elif defined(WIFI_88W8801_BOARD_MURATA_2DS_USD)
@@ -127,10 +103,7 @@
 #define SDMMCHOST_OPERATION_VOLTAGE_1V8
 #define SD_TIMING_MAX kSD_TimingSDR25HighSpeedMode
 #define WIFI_BT_USE_USD_INTERFACE
-#define WLAN_ED_MAC_CTRL                        \
-    {                                           \
-        .ed_ctrl_2g = 0x1, .ed_offset_2g = 0x0E \
-    }
+#define WLAN_ED_MAC_CTRL {.ed_ctrl_2g = 0x1, .ed_offset_2g = 0x0E}
 
 /* Murata 2DS */
 #elif defined(WIFI_88W8801_BOARD_MURATA_2DS_M2)
@@ -143,10 +116,7 @@
 #define SDMMCHOST_OPERATION_VOLTAGE_1V8
 #define SD_TIMING_MAX kSD_TimingSDR25HighSpeedMode
 #define WIFI_BT_USE_M2_INTERFACE
-#define WLAN_ED_MAC_CTRL                        \
-    {                                           \
-        .ed_ctrl_2g = 0x1, .ed_offset_2g = 0x0E \
-    }
+#define WLAN_ED_MAC_CTRL {.ed_ctrl_2g = 0x1, .ed_offset_2g = 0x0E}
 
 /* Murata 1XK + Murata uSD-M.2 adapter */
 #elif defined(WIFI_IW416_BOARD_MURATA_1XK_USD)
@@ -159,10 +129,7 @@
 #define SDMMCHOST_OPERATION_VOLTAGE_1V8
 #define SD_TIMING_MAX kSD_TimingDDR50Mode
 #define WIFI_BT_USE_USD_INTERFACE
-#define WLAN_ED_MAC_CTRL                                                               \
-    {                                                                                  \
-        .ed_ctrl_2g = 0x1, .ed_offset_2g = 0x0, .ed_ctrl_5g = 0x1, .ed_offset_5g = 0x6 \
-    }
+#define WLAN_ED_MAC_CTRL {.ed_ctrl_2g = 0x1, .ed_offset_2g = 0x0, .ed_ctrl_5g = 0x1, .ed_offset_5g = 0x6}
 
 /* Murata 1XK */
 #elif defined(WIFI_IW416_BOARD_MURATA_1XK_M2)
@@ -175,10 +142,7 @@
 #define SDMMCHOST_OPERATION_VOLTAGE_1V8
 #define SD_TIMING_MAX kSD_TimingDDR50Mode
 #define WIFI_BT_USE_M2_INTERFACE
-#define WLAN_ED_MAC_CTRL                                                               \
-    {                                                                                  \
-        .ed_ctrl_2g = 0x1, .ed_offset_2g = 0x0, .ed_ctrl_5g = 0x1, .ed_offset_5g = 0x6 \
-    }
+#define WLAN_ED_MAC_CTRL {.ed_ctrl_2g = 0x1, .ed_offset_2g = 0x0, .ed_ctrl_5g = 0x1, .ed_offset_5g = 0x6}
 
 /* Murata 1ZM + Murata uSD-M.2 adapter */
 #elif defined(WIFI_88W8987_BOARD_MURATA_1ZM_USD)
@@ -191,10 +155,7 @@
 #define SDMMCHOST_OPERATION_VOLTAGE_1V8
 #define SD_TIMING_MAX kSD_TimingDDR50Mode
 #define WIFI_BT_USE_USD_INTERFACE
-#define WLAN_ED_MAC_CTRL                                                               \
-    {                                                                                  \
-        .ed_ctrl_2g = 0x1, .ed_offset_2g = 0x6, .ed_ctrl_5g = 0x1, .ed_offset_5g = 0x6 \
-    }
+#define WLAN_ED_MAC_CTRL {.ed_ctrl_2g = 0x1, .ed_offset_2g = 0x6, .ed_ctrl_5g = 0x1, .ed_offset_5g = 0x6}
 
 /* Murata 1ZM */
 #elif defined(WIFI_88W8987_BOARD_MURATA_1ZM_M2)
@@ -207,10 +168,7 @@
 #define SDMMCHOST_OPERATION_VOLTAGE_1V8
 #define SD_TIMING_MAX kSD_TimingDDR50Mode
 #define WIFI_BT_USE_M2_INTERFACE
-#define WLAN_ED_MAC_CTRL                                                               \
-    {                                                                                  \
-        .ed_ctrl_2g = 0x1, .ed_offset_2g = 0x6, .ed_ctrl_5g = 0x1, .ed_offset_5g = 0x6 \
-    }
+#define WLAN_ED_MAC_CTRL {.ed_ctrl_2g = 0x1, .ed_offset_2g = 0x6, .ed_ctrl_5g = 0x1, .ed_offset_5g = 0x6}
 
 /* u-blox EVK-LILY-W131/-W132 */
 #elif defined(WIFI_88W8801_BOARD_UBX_LILY_W1_USD)
@@ -218,10 +176,7 @@
 #define SD8801
 #define SDMMCHOST_OPERATION_VOLTAGE_3V3
 #define WIFI_BT_USE_USD_INTERFACE
-#define WLAN_ED_MAC_CTRL                        \
-    {                                           \
-        .ed_ctrl_2g = 0x1, .ed_offset_2g = 0x1B \
-    }
+#define WLAN_ED_MAC_CTRL {.ed_ctrl_2g = 0x1, .ed_offset_2g = 0x1B}
 
 /* u-blox EVK-JODY-W263 */
 #elif defined(WIFI_88W8987_BOARD_UBX_JODY_W2_USD)
@@ -229,10 +184,7 @@
 #define SD8987
 #define SDMMCHOST_OPERATION_VOLTAGE_1V8
 #define WIFI_BT_USE_USD_INTERFACE
-#define WLAN_ED_MAC_CTRL                                                               \
-    {                                                                                  \
-        .ed_ctrl_2g = 0x1, .ed_offset_2g = 0x9, .ed_ctrl_5g = 0x1, .ed_offset_5g = 0xC \
-    }
+#define WLAN_ED_MAC_CTRL {.ed_ctrl_2g = 0x1, .ed_offset_2g = 0x9, .ed_ctrl_5g = 0x1, .ed_offset_5g = 0xC}
 
 /* u-blox EVK-MAYA-W161/-W166 */
 #elif defined(WIFI_IW416_BOARD_UBX_MAYA_W1_USD)
@@ -240,10 +192,7 @@
 #define SD8978
 #define SDMMCHOST_OPERATION_VOLTAGE_1V8
 #define WIFI_BT_USE_USD_INTERFACE
-#define WLAN_ED_MAC_CTRL                                                               \
-    {                                                                                  \
-        .ed_ctrl_2g = 0x1, .ed_offset_2g = 0x9, .ed_ctrl_5g = 0x1, .ed_offset_5g = 0xC \
-    }
+#define WLAN_ED_MAC_CTRL {.ed_ctrl_2g = 0x1, .ed_offset_2g = 0x9, .ed_ctrl_5g = 0x1, .ed_offset_5g = 0xC}
 
 #else
 #error "Please define macro related to wifi board"

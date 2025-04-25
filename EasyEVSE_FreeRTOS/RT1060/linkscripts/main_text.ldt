@@ -1,2 +1,2 @@
-        *(EXCLUDE_FILE(*flash_config.o *fsl_flexspi.o *mflash_drv.o) .text*)
-        *(EXCLUDE_FILE(*flash_config.o *mflash_drv.o) .rodata*)
+        *(EXCLUDE_FILE(*flash_config.o *fsl_flexspi.o *mflash_drv.o *bigmath.o *ecdsa.o *ecmath.o) .text*)
+        *(EXCLUDE_FILE(*flash_config.o *mflash_drv.o *bigmath.o *ecdsa.o *ecmath.o) .rodata*)

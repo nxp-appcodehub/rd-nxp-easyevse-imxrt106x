@@ -1,5 +1,5 @@
 /*
-* Copyright 2024 NXP
+* Copyright 2025 NXP
 * NXP Proprietary. This software is owned or controlled by NXP and may only be used strictly in
 * accordance with the applicable license terms. By expressly accepting such terms or by downloading, installing,
 * activating and/or otherwise using the software, you are agreeing that you have read, and that you agree to
@@ -20,6 +20,7 @@ typedef struct
   
 	lv_obj_t *Main_Screen;
 	bool Main_Screen_del;
+	lv_obj_t *Main_Screen_img_1;
 	lv_obj_t *Main_Screen_ID_EV_btn;
 	lv_obj_t *Main_Screen_ID_EV_btn_label;
 	lv_obj_t *Main_Screen_ID_debug_conn_btn;
@@ -103,9 +104,19 @@ typedef struct
 	lv_obj_t *Car_Screen_elapsed_time_prompt;
 	lv_obj_t *Car_Screen_time_to_charge_prompt;
 	lv_obj_t *Car_Screen_time_to_charge_value;
-	lv_obj_t *Car_Screen_energy_progress_bar;
-	lv_obj_t *Car_Screen_energy_progress_prompt;
 	lv_obj_t *Car_Screen_clock;
+	lv_obj_t *Car_Screen_img_1;
+	lv_obj_t *Car_Screen_img_2;
+	lv_obj_t *Car_Screen_stop_resume_btn;
+	lv_obj_t *Car_Screen_stop_resume_btn_label;
+	lv_obj_t *Car_Screen_v2g_img_1;
+	lv_obj_t *Car_Screen_v2g_img_2;
+	lv_obj_t *Car_Screen_v2g_img_3;
+	lv_obj_t *Car_Screen_v2g_img_4;
+	lv_obj_t *Car_Screen_g2v_img_1;
+	lv_obj_t *Car_Screen_g2v_img_2;
+	lv_obj_t *Car_Screen_g2v_img_3;
+	lv_obj_t *Car_Screen_g2v_img_4;
 	lv_obj_t *EVSE_Screen;
 	bool EVSE_Screen_del;
 	lv_obj_t *EVSE_Screen_EVSE_Menu_Heading;
@@ -235,21 +246,10 @@ void ui_init_style(lv_style_t * style);
 void ui_load_scr_animation(lv_ui *ui, lv_obj_t ** new_scr, bool new_scr_del, bool * old_scr_del, ui_setup_scr_t setup_scr,
                            lv_scr_load_anim_t anim_type, uint32_t time, uint32_t delay, bool is_clean, bool auto_del);
 
-void ui_move_animation(void * var, int32_t duration, int32_t delay, int32_t x_end, int32_t y_end, lv_anim_path_cb_t path_cb,
+void ui_animation(void * var, int32_t duration, int32_t delay, int32_t start_value, int32_t end_value, lv_anim_path_cb_t path_cb,
                        uint16_t repeat_cnt, uint32_t repeat_delay, uint32_t playback_time, uint32_t playback_delay,
-                       lv_anim_start_cb_t start_cb, lv_anim_ready_cb_t ready_cb, lv_anim_deleted_cb_t deleted_cb);
+                       lv_anim_exec_xcb_t exec_cb, lv_anim_start_cb_t start_cb, lv_anim_ready_cb_t ready_cb, lv_anim_deleted_cb_t deleted_cb);
 
-void ui_scale_animation(void * var, int32_t duration, int32_t delay, int32_t width, int32_t height, lv_anim_path_cb_t path_cb,
-                        uint16_t repeat_cnt, uint32_t repeat_delay, uint32_t playback_time, uint32_t playback_delay,
-                        lv_anim_start_cb_t start_cb, lv_anim_ready_cb_t ready_cb, lv_anim_deleted_cb_t deleted_cb);
-
-void ui_img_zoom_animation(void * var, int32_t duration, int32_t delay, int32_t zoom, lv_anim_path_cb_t path_cb,
-                           uint16_t repeat_cnt, uint32_t repeat_delay, uint32_t playback_time, uint32_t playback_delay,
-                           lv_anim_start_cb_t start_cb, lv_anim_ready_cb_t ready_cb, lv_anim_deleted_cb_t deleted_cb);
-
-void ui_img_rotate_animation(void * var, int32_t duration, int32_t delay, lv_coord_t x, lv_coord_t y, int32_t rotate,
-                   lv_anim_path_cb_t path_cb, uint16_t repeat_cnt, uint32_t repeat_delay, uint32_t playback_time,
-                   uint32_t playback_delay, lv_anim_start_cb_t start_cb, lv_anim_ready_cb_t ready_cb, lv_anim_deleted_cb_t deleted_cb);
 
 void init_scr_del_flag(lv_ui *ui);
 
@@ -266,52 +266,61 @@ void setup_scr_EVSE_Screen(lv_ui *ui);
 void setup_scr_Meter_Screen(lv_ui *ui);
 void setup_scr_NFC_Screen(lv_ui *ui);
 void setup_scr_Debug_ISO_Screen(lv_ui *ui);
-
-LV_IMG_DECLARE(_mainpng_480x272);
-LV_IMG_DECLARE(_evse_alpha_60x61);
-LV_IMG_DECLARE(_evse_alpha_60x61);
-LV_IMG_DECLARE(_evse_alpha_60x61);
-LV_IMG_DECLARE(_evse_alpha_60x61);
-LV_IMG_DECLARE(_debug_alpha_62x62);
-LV_IMG_DECLARE(_debug_alpha_62x62);
-LV_IMG_DECLARE(_debug_alpha_62x62);
-LV_IMG_DECLARE(_debug_alpha_62x62);
-LV_IMG_DECLARE(_carpng_alpha_60x61);
-LV_IMG_DECLARE(_carpng_alpha_60x61);
-LV_IMG_DECLARE(_carpng_alpha_60x61);
-LV_IMG_DECLARE(_carpng_alpha_60x61);
-LV_IMG_DECLARE(_meterguage_alpha_60x61);
-LV_IMG_DECLARE(_meterguage_alpha_60x61);
-LV_IMG_DECLARE(_meterguage_alpha_60x61);
-LV_IMG_DECLARE(_meterguage_alpha_60x61);
-LV_IMG_DECLARE(_nfc_alpha_60x61);
-LV_IMG_DECLARE(_nfc_alpha_60x61);
-LV_IMG_DECLARE(_nfc_alpha_60x61);
-LV_IMG_DECLARE(_nfc_alpha_60x61);
-LV_IMG_DECLARE(_debug_ISO15118_alpha_62x62);
-LV_IMG_DECLARE(_debug_ISO15118_alpha_62x62);
-LV_IMG_DECLARE(_debug_ISO15118_alpha_62x62);
-LV_IMG_DECLARE(_debug_ISO15118_alpha_62x62);
-LV_IMG_DECLARE(_returnpng_alpha_32x28);
-LV_IMG_DECLARE(_returnpng_alpha_32x28);
-LV_IMG_DECLARE(_returnpng_alpha_32x28);
-LV_IMG_DECLARE(_returnpng_alpha_32x28);
-LV_IMG_DECLARE(_returnpng_alpha_32x28);
-LV_IMG_DECLARE(_returnpng_alpha_32x28);
-LV_IMG_DECLARE(_returnpng_alpha_32x28);
-LV_IMG_DECLARE(_returnpng_alpha_32x28);
-LV_IMG_DECLARE(_returnpng_alpha_32x28);
-LV_IMG_DECLARE(_returnpng_alpha_32x28);
-LV_IMG_DECLARE(_returnpng_alpha_32x28);
-LV_IMG_DECLARE(_returnpng_alpha_32x28);
-LV_IMG_DECLARE(_readdata_alpha_35x37);
-LV_IMG_DECLARE(_readdata_alpha_35x37);
-LV_IMG_DECLARE(_readdata_alpha_35x37);
-LV_IMG_DECLARE(_readdata_alpha_35x37);
-LV_IMG_DECLARE(_returnpng_alpha_32x28);
-LV_IMG_DECLARE(_returnpng_alpha_32x28);
-LV_IMG_DECLARE(_returnpng_alpha_32x28);
-LV_IMG_DECLARE(_returnpng_alpha_32x28);
+LV_IMG_DECLARE(_mainpng_alpha_194x186);
+LV_IMG_DECLARE(_evse_60x61);
+LV_IMG_DECLARE(_evse_60x61);
+LV_IMG_DECLARE(_evse_60x61);
+LV_IMG_DECLARE(_evse_60x61);
+LV_IMG_DECLARE(_debug_66x58);
+LV_IMG_DECLARE(_debug_66x58);
+LV_IMG_DECLARE(_debug_66x58);
+LV_IMG_DECLARE(_debug_66x58);
+LV_IMG_DECLARE(_carpng_60x61);
+LV_IMG_DECLARE(_carpng_60x61);
+LV_IMG_DECLARE(_carpng_60x61);
+LV_IMG_DECLARE(_carpng_60x61);
+LV_IMG_DECLARE(_meterguage_60x61);
+LV_IMG_DECLARE(_meterguage_60x61);
+LV_IMG_DECLARE(_meterguage_60x61);
+LV_IMG_DECLARE(_meterguage_60x61);
+LV_IMG_DECLARE(_nfc_60x61);
+LV_IMG_DECLARE(_nfc_60x61);
+LV_IMG_DECLARE(_nfc_60x61);
+LV_IMG_DECLARE(_nfc_60x61);
+LV_IMG_DECLARE(_debug_ISO15118_62x62);
+LV_IMG_DECLARE(_debug_ISO15118_62x62);
+LV_IMG_DECLARE(_debug_ISO15118_62x62);
+LV_IMG_DECLARE(_debug_ISO15118_62x62);
+LV_IMG_DECLARE(_returnpng_32x28);
+LV_IMG_DECLARE(_returnpng_32x28);
+LV_IMG_DECLARE(_returnpng_32x28);
+LV_IMG_DECLARE(_returnpng_32x28);
+LV_IMG_DECLARE(_returnpng_32x28);
+LV_IMG_DECLARE(_returnpng_32x28);
+LV_IMG_DECLARE(_returnpng_32x28);
+LV_IMG_DECLARE(_returnpng_32x28);
+LV_IMG_DECLARE(_charging_station_alpha_68x66);
+LV_IMG_DECLARE(_EV_alpha_64x56);
+LV_IMG_DECLARE(_v2g_Blue_250x200_25x20);
+LV_IMG_DECLARE(_v2g_Blue_250x200_25x20);
+LV_IMG_DECLARE(_v2g_Blue_250x200_25x20);
+LV_IMG_DECLARE(_v2g_Blue_250x200_25x20);
+LV_IMG_DECLARE(_g2v_Green_250x200_25x20);
+LV_IMG_DECLARE(_g2v_Green_250x200_25x20);
+LV_IMG_DECLARE(_g2v_Green_250x200_25x20);
+LV_IMG_DECLARE(_g2v_Green_250x200_25x20);
+LV_IMG_DECLARE(_returnpng_32x28);
+LV_IMG_DECLARE(_returnpng_32x28);
+LV_IMG_DECLARE(_returnpng_32x28);
+LV_IMG_DECLARE(_returnpng_32x28);
+LV_IMG_DECLARE(_readdata_35x37);
+LV_IMG_DECLARE(_readdata_35x37);
+LV_IMG_DECLARE(_readdata_35x37);
+LV_IMG_DECLARE(_readdata_35x37);
+LV_IMG_DECLARE(_returnpng_32x28);
+LV_IMG_DECLARE(_returnpng_32x28);
+LV_IMG_DECLARE(_returnpng_32x28);
+LV_IMG_DECLARE(_returnpng_32x28);
 LV_IMG_DECLARE(_readnfc_alpha_91x63);
 LV_IMG_DECLARE(_readnfc_alpha_91x63);
 LV_IMG_DECLARE(_readnfc_alpha_91x63);
@@ -320,10 +329,10 @@ LV_IMG_DECLARE(_returnpng_alpha_32x28);
 LV_IMG_DECLARE(_returnpng_alpha_32x28);
 LV_IMG_DECLARE(_returnpng_alpha_32x28);
 LV_IMG_DECLARE(_returnpng_alpha_32x28);
-LV_IMG_DECLARE(_returnpng_alpha_32x28);
-LV_IMG_DECLARE(_returnpng_alpha_32x28);
-LV_IMG_DECLARE(_returnpng_alpha_32x28);
-LV_IMG_DECLARE(_returnpng_alpha_32x28);
+LV_IMG_DECLARE(_returnpng_32x28);
+LV_IMG_DECLARE(_returnpng_32x28);
+LV_IMG_DECLARE(_returnpng_32x28);
+LV_IMG_DECLARE(_returnpng_32x28);
 
 LV_FONT_DECLARE(lv_font_montserratMedium_12)
 LV_FONT_DECLARE(lv_font_montserratMedium_18)

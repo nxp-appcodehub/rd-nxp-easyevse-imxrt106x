@@ -10,7 +10,7 @@
 #include "wlan.h"
 #include "wifi.h"
 #include "wm_net.h"
-#include <wm_os.h>
+#include "osa_freertos.h"
 #include "dhcp-server.h"
 #include <stdio.h>
 #include "event_groups.h"
@@ -624,18 +624,18 @@ wpl_ret_t WPL_AddNetworkWithSecurity(char *ssid, char *password, char *label, wp
             switch (security)
             {
                 case WPL_SECURITY_WILDCARD:
-                    sta_network.security.type = WLAN_SECURITY_WILDCARD;
-                    sta_network.security.mfpc = true;
-                    sta_network.security.mfpr = true;
+                    sta_network.security.type         = WLAN_SECURITY_WILDCARD;
+                    sta_network.security.mfpc         = true;
+                    sta_network.security.mfpr         = true;
                     sta_network.security.password_len = password_len;
                     strncpy(sta_network.security.password, password, password_len);
                     sta_network.security.psk_len = password_len;
                     strncpy(sta_network.security.psk, password, password_len);
                     break;
                 case WPL_SECURITY_WPA3_SAE:
-                    sta_network.security.type = WLAN_SECURITY_WPA3_SAE;
-                    sta_network.security.mfpc = true;
-                    sta_network.security.mfpr = true;
+                    sta_network.security.type         = WLAN_SECURITY_WPA3_SAE;
+                    sta_network.security.mfpc         = true;
+                    sta_network.security.mfpr         = true;
                     sta_network.security.password_len = strlen(password);
                     strncpy(sta_network.security.password, password, strlen(password));
                     break;
@@ -650,7 +650,7 @@ wpl_ret_t WPL_AddNetworkWithSecurity(char *ssid, char *password, char *label, wp
             status = WPLRET_BAD_PARAM;
         }
     }
-    
+
     strcpy(sta_network.name, label);
     strcpy(sta_network.ssid, ssid);
     sta_network.ip.ipv4.addr_type = ADDR_TYPE_DHCP;

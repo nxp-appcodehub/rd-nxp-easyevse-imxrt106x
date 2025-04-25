@@ -28,6 +28,10 @@
 
 #include "phEseStatus.h"
 
+
+// Workaround for SE050 I2C errata I2C.1 and I2C.2 (https://www.nxp.com/docs/en/errata/SE050_Erratasheet.pdf)
+// #define T1OI2C_SEND_SHORT_APDU
+
 /**
  *
  * \brief Ese data buffer
@@ -62,9 +66,6 @@ ESESTATUS phNxpEse_setIfsc(uint16_t IFSC_Size);
 ESESTATUS phNxpEse_EndOfApdu(void* conn_ctx);
 void* phNxpEse_memset(void *buff, int val, size_t len);
 void* phNxpEse_memcpy(void *dest, const void *src, size_t len);
-#ifdef USE_THREADX_RTOS
-uint32_t phNxpEse_ThreadX_MemallocInit(void* pool_start, uint64_t pool_size);
-#endif
 void *phNxpEse_memalloc(uint32_t size);
 void phNxpEse_free(void* ptr);
 ESESTATUS phNxpEse_getAtr(void* conn_ctx, phNxpEse_data *pRsp);

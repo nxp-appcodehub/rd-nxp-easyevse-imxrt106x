@@ -18,6 +18,7 @@
 #include MBEDTLS_CONFIG_FILE
 #endif
 
+//#include "fsl_sss_ftr.h"
 /** todo Use SSS Layer ALT implementation */
 #define SSS_HAVE_MBEDTLS_ALT_SSS 1
 
@@ -347,12 +348,10 @@ int sss_mbedtls_associate_ecdhctx(
         return 1;
     }
 
-    handshake->ecdh_ctx.ctx.mbed_ecdh.grp.id = (mbedtls_ecp_group_id) get_group_id(objectId, objectIdLen);
-    //handshake->ecdh_ctx.grp.id = (mbedtls_ecp_group_id) get_group_id(objectId, objectIdLen);
-    handshake->ecdh_ctx.ctx.mbed_ecdh.grp.pSSSObject = pSSSObject;
-    //handshake->ecdh_ctx.grp.pSSSObject = pSSSObject;
-    handshake->ecdh_ctx.ctx.mbed_ecdh.grp.hostKs = hostKs;
-    //handshake->ecdh_ctx.grp.hostKs     = hostKs;
+    handshake->ecdh_ctx.grp.id = (mbedtls_ecp_group_id) get_group_id(objectId, objectIdLen);
+
+    handshake->ecdh_ctx.grp.pSSSObject = pSSSObject;
+    handshake->ecdh_ctx.grp.hostKs     = hostKs;
 #if LOG_API_CALLS > 1
     LOG_I("Associating ECC key-pair '%d' for handshake.\r\n", key_index);
 #endif

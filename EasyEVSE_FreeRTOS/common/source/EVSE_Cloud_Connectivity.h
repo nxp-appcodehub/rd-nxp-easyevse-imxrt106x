@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 NXP
+ * Copyright 2023-2025 NXP
  * NXP Proprietary. This software is owned or controlled by NXP and may only be used strictly in
  * accordance with the applicable license terms. By expressly accepting such terms or by downloading, installing,
  * activating and/or otherwise using the software, you are agreeing that you have read, and that you agree to comply
@@ -34,6 +34,7 @@ typedef enum _cloud_events
     EVSE_DISCONNECT_EVENT                    = 1 << 10,
     EVSE_RECONNECT_EVENT                     = 1 << 11,
     EVSE_CONNECTED_EVENT                     = 1 << 12,
+	EVSE_COMMAND_RECEIVE_EVENT               = 1 << 13,
     EVSE_CLOUD_ALL_EVENTS                    = 0xFFFFFF,
 } cloud_events_t;
 

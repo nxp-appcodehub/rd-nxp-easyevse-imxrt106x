@@ -1,14 +1,12 @@
 /*
  * Copyright (c) 2015 - 2016, Freescale Semiconductor, Inc.
- * Copyright 2016, 2024 NXP
+ * Copyright 2016 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
 #ifndef _USB_DEVICE_DESCRIPTOR_H_
 #define _USB_DEVICE_DESCRIPTOR_H_ 1
-
-#include "usb_device_class.h"
 
 /*******************************************************************************
  * Definitions
@@ -158,6 +156,8 @@
 #define USB_CDC_VCOM_DIC_CLASS    (CDC_DATA_CLASS)
 #define USB_CDC_VCOM_DIC_SUBCLASS (0x00)
 #define USB_CDC_VCOM_DIC_PROTOCOL (USB_CDC_NO_CLASS_SPECIFIC_PROTOCOL)
+
+#include "usb_device_class.h"
 
 /*******************************************************************************
  * API

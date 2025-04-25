@@ -4,6 +4,12 @@
  *
  */
 
+/**
+ * Copyright 2023 NXP
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
 /*********************
  *      INCLUDES
  *********************/
@@ -541,7 +547,7 @@ static void font_click_event_cb(lv_event_t * e)
         if(index % 2 == 0) {
             index = index / 2;
             if(zh_input_obj->matched_txt != NULL && index < strlen(zh_input_obj->matched_txt) / 3) {
-                char uft8_char[3] = {0};
+                char uft8_char[4] = {0};
                 lv_zh_keyboard_t * keyboard = (lv_zh_keyboard_t *)zh_input_obj->obj_key_board;
                 lv_memcpy(uft8_char, &zh_input_obj->matched_txt[index * 3], 3);
                 if(keyboard->ta != NULL) {

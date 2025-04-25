@@ -14,6 +14,7 @@
 
 #include "usb.h"
 #include "usb_device_descriptor.h"
+#include "usb_device_class.h"
 
 /*******************************************************************************
  * Definitions
@@ -58,20 +59,20 @@
 #endif
 
 /* Currently configured line coding */
-#define LINE_CODING_SIZE (0x07)
-#define LINE_CODING_DTERATE (115200)
+#define LINE_CODING_SIZE       (0x07)
+#define LINE_CODING_DTERATE    (115200)
 #define LINE_CODING_CHARFORMAT (0x00)
 #define LINE_CODING_PARITYTYPE (0x00)
-#define LINE_CODING_DATABITS (0x08)
+#define LINE_CODING_DATABITS   (0x08)
 
 /* Communications feature */
 #define COMM_FEATURE_DATA_SIZE (0x02)
-#define STATUS_ABSTRACT_STATE (0x0000)
-#define COUNTRY_SETTING (0x0000)
+#define STATUS_ABSTRACT_STATE  (0x0000)
+#define COUNTRY_SETTING        (0x0000)
 
 /* Notification of serial state */
-#define NOTIF_PACKET_SIZE (0x08)
-#define UART_BITMAP_SIZE (0x02)
+#define NOTIF_PACKET_SIZE  (0x08)
+#define UART_BITMAP_SIZE   (0x02)
 #define NOTIF_REQUEST_TYPE (0xA1)
 
 /* Define the types for application */
@@ -82,7 +83,7 @@ typedef struct _usb_cdc_vcom_struct
     volatile uint8_t attach;     /* A flag to indicate whether a usb device is attached. 1: attached, 0: not attached */
     TaskHandle_t deviceTaskHandle;      /* USB device task handle. */
     TaskHandle_t applicationTaskHandle; /* Application task handle. */
-    uint8_t speed; /* Speed of USB device. USB_SPEED_FULL/USB_SPEED_LOW/USB_SPEED_HIGH.                 */
+    uint8_t speed;         /* Speed of USB device. USB_SPEED_FULL/USB_SPEED_LOW/USB_SPEED_HIGH.                 */
     volatile uint8_t
         startTransactions; /* A flag to indicate whether a CDC device is ready to transmit and receive data.    */
     uint8_t currentConfiguration;                                           /* Current configuration value. */
@@ -101,4 +102,4 @@ typedef struct _usb_cdc_acm_info
     uint8_t currentInterface; /* Current interface index.                           */
     uint16_t uartState;       /* UART state of the CDC device.                      */
 } usb_cdc_acm_info_t;
-#endif /* _USB_CDC_VCOM_H_ */
+#endif                        /* _USB_CDC_VCOM_H_ */

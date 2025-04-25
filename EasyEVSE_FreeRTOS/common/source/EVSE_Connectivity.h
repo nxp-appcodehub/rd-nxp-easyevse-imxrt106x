@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 NXP
+ * Copyright 2023-2025 NXP
  * NXP Proprietary. This software is owned or controlled by NXP and may only be used strictly in
  * accordance with the applicable license terms. By expressly accepting such terms or by downloading, installing,
  * activating and/or otherwise using the software, you are agreeing that you have read, and that you agree to comply
@@ -110,14 +110,13 @@ uint32_t EVSE_Connectivity_GetUnixTime(void);
  * Return the IP address.
  * Retuns NULL if the connection is not complete
  */
-const char* EVSE_Connectivity_GetIPv4(void);
+const char *EVSE_Connectivity_GetIPv4(void);
 
 /**
  *  Connectivity task entry point.
  * Handle connection to an access point
  */
 void EVSE_Connectivity_Init(void);
-
 
 /* API Available only in the WIFI configuration */
 #if (ENABLE_WIFI == 1)

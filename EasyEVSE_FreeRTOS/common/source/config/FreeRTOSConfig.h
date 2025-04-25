@@ -61,68 +61,74 @@
 #define configNUM_THREAD_LOCAL_STORAGE_POINTERS 5
 
 /* Used memory allocation (heap_x.c) */
-#define configFRTOS_MEMORY_SCHEME               4
+#define configFRTOS_MEMORY_SCHEME 4
 /* Tasks.c additions (e.g. Thread Aware Debug capability) */
 #define configINCLUDE_FREERTOS_TASK_C_ADDITIONS_H 1
 
 /* Memory allocation related definitions. */
-#define configSUPPORT_STATIC_ALLOCATION         1
-#define configSUPPORT_DYNAMIC_ALLOCATION        1
-#define configTOTAL_HEAP_SIZE                   ((size_t)(1024 * 1024))
-#define configAPPLICATION_ALLOCATED_HEAP        0
+#define configSUPPORT_STATIC_ALLOCATION  1
+#define configSUPPORT_DYNAMIC_ALLOCATION 1
+#define configTOTAL_HEAP_SIZE            ((size_t)(1024 * 1024))
+#define configAPPLICATION_ALLOCATED_HEAP 0
 
 /* Hook function related definitions. */
-#define configUSE_IDLE_HOOK                     1
-#define configUSE_TICK_HOOK                     1
-#define configCHECK_FOR_STACK_OVERFLOW          1
-#define configUSE_MALLOC_FAILED_HOOK            1
-#define configUSE_DAEMON_TASK_STARTUP_HOOK      1
+#define configUSE_IDLE_HOOK                1
+#define configUSE_TICK_HOOK                1
+#define configCHECK_FOR_STACK_OVERFLOW     1
+#define configUSE_MALLOC_FAILED_HOOK       1
+#define configUSE_DAEMON_TASK_STARTUP_HOOK 1
 
 /* Run time and task stats gathering related definitions. */
-#define configGENERATE_RUN_TIME_STATS           0
-#define configUSE_TRACE_FACILITY                1
-#define configUSE_STATS_FORMATTING_FUNCTIONS    0
+#define configGENERATE_RUN_TIME_STATS        0
+#define configUSE_TRACE_FACILITY             1
+#define configUSE_STATS_FORMATTING_FUNCTIONS 0
 
 /* Task aware debugging. */
-#define configRECORD_STACK_HIGH_ADDRESS         1
+#define configRECORD_STACK_HIGH_ADDRESS 1
 
 /* Co-routine related definitions. */
-#define configUSE_CO_ROUTINES                   0
-#define configMAX_CO_ROUTINE_PRIORITIES         2
+#define configUSE_CO_ROUTINES           0
+#define configMAX_CO_ROUTINE_PRIORITIES 2
 
 /* Software timer related definitions. */
-#define configUSE_TIMERS                        1
-#define configTIMER_TASK_PRIORITY               (configMAX_PRIORITIES - 1)
-#define configTIMER_QUEUE_LENGTH                10
-#define configTIMER_TASK_STACK_DEPTH            (configMINIMAL_STACK_SIZE * 4)
+#define configUSE_TIMERS             1
+#define configTIMER_TASK_PRIORITY    (configMAX_PRIORITIES - 1)
+#define configTIMER_QUEUE_LENGTH     10
+#define configTIMER_TASK_STACK_DEPTH (configMINIMAL_STACK_SIZE * 4)
 
 /* Define to trap errors during development. */
-#define configASSERT(x) if(( x) == 0) {taskDISABLE_INTERRUPTS(); for (;;);}
+#define configASSERT(x)           \
+    if ((x) == 0)                 \
+    {                             \
+        taskDISABLE_INTERRUPTS(); \
+        for (;;)                  \
+            ;                     \
+    }
 
 /* Optional functions - most linkers will remove unused functions anyway. */
-#define INCLUDE_vTaskPrioritySet                1
-#define INCLUDE_uxTaskPriorityGet               1
-#define INCLUDE_vTaskDelete                     1
-#define INCLUDE_vTaskSuspend                    1
-#define INCLUDE_vTaskDelayUntil                 1
-#define INCLUDE_vTaskDelay                      1
-#define INCLUDE_xTaskGetSchedulerState          1
-#define INCLUDE_xTaskGetCurrentTaskHandle       1
-#define INCLUDE_uxTaskGetStackHighWaterMark     1
-#define INCLUDE_xTaskGetIdleTaskHandle          0
-#define INCLUDE_eTaskGetState                   0
-#define INCLUDE_xTimerPendFunctionCall          1
-#define INCLUDE_xTaskAbortDelay                 0
-#define INCLUDE_xTaskGetHandle                  0
-#define INCLUDE_xTaskResumeFromISR              1
-#define INCLUDE_xQueueGetMutexHolder            1
+#define INCLUDE_vTaskPrioritySet            1
+#define INCLUDE_uxTaskPriorityGet           1
+#define INCLUDE_vTaskDelete                 1
+#define INCLUDE_vTaskSuspend                1
+#define INCLUDE_vTaskDelayUntil             1
+#define INCLUDE_vTaskDelay                  1
+#define INCLUDE_xTaskGetSchedulerState      1
+#define INCLUDE_xTaskGetCurrentTaskHandle   1
+#define INCLUDE_uxTaskGetStackHighWaterMark 1
+#define INCLUDE_xTaskGetIdleTaskHandle      0
+#define INCLUDE_eTaskGetState               0
+#define INCLUDE_xTimerPendFunctionCall      1
+#define INCLUDE_xTaskAbortDelay             0
+#define INCLUDE_xTaskGetHandle              0
+#define INCLUDE_xTaskResumeFromISR          1
+#define INCLUDE_xQueueGetMutexHolder        1
 
 #define configLOGGING_INCLUDE_TIME_AND_TASK_NAME 1
 
-#if defined(__ICCARM__)||defined(__CC_ARM)||defined(__GNUC__)
-    /* Clock manager provides in this variable system core clock frequency */
-    #include <stdint.h>
-    extern uint32_t SystemCoreClock;
+#if defined(__ICCARM__) || defined(__CC_ARM) || defined(__GNUC__)
+/* Clock manager provides in this variable system core clock frequency */
+#include <stdint.h>
+extern uint32_t SystemCoreClock;
 #endif
 
 /* Interrupt nesting behaviour configuration. Cortex-M specific. */
@@ -150,29 +156,28 @@ to all Cortex-M ports, and do not rely on any particular library functions. */
 See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
 #define configMAX_SYSCALL_INTERRUPT_PRIORITY (configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY << (8 - configPRIO_BITS))
 
-extern  void vLoggingPrintf( const char * pcFormat, ... );
+extern void vLoggingPrintf(const char *pcFormat, ...);
 
 /* Map the FreeRTOS printf() to the logging task printf. */
 #define configPRINTF(x) vLoggingPrintf x
 
- /* Map the logging task's printf to the board specific output function. */
- #define configPRINT_STRING(x)       \
-{                               \
- do                          \
- {                           \
-	 PRINTF(x);              \
- }                           \
- while (0);                  \
-}
+/* Map the logging task's printf to the board specific output function. */
+#define configPRINT_STRING(x) \
+    {                         \
+        do                    \
+        {                     \
+            PRINTF(x);        \
+        } while (0);          \
+    }
 
- /* Sets the length of the buffers into which logging messages are written - so
-  * also defines the maximum length of each log message. */
- #define configLOGGING_MAX_MESSAGE_LENGTH 256
+/* Sets the length of the buffers into which logging messages are written - so
+ * also defines the maximum length of each log message. */
+#define configLOGGING_MAX_MESSAGE_LENGTH 384
 
 /* Definitions that map the FreeRTOS port interrupt handlers to their CMSIS
 standard names. */
-#define vPortSVCHandler SVC_Handler
-#define xPortPendSVHandler PendSV_Handler
+#define vPortSVCHandler     SVC_Handler
+#define xPortPendSVHandler  PendSV_Handler
 #define xPortSysTickHandler SysTick_Handler
 
 #endif /* FREERTOS_CONFIG_H */

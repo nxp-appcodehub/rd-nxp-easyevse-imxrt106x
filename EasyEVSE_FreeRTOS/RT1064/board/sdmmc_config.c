@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 NXP
+ * Copyright 2020-2022 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -288,7 +288,6 @@ void BOARD_SDIO_Config(void *card, sd_cd_t cd, uint32_t hostIRQPriority, sdio_in
 
 #ifdef MMC_ENABLED
 void BOARD_MMC_Config(void *card, uint32_t hostIRQPriority)
-
 {
     assert(card);
 

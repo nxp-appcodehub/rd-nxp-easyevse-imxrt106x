@@ -45,7 +45,7 @@
 			<name>NxpNfcRdLib</name>
 			<type>2</type>
 			<locationURI>PARENT-1-PROJECT_LOC/common/NxpNfcRdLib</locationURI>
-		</link>		
+		</link>
 		<link>
 			<name>azure-iot-middleware-freertos</name>
 			<type>2</type>
@@ -80,11 +80,6 @@
 			<name>littlefs</name>
 			<type>2</type>
 			<locationURI>PARENT-1-PROJECT_LOC/common/littlefs</locationURI>
-		</link>
-		<link>
-			<name>llhttp</name>
-			<type>2</type>
-			<locationURI>PARENT-1-PROJECT_LOC/common/llhttp</locationURI>
 		</link>
 		<link>
 			<name>lvgl</name>

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 NXP
+ * Copyright 2023-2025 NXP
  * NXP Proprietary. This software is owned or controlled by NXP and may only be used strictly in
  * accordance with the applicable license terms. By expressly accepting such terms or by downloading, installing,
  * activating and/or otherwise using the software, you are agreeing that you have read, and that you agree to comply
@@ -33,7 +33,7 @@
 #include "EVSE_NFC.h"
 #endif /* (CLEV663_ENABLE == 1) */
 #if ENABLE_ISO15118
-#include "ISO15118-2.h"
+#include <ISO15118.h>
 #endif /* ENABLE_ISO15118 */
 /*******************************************************************************
  * Definitions
@@ -166,7 +166,7 @@ void EVSE_UI_Task(void *param)
             /* TODO Update the NFC data */
             const char *vehicleID = NULL;
 #if (CLEV663_ENABLE == 1)
-            vehicleID             = EVSE_NFC_Get_VehicleID();
+            vehicleID = EVSE_NFC_Get_VehicleID();
 #endif /* #if (CLEV663_ENABLE == 1) */
             UI_Update_NFC_VehicleID(vehicleID);
             UI_Update_Car_VehicleID(vehicleID);
@@ -276,18 +276,17 @@ void EVSE_UI_Init()
     }
 
     s_refreshVehicleData = xTimerCreate("VehicleTimer", (TickType_t)pdMS_TO_TICKS(UPDATE_VEHICLE_TIME_MS), pdTRUE,
-            (void *)&s_refreshVehicleData, (TimerCallbackFunction_t)prvTimer_Callback);
+                                        (void *)&s_refreshVehicleData, (TimerCallbackFunction_t)prvTimer_Callback);
 
     if (s_refreshVehicleData == NULL)
     {
         configPRINTF((error("[UI] Failed to start \"RefreshUptime\" timer.")));
         while (1)
             ;
-
     }
 
     /* Init LVGL */
-    if (xTaskCreate(EVSE_UI_Task, "UI", APP_UI_STACK_SIZE, NULL, APP_UI_PRIORITY, NULL) != pdPASS)
+    if (xTaskCreate(EVSE_UI_Task, "UI", APP_UI_STACK_SIZE, NULL, APP_UI_PRIORITY - 1, NULL) != pdPASS)
     {
         while (1)
             ;

@@ -33,7 +33,25 @@
 #define STRNICMP strncasecmp
 
 /* doc:start:sss-heap_mgmt */
-#if defined(USE_RTOS) && USE_RTOS == 1
+#if defined(USE_THREADX_RTOS)
+
+extern void *threadx_malloc(size_t size);
+extern void *threadx_calloc(size_t size);
+extern void threadx_free(void *ptr);
+
+#ifndef SSS_MALLOC
+#define SSS_MALLOC threadx_malloc
+#endif // SSS_MALLOC
+
+#ifndef SSS_FREE
+#define SSS_FREE threadx_free
+#endif // SSS_FREE
+
+#ifndef SSS_CALLOC
+#define SSS_CALLOC threadx_calloc
+#endif // SSS_CALLOC
+
+#elif (defined(USE_RTOS) && (USE_RTOS == 1))
 #include "FreeRTOS.h"
 
 void *pvPortCalloc(size_t num, size_t size); /*Calloc for Heap3/Heap4.*/
@@ -52,7 +70,7 @@ void *pvPortCalloc(size_t num, size_t size); /*Calloc for Heap3/Heap4.*/
 
 #else // !USE_RTOS & !USE_THREADX_RTOS
 
-#include <malloc.h>
+#include <stdlib.h>
 
 #ifndef SSS_MALLOC
 #define SSS_MALLOC malloc

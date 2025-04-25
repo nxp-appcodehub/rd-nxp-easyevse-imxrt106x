@@ -11,6 +11,9 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "EVSE_ConnectivityConfig.h"
+#include <EVSE_ConfigChecks.h>
+
 /* FreeRTOS kernel includes. */
 #include "FreeRTOS.h"
 #include "task.h"
@@ -106,7 +109,6 @@ void vApplicationDaemonTaskStartupHook(void)
 #if (ENABLE_SHELL == 1)
     EVSE_Shell_Init();
 #endif
-
 }
 
 /*! @brief Main function */

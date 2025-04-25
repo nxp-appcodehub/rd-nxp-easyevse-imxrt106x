@@ -81,22 +81,25 @@ static void HAL_GpioInterruptHandle(uint8_t gpio_port)
     }
 }
 /* IRQHandler for GPIO1 */
-//#if defined(GPIO1) && (FSL_FEATURE_SOC_IGPIO_COUNT > 0U)
-//void GPIO1_Combined_0_15_IRQHandler(void);
-//void GPIO1_Combined_0_15_IRQHandler(void)
-//{
-//    HAL_GpioInterruptHandle(1);
-//
-//    SDK_ISR_EXIT_BARRIER;
-//}
-// void GPIO1_Combined_16_31_IRQHandler(void);
-// void GPIO1_Combined_16_31_IRQHandler(void)
-// {
-//     HAL_GpioInterruptHandle(1);
+#if EASYEVSE
+#else
+#if defined(GPIO1) && (FSL_FEATURE_SOC_IGPIO_COUNT > 0U)
+void GPIO1_Combined_0_15_IRQHandler(void);
+void GPIO1_Combined_0_15_IRQHandler(void)
+{
+    HAL_GpioInterruptHandle(1);
 
-//     SDK_ISR_EXIT_BARRIER;
-// }
-//#endif
+    SDK_ISR_EXIT_BARRIER;
+}
+void GPIO1_Combined_16_31_IRQHandler(void);
+void GPIO1_Combined_16_31_IRQHandler(void)
+{
+    HAL_GpioInterruptHandle(1);
+
+    SDK_ISR_EXIT_BARRIER;
+}
+#endif
+#endif /* EASYEVSE */
 /* IRQHandler for GPIO2 */
 #if defined(GPIO2) && (FSL_FEATURE_SOC_IGPIO_COUNT > 0U)
 void GPIO2_Combined_0_15_IRQHandler(void);

@@ -1,11 +1,13 @@
 /*
- * Copyright 2024 NXP
+ * Copyright 2024-2025 NXP
  * NXP Proprietary. This software is owned or controlled by NXP and may only be used strictly in
  * accordance with the applicable license terms. By expressly accepting such terms or by downloading, installing,
  * activating and/or otherwise using the software, you are agreeing that you have read, and that you agree to comply
  * with and are bound by, such license terms. If you do not agree to be bound by the applicable license terms, then you
  * may not retain, install, activate or otherwise use the software.
  */
+
+#include "EVSE_ConnectivityConfig.h"
 
 /* EdgeLock 2GO agent includes */
 #include "nxp_iot_agent.h"
@@ -131,7 +133,7 @@ static iot_agent_status_t agent_start(ex_sss_boot_ctx_t *pCtx)
     {
         my_status =
             iot_agent_utils_write_edgelock2go_datastore(&keystore, &edgelock2go_datastore, EDGELOCK2GO_HOSTNAME,
-                                                        EDGELOCK2GO_PORT, iot_agent_trusted_root_ca_certificates);
+                                                        EDGELOCK2GO_PORT, iot_agent_trusted_root_ca_certificates, NULL);
     }
 
     configPRINTF(("iot_agent_utils_write_edgelock2go_datastore status is %d", my_status));

@@ -18,10 +18,7 @@
 #include <phNxpEsePal_i2c.h>
 #include "sm_types.h"
 #include "sm_timer.h"
-
-#ifdef USE_THREADX_RTOS
-#include "tx_api.h"
-#endif
+#include <fsl_sss_types.h>
 
 #ifdef FLOW_VERBOSE
 #define NX_LOG_ENABLE_SMCOM_DEBUG 1
@@ -29,7 +26,6 @@
 
 #include "nxLog_smCom.h"
 #include "nxEnsure.h"
-#include "fsl_debug_console.h"
 
 #if defined(USE_RTOS) && USE_RTOS == 1
 #include "FreeRTOSConfig.h"
@@ -121,8 +117,13 @@ ESESTATUS phNxpEse_open(void **conn_ctx, phNxpEse_initParams initParams, const c
     }
     else {
         pnxpese_ctxt = (phNxpEse_Context_t*)phNxpEse_memalloc(sizeof(phNxpEse_Context_t));
-        phNxpEse_memset(pnxpese_ctxt, 0, sizeof(phNxpEse_Context_t));
-        *conn_ctx = pnxpese_ctxt;
+        if(pnxpese_ctxt != NULL){
+            phNxpEse_memset(pnxpese_ctxt, 0, sizeof(phNxpEse_Context_t));
+            *conn_ctx = pnxpese_ctxt;
+        }
+        else{
+            return ESESTATUS_FAILED;
+        }
     }
 
     /*When I2C channel is already opened return status as FAILED*/
@@ -157,6 +158,10 @@ ESESTATUS phNxpEse_open(void **conn_ctx, phNxpEse_initParams initParams, const c
         phNxpEse_memset (pnxpese_ctxt, 0x00, sizeof (phNxpEse_Context_t));
     }
     pnxpese_ctxt->EseLibStatus = ESE_STATUS_CLOSE;
+    if (conn_ctx != NULL) {
+        phNxpEse_free(pnxpese_ctxt);
+        *conn_ctx = NULL;
+    }
     return ESESTATUS_FAILED;
 }
 
@@ -178,6 +183,12 @@ ESESTATUS phNxpEse_Transceive(void* conn_ctx, phNxpEse_data *pCmd, phNxpEse_data
     ESESTATUS status = ESESTATUS_FAILED;
     bool_t bStatus = FALSE;
     phNxpEse_Context_t* nxpese_ctxt = (conn_ctx == NULL) ? &gnxpese_ctxt : (phNxpEse_Context_t*)conn_ctx;
+#ifdef T1OI2C_SEND_SHORT_APDU
+    const uint8_t short_apdu[5] = {0};
+    uint32_t short_apdu_len = 5;
+    uint8_t *p_rsp_data = NULL;
+    uint32_t rsp_len = 0;
+#endif //#ifdef T1OI2C_SEND_SHORT_APDU
 
     if((NULL == pCmd) || (NULL == pRsp)) {
         return ESESTATUS_INVALID_PARAMETER;
@@ -200,6 +211,25 @@ ESESTATUS phNxpEse_Transceive(void* conn_ctx, phNxpEse_data *pCmd, phNxpEse_data
     }
     else
     {
+#ifdef T1OI2C_SEND_SHORT_APDU
+        // Workaround for SE050 I2C errata I2C.1 and I2C.2 (https://www.nxp.com/docs/en/errata/SE050_Erratasheet.pdf)
+        // By default Plug & Trust MW only covers the I2C erratas on session opening
+        // this should cover cases when the errata causing error condition can happen at any time
+        // LOG_D("******* Clear Buffer *********");
+        // Clear Read buffer for errata I2C.1 (erroneous APDU sequence)
+        phNxpEse_clearReadBuffer(nxpese_ctxt);
+        // Send short T1oI2C frame for errata I2C.2 (unresponsive after sending empty I2C frame)
+        LOG_D("Sending short apdu command - for SE050 I2C errata I2C.2 ");
+        status = phNxpEse_WriteFrame(conn_ctx, short_apdu_len, short_apdu);
+        if (ESESTATUS_SUCCESS != status) {
+            LOG_E("%s Error in writing frame ", __FUNCTION__);
+        }
+        status = phNxpEse_read(conn_ctx, &rsp_len, &p_rsp_data);
+        if (ESESTATUS_SUCCESS != status) {
+            LOG_E("%s Error in reading buffer ", __FUNCTION__);
+        }
+#endif //#ifdef T1OI2C_SEND_SHORT_APDU
+
         nxpese_ctxt->EseLibStatus = ESE_STATUS_BUSY;
         bStatus = phNxpEseProto7816_Transceive((void*)nxpese_ctxt, pCmd, pRsp);
         if(TRUE == bStatus)
@@ -613,6 +643,10 @@ ESESTATUS phNxpEse_WriteFrame(void* conn_ctx, uint32_t data_len, const uint8_t *
 
     /* Create local copy of cmd_data */
     LOG_D("%s Enter ..", __FUNCTION__);
+
+    if (data_len > MAX_DATA_LEN){
+        return ESESTATUS_FAILED;
+    }
     phNxpEse_memcpy(nxpese_ctxt->p_cmd_data, p_data, data_len);
     nxpese_ctxt->cmd_len = data_len;
     if(nxpese_ctxt->EseLibStatus != ESE_STATUS_CLOSE)
@@ -694,43 +728,6 @@ void* phNxpEse_memcpy(void *dest, const void *src, size_t len)
     return memcpy(dest, src, len);
 }
 
-
-
-#ifdef USE_THREADX_RTOS
-
-static TX_BYTE_POOL phNxpEseThreadXPool_ptr;	/* Pointer to a ThreadX memory pool control block. */
-
-/******************************************************************************
- * Function         phNxpEse_ThreadX_MemallocInit
- *
- * Description      This function must be called before phNxpEse_Memalloc
- *                  is called the first time. This sets up a ThreadX byte pool.
-
- * param[in]        pool_start -  Starting address of the memory pool.
- *                                The starting address must be aligned
- *                                to the size of the ULONG data type.
- * param[in]        pool_size  -  Total number of bytes available for the memory pool.
- *
- * Returns          TX_SUCCESS (0x00)      Successful memory pool creation.
- *					TX_POOL_ERROR (0x02)   Invalid memory pool pointer.
- *					                       Either the pointer is NULL or
- *					                       the pool is already created.
- *					TX_PTR_ERROR (0x03)    Invalid starting address of the pool.
- *					TX_SIZE_ERROR (0x05)   Size of pool is invalid.
- *					TX_CALLER_ERROR (0x13) Invalid caller of this service.
- *
- ******************************************************************************/
-uint32_t phNxpEse_ThreadX_MemallocInit(void* pool_start, uint64_t pool_size)
-{
-
-	return  tx_byte_pool_create(&phNxpEseThreadXPool_ptr,
-								"phNxpEse_Memory_Pool",
-								(void *)pool_start,
-								pool_size);
-}
-#endif
-
-
 /******************************************************************************
  * Function         phNxpEse_Memalloc
  *
@@ -743,21 +740,7 @@ uint32_t phNxpEse_ThreadX_MemallocInit(void* pool_start, uint64_t pool_size)
  ******************************************************************************/
 void *phNxpEse_memalloc(uint32_t size)
 {
-#if defined(USE_RTOS) && USE_RTOS == 1
-    return pvPortMalloc(size);
-#elif defined(USE_THREADX_RTOS)
-    void *ptr = NULL;
-    if(size > 0)
-    {
-		if (tx_byte_allocate(&phNxpEseThreadXPool_ptr, (VOID **)&ptr, size, TX_NO_WAIT) == TX_SUCCESS)
-		{
-			return ptr;
-		}
-    }
-    return NULL;
-#else
-    return malloc(size);
-#endif
+    return SSS_MALLOC(size);
 }
 
 
@@ -774,16 +757,7 @@ void *phNxpEse_memalloc(uint32_t size)
 void phNxpEse_free(void* ptr)
 {
     ENSURE_OR_GO_EXIT(ptr != NULL);
-#if defined(USE_RTOS) && USE_RTOS == 1
-    vPortFree(ptr);
-#elif defined(USE_THREADX_RTOS)
-    if(ptr)
-    {
-    	tx_byte_release(ptr);
-    }
-#else
-    free(ptr);
-#endif
+    SSS_FREE(ptr);
 exit:
     return;
 }

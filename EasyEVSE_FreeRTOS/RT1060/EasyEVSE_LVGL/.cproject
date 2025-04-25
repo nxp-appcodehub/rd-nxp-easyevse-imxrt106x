@@ -7,6 +7,7 @@
 					<externalSetting>
 						<entry flags="VALUE_WORKSPACE_PATH" kind="includePath" name="/EasyEVSE_LVGL_RT1060"/>
 						<entry flags="VALUE_WORKSPACE_PATH" kind="libraryPath" name="/EasyEVSE_LVGL_RT1060/Debug"/>
+						<entry flags="VALUE_WORKSPACE_PATH" kind="libraryPath" name="/EasyEVSE_LVGL_RT1060/EVSE"/>
 						<entry flags="RESOLVED" kind="libraryFile" name="EasyEVSE_LVGL_RT1060" srcPrefixMapping="" srcRootPath=""/>
 					</externalSetting>
 				</externalSettings>
@@ -236,9 +237,7 @@
 					</folderInfo>
 					<sourceEntries>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="CMSIS"/>
-						<entry excluding="wifi_bt_config.h|wifi_bt_config.c|sdmmc_config.c|sdmmc_config.h|se_board_config.c|se_board_config.h|usdhc_cla_config.c|usdhc_cla_config.h|dcd.c|dcd.h|lvgl_support.c|sdmc_config.c|sdmc_config.h|clock_config.h|clock_config.c|board.h|board.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="board"/>
 						<entry excluding="custom_evse.h|custom.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="custom"/>
-						<entry excluding="fsl_lpi2c_freertos.h|fsl_lpi2c_freertos.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="drivers"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="generated"/>
 						<entry excluding="lvgl/src/extra/widgets/video" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="lvgl"/>
 					</sourceEntries>
@@ -253,7 +252,7 @@
 	<storageModule moduleId="org.eclipse.cdt.core.LanguageSettingsProviders"/>
 	<storageModule moduleId="com.nxp.mcuxpresso.core.datamodels">
 		<sdkName>SDK_2.x_EVK-MIMXRT1060</sdkName>
-		<sdkVersion>2.14.0</sdkVersion>
+		<sdkVersion>2.16.000</sdkVersion>
 		<sdkComponents>middleware.baremetal.MIMXRT1062;platform.drivers.clock.MIMXRT1062;platform.drivers.xip_device.MIMXRT1062;platform.drivers.igpio.MIMXRT1062;platform.drivers.lpuart.MIMXRT1062;platform.drivers.nic301.MIMXRT1062;platform.drivers.common.MIMXRT1062;platform.drivers.iomuxc.MIMXRT1062;CMSIS_Include_core_cm.MIMXRT1062;device.MIMXRT1062_system.MIMXRT1062;device.MIMXRT1062_CMSIS.MIMXRT1062;platform.utilities.assert.MIMXRT1062;component.serial_manager_uart.MIMXRT1062;component.serial_manager.MIMXRT1062;component.lpuart_adapter.MIMXRT1062;utility.debug_console.MIMXRT1062;middleware.lvgl.MIMXRT1062;platform.drivers.xip_board.evkmimxrt1060.MIMXRT1062;component.lists.MIMXRT1062;project_template.evkmimxrt1060.MIMXRT1062;middleware.lvgl.template.MIMXRT1062;device.MIMXRT1062_startup.MIMXRT1062;</sdkComponents>
 		<boardId>evkmimxrt1060</boardId>
 		<package>MIMXRT1062DVL6A</package>
@@ -290,6 +289,7 @@
 	</storageModule>
 	<storageModule moduleId="openCmsis"/>
 	<storageModule moduleId="refreshScope" versionNumber="2">
+		<configuration configurationName="EVSE"/>
 		<configuration configurationName="Debug">
 			<resource resourceType="PROJECT" workspacePath="/EasyEVSE_LVGL_RT1060"/>
 		</configuration>

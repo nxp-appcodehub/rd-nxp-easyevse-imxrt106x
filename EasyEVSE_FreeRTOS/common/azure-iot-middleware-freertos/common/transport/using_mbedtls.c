@@ -1010,7 +1010,7 @@ static int lwip_socket_connect( const char * pHostName,
     }
 
     xTV.tv_sec = receiveTimeoutMs / 1000;
-    xTV.tv_usec = receiveTimeoutMs * 1000;
+    xTV.tv_usec = (receiveTimeoutMs % 1000) * 1000;
 
     if( socketStatus == 0 )
     {

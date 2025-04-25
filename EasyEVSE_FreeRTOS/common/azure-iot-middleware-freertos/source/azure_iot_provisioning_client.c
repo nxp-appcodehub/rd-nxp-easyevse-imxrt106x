@@ -193,6 +193,11 @@ static void prvProvClientConnect( AzureIoTProvisioningClient_t * pxAzureProvClie
         xConnectInfo.usKeepAliveSeconds = azureiotprovisioningKEEP_ALIVE_TIMEOUT_SECONDS;
         xConnectInfo.usPasswordLength = ( uint16_t ) ulPasswordLength;
 
+        if((xConnectInfo.usPasswordLength == 0))
+        {
+            xConnectInfo.pcPassword = NULL;
+        }
+
         if( ( xMQTTResult = AzureIoTMQTT_Connect( &( pxAzureProvClient->_internal.xMQTTContext ),
                                                   &xConnectInfo, NULL, azureiotprovisioningCONNACK_RECV_TIMEOUT_MS,
                                                   &xSessionPresent ) ) != eAzureIoTMQTTSuccess )
@@ -502,9 +507,9 @@ static void prvProvClientTriggerAction( AzureIoTProvisioningClient_t * pxAzurePr
 static AzureIoTResult_t prvProvClientRunWorkflow( AzureIoTProvisioningClient_t * pxAzureProvClient,
                                                   uint32_t ulTimeoutMilliseconds )
 {
-    AzureIoTMQTTResult_t xMQTTResult;
-    AzureIoTResult_t xResult;
-    uint32_t ulWaitTime;
+    AzureIoTMQTTResult_t xMQTTResult = eAzureIoTMQTTFailed;
+    AzureIoTResult_t xResult = eAzureIoTErrorFailed;
+    uint32_t timePassed = 0;
 
     do
     {
@@ -514,35 +519,32 @@ static AzureIoTResult_t prvProvClientRunWorkflow( AzureIoTProvisioningClient_t *
             break;
         }
 
-        if( ulTimeoutMilliseconds > azureiotprovisioningPROCESS_LOOP_TIMEOUT_MS )
-        {
-            ulTimeoutMilliseconds -= azureiotprovisioningPROCESS_LOOP_TIMEOUT_MS;
-            ulWaitTime = azureiotprovisioningPROCESS_LOOP_TIMEOUT_MS;
-        }
-        else
-        {
-            ulWaitTime = ulTimeoutMilliseconds;
-            ulTimeoutMilliseconds = 0;
-        }
-
         prvProvClientTriggerAction( pxAzureProvClient );
 
         if( pxAzureProvClient->_internal.ulWorkflowState == azureiotprovisioningWF_STATE_COMPLETE )
         {
             AZLogDebug( ( "AzureIoTProvisioning is in complete state: status=0x%08x",
-                          ( uint16_t ) pxAzureProvClient->_internal.ulLastOperationResult ) );
+                            ( uint16_t ) pxAzureProvClient->_internal.ulLastOperationResult ) );
             break;
         }
-        else if( ( xMQTTResult =
-                       AzureIoTMQTT_ProcessLoop( &( pxAzureProvClient->_internal.xMQTTContext ),
-                                                 ulWaitTime ) ) != eAzureIoTMQTTSuccess )
+        else
         {
-            AZLogError( ( "AzureIoTProvisioning failed to process loop: ProcessLoopDuration=%u, MQTT error=0x%08x",
-                          ( uint16_t ) ulTimeoutMilliseconds, ( uint16_t ) xMQTTResult ) );
-            prvProvClientUpdateState( pxAzureProvClient, eAzureIoTErrorFailed );
-            break;
+            xMQTTResult = AzureIoTMQTT_ProcessLoop( &( pxAzureProvClient->_internal.xMQTTContext ) );
+            if (xMQTTResult != eAzureIoTMQTTSuccess)
+            {
+                if ((xMQTTResult == eAzureIoTMQTTNeedMoreBytes) || (xMQTTResult == eAzureIoTMQTTNoDataAvailable))
+                {
+                    /* Only a partial MQTT packet was received. Retry after a small delay.*/
+                }
+                else
+                {
+                    prvProvClientUpdateState( pxAzureProvClient, eAzureIoTErrorFailed );
+                }
+            }
+            vTaskDelay(sampleazureiotconfigPOLL_WAIT_INTERVAL_MS);
+            timePassed += sampleazureiotconfigPOLL_WAIT_INTERVAL_MS;
         }
-    } while( ulTimeoutMilliseconds );
+    } while (timePassed < ulTimeoutMilliseconds);
 
     if( ( pxAzureProvClient->_internal.ulWorkflowState != azureiotprovisioningWF_STATE_COMPLETE ) )
     {
@@ -831,7 +833,7 @@ AzureIoTResult_t AzureIoTProvisioningClient_Init( AzureIoTProvisioningClient_t *
         else if( ( xMQTTResult = AzureIoTMQTT_Init( &( pxAzureProvClient->_internal.xMQTTContext ),
                                                     pxTransportInterface, prvProvClientGetTimeMillseconds,
                                                     prvProvClientEventCallback, pucNetworkBuffer,
-                                                    ulNetworkBufferLength ) ) != eAzureIoTMQTTSuccess )
+                                                    ulNetworkBufferLength, NULL, 0, NULL, 0) ) != eAzureIoTMQTTSuccess )
         {
             AZLogError( ( "AzureIoTProvisioning initialization failed: MQTT error=0x%08x", ( uint16_t ) xMQTTResult ) );
             xResult = eAzureIoTErrorInitFailed;
@@ -899,7 +901,7 @@ AzureIoTResult_t AzureIoTProvisioningClient_Register( AzureIoTProvisioningClient
             pxAzureProvClient->_internal.ulWorkflowState = azureiotprovisioningWF_STATE_CONNECT;
         }
 
-        xResult = prvProvClientRunWorkflow( pxAzureProvClient, ulTimeoutMilliseconds );
+        xResult = prvProvClientRunWorkflow( pxAzureProvClient, ulTimeoutMilliseconds);
     }
 
     return xResult;

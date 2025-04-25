@@ -148,14 +148,18 @@ static void _lv_gpu_nxp_pxp_interrupt_deinit(void)
 #endif
 }
 
+void pxp_reset_state(void)
+{
+    s_pxpIdle = false;
+
+    PXP_EnableInterrupts(LV_GPU_NXP_PXP_ID, kPXP_CompleteInterruptEnable);
+}
 /**
  * Function to start PXP job.
  */
 static void _lv_gpu_nxp_pxp_run(void)
 {
-    s_pxpIdle = false;
-
-    PXP_EnableInterrupts(LV_GPU_NXP_PXP_ID, kPXP_CompleteInterruptEnable);
+    pxp_reset_state();
     PXP_Start(LV_GPU_NXP_PXP_ID);
 }
 
@@ -169,8 +173,11 @@ static void _lv_gpu_nxp_pxp_wait(void)
     if(s_pxpIdle == true)
         return;
 
-    if(xSemaphoreTake(s_pxpIdleSem, portMAX_DELAY) == pdTRUE)
-        s_pxpIdle = true;
+    if(xSemaphoreTake(s_pxpIdleSem, 300 / portTICK_PERIOD_MS) == pdFALSE)
+    {
+        configPRINTF(("Missed PXP interrupt"));
+    }
+    s_pxpIdle = true;
 #else
     while(s_pxpIdle == false) {
     }

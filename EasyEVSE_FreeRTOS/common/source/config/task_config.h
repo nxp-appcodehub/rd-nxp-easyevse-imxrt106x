@@ -1,11 +1,11 @@
 /*
- * Copyright 2023-2024 NXP
+ * Copyright 2023-2025 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #ifdef __cplusplus
-extern   "C" {
+extern "C" {
 #endif
 
 /* Task priorities. */
@@ -13,7 +13,7 @@ extern   "C" {
 /* Logging task configuration */
 #define LOGGING_TASK_PRIORITY   (tskIDLE_PRIORITY + 1)
 #define LOGGING_TASK_STACK_SIZE 512
-#define LOGGING_QUEUE_LENGTH    128
+#define LOGGING_QUEUE_LENGTH    256
 
 #define APP_CONECTIVITY_PRIORITY   (configMAX_PRIORITIES - 4)
 #define APP_CONECTIVITY_STACK_SIZE (configMINIMAL_STACK_SIZE * 30)
@@ -25,27 +25,27 @@ extern   "C" {
 #define APP_EVSE_AZURE_CONNECTIVITY_STACK_SIZE (configMINIMAL_STACK_SIZE * 100)
 
 #if 0
-#define APP_SE05X_PRIORITY  (configMAX_PRIORITIES - 2)
+#define APP_SE05X_PRIORITY   (configMAX_PRIORITIES - 2)
 #define APP_SE05X_STACK_SIZE (configMINIMAL_STACK_SIZE * 10)
 #endif /* 0 */
 
-#define APP_UI_PRIORITY (configMAX_PRIORITIES - 3)
+#define APP_UI_PRIORITY   (configMAX_PRIORITIES - 3)
 #define APP_UI_STACK_SIZE (configMINIMAL_STACK_SIZE * 10)
 
 #define APP_METER_REQUEST_PRIORITY   (configMAX_PRIORITIES - 6)
-#define APP_METER_REQUEST_STACK_SIZE ( 2 * 1024U )
+#define APP_METER_REQUEST_STACK_SIZE (2 * 1024U)
 
 #define APP_METER_REFRESH_PRIORITY   (configMAX_PRIORITIES - 7)
-#define APP_METER_REFRESH_STACK_SIZE ( 2 * 1024U )
+#define APP_METER_REFRESH_STACK_SIZE (2 * 1024U)
 
-#define APP_BRIDGE_MANAGER_PRIORITY (configMAX_PRIORITIES - 2)
-#define APP_BRIDGE_MANAGER_STACK_SIZE ( 512 )
+#define APP_BRIDGE_MANAGER_PRIORITY   (configMAX_PRIORITIES - 2)
+#define APP_BRIDGE_MANAGER_STACK_SIZE (512)
 
 #define APP_ISO15118_PRIORITY   (configMAX_PRIORITIES - 3)
-#define APP_ISO15118_STACK_SIZE ( 2 * 1024U )
+#define APP_ISO15118_STACK_SIZE (3 * 1024U)
 
-#define APP_SHELL_PRIORITY (tskIDLE_PRIORITY + 1)
-#define APP_SHELL_STACK_SIZE ( 512 * 4)
+#define APP_SHELL_PRIORITY   (tskIDLE_PRIORITY + 1)
+#define APP_SHELL_STACK_SIZE (512 * 4)
 
 #ifdef __cplusplus
 }

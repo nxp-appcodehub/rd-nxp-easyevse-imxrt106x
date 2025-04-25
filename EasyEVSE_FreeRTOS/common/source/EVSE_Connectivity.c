@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 NXP
+ * Copyright 2023-2025 NXP
  * NXP Proprietary. This software is owned or controlled by NXP and may only be used strictly in
  * accordance with the applicable license terms. By expressly accepting such terms or by downloading, installing,
  * activating and/or otherwise using the software, you are agreeing that you have read, and that you agree to comply
@@ -26,6 +26,7 @@
 #include "fsl_iomuxc.h"
 #include "timers.h"
 
+#include "EVSE_ConnectivityConfig.h"
 #include "EVSE_Cloud_Connectivity.h"
 #include "EVSE_Connectivity.h"
 #include "EVSE_UI.h"
@@ -52,18 +53,18 @@
 #define MICROSOFT_AZURE_DNS_IP "168.63.129.16"
 #define IPv4_PLACEHOLDER       "255.255.255.255"
 
-#define PING_RCV_TIMEOUT      250
-#define PING_MAX_FAILS        4
+#define PING_RCV_TIMEOUT 1000
+#define PING_MAX_FAILS   4
 
 /* Ping target is 8.8.8.8 */
-#define PING_TARGET_IP_1      8
-#define PING_TARGET_IP_2      8
-#define PING_TARGET_IP_3      8
-#define PING_TARGET_IP_4      8
+#define PING_TARGET_IP_1 8
+#define PING_TARGET_IP_2 8
+#define PING_TARGET_IP_3 8
+#define PING_TARGET_IP_4 8
 
 #if (ENABLE_WIFI == 1)
 
-#define WIFI_NETWORK_LABEL "EVSE_WIFI"
+#define WIFI_NETWORK_LABEL       "EVSE_WIFI"
 #define EVSE_WIFI_CRED_FILE_NAME "evse_wifi_cred.dat"
 
 #else
@@ -72,13 +73,6 @@
 /*! @brief Network interface initialization function. */
 #define EVSE_ETH_NETIF_INIT_FN ethernetif0_init
 #endif /* EVSE_ETH_NETIF_INIT_FN */
-
-/* Ethernet configuration. */
-#define EVSE_ETH_ENET         ENET
-#define EVSE_ETH_PHY_ADDRESS  BOARD_ENET0_PHY_ADDRESS
-#define EVSE_ETH_PHY_OPS      &phyksz8081_ops
-#define EVSE_ETH_PHY_RESOURCE &s_phy_resource
-#define EVSE_ETH_CLOCK_FREQ   CLOCK_GetFreq(kCLOCK_IpgClk)
 
 #endif /* (ENABLE_WIFI == 1) */
 
@@ -100,7 +94,7 @@ static const char *networkConnectionStateString[EVSE_Network_Last + 1] = {
     [EVSE_Network_NetworkConnected]            = "Connected to network",
     [EVSE_Network_NetworkDisconnected]         = "Disconnected from network",
     [EVSE_Network_Last]                        = "LAST",
-    };
+};
 
 /*******************************************************************************
  * Prototypes
@@ -178,18 +172,18 @@ void LinkStatusChangeCallback(struct netif *netif)
     /* If we are here callbacks are attached. The communication stack has been initialised.
      * Safe to assume that we are over module init
      */
-    if(netif != NULL)
+    if (netif != NULL)
     {
         if (((netif->flags & NETIF_FLAG_LINK_UP) == 0) && (s_connectionState != EVSE_Network_InitComunicationModule))
         {
             /* Connection down */
-            prvConnectivity_SetState (EVSE_Network_NetworkDisconnected);
+            prvConnectivity_SetState(EVSE_Network_NetworkDisconnected);
         }
-        else if (((netif->flags & NETIF_FLAG_LINK_UP) == NETIF_FLAG_LINK_UP) && (s_connectionState ==
-        EVSE_Network_NetworkDisconnected))
+        else if (((netif->flags & NETIF_FLAG_LINK_UP) == NETIF_FLAG_LINK_UP) &&
+                 (s_connectionState == EVSE_Network_NetworkDisconnected))
         {
             /* Link is up */
-            prvConnectivity_SetState (EVSE_Network_InitCommunicationStack);
+            prvConnectivity_SetState(EVSE_Network_InitCommunicationStack);
         }
     }
 }
@@ -253,8 +247,8 @@ static void ConnectivityStack_Init()
         /* Wait for link to be up */
         while (ethernetif_wait_linkup(&s_netif, 5000) != ERR_OK)
         {
-            configPRINTF(
-                (error("PHY Auto-negotiation failed. Please check the cable connection and link partner setting.\r\n")));
+            configPRINTF((
+                error("PHY Auto-negotiation failed. Please check the cable connection and link partner setting.\r\n")));
         }
     }
 
@@ -268,20 +262,8 @@ static void ConnectivityStack_Init()
 
 static void ConnectivityModule_Init(void)
 {
-    gpio_pin_config_t gpio_config        = {kGPIO_DigitalOutput, 0, kGPIO_NoIntmode};
-    const clock_enet_pll_config_t config = {.enableClkOutput = true, .enableClkOutput25M = false, .loopDivider = 1};
-
     prvConnectivity_SetState(EVSE_Network_InitComunicationModule);
-    CLOCK_InitEnetPll(&config);
-    IOMUXC_EnableMode(IOMUXC_GPR, kIOMUXC_GPR_ENET1TxClkOutputDir, true);
-
-    GPIO_PinInit(GPIO1, 9, &gpio_config);
-    GPIO_PinInit(GPIO1, 10, &gpio_config);
-    /* pull up the ENET_INT before RESET. */
-    GPIO_WritePinOutput(GPIO1, 10, 1);
-    GPIO_WritePinOutput(GPIO1, 9, 0);
-    SDK_DelayAtLeastUs(10000, CLOCK_GetFreq(kCLOCK_CpuClk));
-    GPIO_WritePinOutput(GPIO1, 9, 1);
+    BOARD_EnableETH();
 }
 
 static void DHCP_StartClient()
@@ -359,6 +341,34 @@ static void ConnectivityModule_Init(void)
     }
 }
 
+static void WiFi_LoadPredefinedCredentials(evse_wifi_cred_t *wifi_credentials)
+{
+    if (wifi_credentials == NULL)
+    {
+        return;
+    }
+
+    memset(wifi_credentials->ssid.name, 0, SSID_MAX_SIZE);
+    memset(wifi_credentials->pass.name, 0, PASS_MAX_SIZE);
+
+    if ((strlen(WIFI_SSID) >= SSID_MAX_SIZE) || (strlen(WIFI_PASS) >= PASS_MAX_SIZE))
+    {
+        return;
+    }
+
+    memcpy(wifi_credentials->ssid.name, WIFI_SSID, strlen(WIFI_SSID));
+    wifi_credentials->ssid.length = strlen(WIFI_SSID);
+
+    memcpy(wifi_credentials->pass.name, WIFI_PASS, strlen(WIFI_PASS));
+    wifi_credentials->pass.length = strlen(WIFI_PASS);
+
+    if (EVSE_Connectivity_Wifi_Credentials_Flash_Save(wifi_credentials) != FLASH_FS_OK)
+    {
+        configPRINTF(
+            (warning("The 'wifi print' command may not work as expected due to error saving credentials to flash.")));
+    }
+}
+
 static void ConnectivityAP_Connect()
 {
     prvConnectivity_SetState(EVSE_Network_APConnectTry);
@@ -366,13 +376,13 @@ static void ConnectivityAP_Connect()
     flash_fs_status_t status = EVSE_Connectivity_Wifi_Credentials_Flash_Read(&evse_wifi_credentials);
     if (status != FLASH_FS_OK)
     {
-        configPRINTF((error("Failed to retrieve wifi credentials from flash\r\n")));
-        prvConnectivity_SetState(EVSE_Network_APConnectError);
-        flash_fs_status_t ret = status;
-        ERROR_LOOP;
+        configPRINTF((error("Failed to retrieve wifi credentials from flash")));
+        configPRINTF((info("Loading predefined wifi credentials")));
+        WiFi_LoadPredefinedCredentials(&evse_wifi_credentials);
     }
 
-    wpl_ret_t ret = WPL_AddNetwork(evse_wifi_credentials.ssid.name, evse_wifi_credentials.pass.name, WIFI_NETWORK_LABEL);
+    wpl_ret_t ret =
+        WPL_AddNetwork(evse_wifi_credentials.ssid.name, evse_wifi_credentials.pass.name, WIFI_NETWORK_LABEL);
 
     if (ret == WPLRET_SUCCESS)
     {
@@ -461,8 +471,8 @@ static void SNTP_Connection()
         ip4_addr_t sntp_ipv4      = sntp_ip;
 
         /* Output SNTP Server address.  */
-        configPRINTF((info("SNTP Server address: %lu.%lu.%lu.%lu"), (sntp_ipv4.addr >> 24), (sntp_ipv4.addr >> 16 & 0xFF),
-                      (sntp_ipv4.addr >> 8 & 0xFF), (sntp_ipv4.addr & 0xFF)));
+        configPRINTF((info("SNTP Server address: %lu.%lu.%lu.%lu"), (sntp_ipv4.addr >> 24),
+                      (sntp_ipv4.addr >> 16 & 0xFF), (sntp_ipv4.addr >> 8 & 0xFF), (sntp_ipv4.addr & 0xFF)));
 
         /* Start SNTP request */
         LOCK_TCPIP_CORE();
@@ -525,11 +535,11 @@ static void ping_setup(void)
 
     IP4_ADDR(&ip4_ping_target, PING_TARGET_IP_1, PING_TARGET_IP_2, PING_TARGET_IP_3, PING_TARGET_IP_4);
 
-    timeout.tv_sec = PING_RCV_TIMEOUT / 1000;
+    timeout.tv_sec  = PING_RCV_TIMEOUT / 1000;
     timeout.tv_usec = (PING_RCV_TIMEOUT % 1000) * 1000;
 
-    //LOCK_TCPIP_CORE();
-    ping_socket = lwip_socket(AF_INET,  SOCK_RAW, IP_PROTO_ICMP);
+    // LOCK_TCPIP_CORE();
+    ping_socket = lwip_socket(AF_INET, SOCK_RAW, IP_PROTO_ICMP);
     if (ping_socket < 0)
     {
         configPRINTF((error("Ping socket initialization failed.\r\n")));
@@ -539,7 +549,7 @@ static void ping_setup(void)
     {
         configPRINTF((error("Ping socket configuration failed.\r\n")));
     }
-    //UNLOCK_TCPIP_CORE();
+    // UNLOCK_TCPIP_CORE();
 }
 
 /**
@@ -558,7 +568,11 @@ static void EVSE_Connectivity_CheckNetwork(void)
             if (s_connectionState == EVSE_Network_NetworkDisconnected)
             {
                 configPRINTF(("Network connection back up. Connecting ..."));
+#if (ENABLE_WIFI == 1)
                 prvConnectivity_SetState(EVSE_Network_APConnected);
+#else
+                prvConnectivity_SetState(EVSE_Network_InitCommunicationStack);
+#endif /* (ENABLE_WIFI == 1) */
             }
         }
         else
@@ -596,8 +610,8 @@ static void EVSE_Connectivity_Task(void *args)
             case EVSE_Network_InitCommunicationStack:
 #if (ENABLE_WIFI == 1)
                 ConnectivityAP_Connect();
-#endif /* ENABLE_WIFI */
             case EVSE_Network_APConnected:
+#endif /* ENABLE_WIFI */
                 DHCP_StartClient();
                 break;
             case EVSE_Network_DHCPRequest:
@@ -702,7 +716,7 @@ void EVSE_Connectivity_Init()
 #if (ENABLE_WIFI == 1)
     connectionModule = EVSE_ConnectionModule_WiFi;
     BOARD_InitUSDHCPins();
-#else
+#elif (ENABLE_ETH == 1)
     connectionModule = EVSE_ConnectionModule_ETH;
     BOARD_InitEthPins();
 #endif
@@ -724,8 +738,8 @@ void EVSE_Connectivity_Init()
 #if ENABLE_WIFI
 flash_fs_status_t EVSE_Connectivity_Wifi_Credentials_Flash_Read(evse_wifi_cred_t *wifi_cred)
 {
-    flash_fs_status_t status       = FLASH_FS_OK;
-    uint32_t len                   = 0;
+    flash_fs_status_t status = FLASH_FS_OK;
+    uint32_t len             = 0;
 
     status = FLASH_LITTLEFS_Read(EVSE_WIFI_CRED_FILE_NAME, NULL, 0, &len);
     if ((status == FLASH_FS_OK) && (len <= sizeof(evse_wifi_cred_t)))
@@ -735,7 +749,7 @@ flash_fs_status_t EVSE_Connectivity_Wifi_Credentials_Flash_Read(evse_wifi_cred_t
 
     if (status != FLASH_FS_OK)
     {
-        configPRINTF(("Failed reading WiFi credentials.\r\n"));
+        configPRINTF((error("Failed reading WiFi credentials.")));
     }
 
     return status;
@@ -745,15 +759,14 @@ flash_fs_status_t EVSE_Connectivity_Wifi_Credentials_Flash_Save(evse_wifi_cred_t
 {
     flash_fs_status_t status = FLASH_FS_OK;
 
-    status = FLASH_LITTLEFS_Save(EVSE_WIFI_CRED_FILE_NAME, (uint8_t *)wifi_cred,
-                                                sizeof(evse_wifi_cred_t));
+    status = FLASH_LITTLEFS_Save(EVSE_WIFI_CRED_FILE_NAME, (uint8_t *)wifi_cred, sizeof(evse_wifi_cred_t));
     if (status != FLASH_FS_OK)
     {
-        configPRINTF(("Failed to save WiFi credentials in flash memory.\r\n"));
+        configPRINTF((error("Failed to save WiFi credentials in flash memory.")));
     }
     else
     {
-        configPRINTF(("Updated WiFi credentials in flash memory.\r\n"));
+        configPRINTF((success("Updated WiFi credentials in flash memory.")));
     }
 
     return status;
@@ -767,7 +780,7 @@ flash_fs_status_t EVSE_Connectivity_Wifi_Credentials_Flash_Erase(void)
 
     if (status != FLASH_FS_OK)
     {
-        configPRINTF(("Failed to delete WiFi credentials from flash memory.\r\n\r\n"));
+        configPRINTF((error("Failed to delete WiFi credentials from flash memory.")));
     }
 
     return status;

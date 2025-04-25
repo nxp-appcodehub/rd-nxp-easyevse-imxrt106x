@@ -1,5 +1,5 @@
 /* Copyright (c) Microsoft Corporation.
-/* Copyright 2023-2024 NXP
+/* Copyright 2023-2025 NXP
 
  * Licensed under the MIT License. */
 
@@ -40,6 +40,7 @@
 #include "EVSE_Metering.h"
 #include "EVSE_Utils.h"
 #include "EVSE_Secure_Element.h"
+#include "EVSE_ConnectivityConfig.h"
 
 #if EVSE_EDGELOCK_AGENT
 #include "EVSE_EdgeLock2goAgent.h"
@@ -75,7 +76,7 @@
 #define COMMAND_BUFFER_SIZE             256
 #define REPORTED_PROPERTIES_BUFFER_SIZE 380
 
-#define HTTP_OK_RESPONSE                200
+#define HTTP_OK_RESPONSE 200
 
 #define TLS_SEND       TLS_FreeRTOS_Send
 #define TLS_RECV       TLS_FreeRTOS_Recv
@@ -87,8 +88,9 @@
 
 /*-----------------------------------------------------------*/
 
-/* Device command */
+/* Device commands */
 extern const char method_name_terminate[METHOD_NAME_MAX_SIZE];
+extern const char method_name_suspend[METHOD_NAME_MAX_SIZE];
 
 extern const az_span method_status_name;
 extern const az_span method_status_ok;
@@ -150,11 +152,17 @@ static uint32_t telemetryCounter = 0U;
 /* 1 if initial telemetry was sent, 0 otherwise. */
 static uint8_t EVSE_initialTelemetrySent = 0U;
 
+static uint16_t s_PublishPacketId = 0;
+static bool s_PublishAckRcv       = false;
 /**
  * @brief Static buffer used to hold MQTT messages being sent and received.
  */
 static uint8_t ucMQTTMessageBuffer[democonfigNETWORK_BUFFER_SIZE];
 
+static AzureIoTHubClientCommandRequest_t s_commandRecv;
+static bool s_isTerminateCharge = true;
+static bool s_isSuspendCharge   = true;
+bool deviceIDReady              = false;
 /*-----------------------------------------------------------*/
 
 #if ENABLE_DPS_SAMPLE
@@ -170,10 +178,10 @@ static uint8_t ucMQTTMessageBuffer[democonfigNETWORK_BUFFER_SIZE];
  * @param[in,out] pulIothubDeviceIdLength  Length of deviceId
  */
 static AzureIoTResult_t prvIoTHubInfoGet(NetworkCredentials_t *pXNetworkCredentials,
-                                 uint8_t **ppucIothubHostname,
-                                 uint32_t *pulIothubHostnameLength,
-                                 uint8_t **ppucIothubDeviceId,
-                                 uint32_t *pulIothubDeviceIdLength);
+                                         uint8_t **ppucIothubHostname,
+                                         uint32_t *pulIothubHostnameLength,
+                                         uint8_t **ppucIothubDeviceId,
+                                         uint32_t *pulIothubDeviceIdLength);
 
 #endif /* ENABLE_DPS_SAMPLE */
 
@@ -183,7 +191,12 @@ static AzureIoTResult_t prvIoTHubInfoGet(NetworkCredentials_t *pXNetworkCredenti
  **/
 static void prvTelemetryPubackCallback(uint16_t usPacketID)
 {
-    AZLogInfo(("Puback received for packet id in callback: 0x%08x", usPacketID));
+    LogInfo(("Puback received for packet id in callback: 0x%08x expected 0x%08x", usPacketID, s_PublishPacketId));
+
+    if (s_PublishPacketId == usPacketID)
+    {
+        s_PublishAckRcv = true;
+    }
 }
 
 /**
@@ -237,58 +250,87 @@ static void prvEVSE_Cloud_SetConnectionState(cloudConnectionState_t cloudConnect
  */
 static void prvHandleCommand(AzureIoTHubClientCommandRequest_t *pxMessage, void *pvContext)
 {
+    if (pxMessage == NULL)
+    {
+        return;
+    }
+
     LogInfo(("Cloud message payload : %.*s \r\n", (int)pxMessage->ulPayloadLength,
              (const char *)pxMessage->pvMessagePayload));
 
-    (void)pvContext;
-    AzureIoTHubClient_t *pxHandle  = (AzureIoTHubClient_t *)pvContext;
-    uint32_t ulResponseStatus      = 0;
-    AzureIoTResult_t xResult       = eAzureIoTErrorFailed;
-    meter_status_t status          = kMeterStatus_Fail;
-    uint32_t payloadLength         = 0;
-    uint16_t method_name_length    = pxMessage->usCommandNameLength;
+    AzureIoTHubClient_t *pxHandle = (AzureIoTHubClient_t *)pvContext;
+
     const uint8_t *method_name_ptr = pxMessage->pucCommandName;
+    uint16_t method_name_length    = pxMessage->usCommandNameLength;
 
-    if ((method_name_length == (sizeof(method_name_terminate) - 1)) &&
-        (memcmp((void *)method_name_ptr, (void *)method_name_terminate, sizeof(method_name_terminate) - 1) == 0))
+    memset(ucCommandResponsePayloadBuffer, 0, sizeof(ucCommandResponsePayloadBuffer));
+
+    if ((method_name_length == strlen(method_name_terminate)) &&
+        (memcmp((void *)method_name_ptr, (void *)method_name_terminate, strlen(method_name_terminate)) == 0))
     {
-        status = serialize_terminate_charging(ucCommandResponsePayloadBuffer, COMMAND_BUFFER_SIZE, &payloadLength);
-        if (status == kMeterStatus_Success)
-        {
-            if ((xResult = AzureIoTHubClient_SendCommandResponse(pxHandle, pxMessage, ulResponseStatus,
-                                                                 ucCommandResponsePayloadBuffer, payloadLength)) !=
-                eAzureIoTSuccess)
-            {
-                LogError(("Error sending command response: result 0x%08x", (uint16_t)xResult));
-            }
-            else
-            {
-                LogInfo(("Successfully sent command response %d", (int16_t)ulResponseStatus));
-
-                LogInfo(("Attempt to receive publish message from IoT Hub.\r\n"));
-                xResult = AzureIoTHubClient_ProcessLoop(&xAzureIoTHubClient, sampleazureiotPROCESS_LOOP_TIMEOUT_MS);
-                if (xResult != eAzureIoTSuccess)
-                {
-                    LogError(("Error processing loop: result 0x%08x", (uint16_t)xResult));
-                    if (xResult == eAzureIoTErrorFailed)
-                    {
-                        LogInfo(("Requesting cloud disconnect ...\r\n"));
-                        EVSE_Cloud_Disconnect(true);
-                    }
-                }
-            }
-        }
-        else
-        {
-            LogInfo(("Failed to create json payload for command response."));
-        }
+        s_isTerminateCharge = true;
+    }
+    else if ((method_name_length == strlen(method_name_suspend)) &&
+             (memcmp((void *)method_name_ptr, (void *)method_name_suspend, strlen(method_name_suspend)) == 0))
+    {
+        s_isSuspendCharge = true;
     }
     else
     {
         LogInfo(("Unknown command."));
+        return;
+    }
+
+    if (s_commandRecv.pucRequestID == NULL)
+    {
+        uint8_t *pucRequestID = pvPortMalloc(pxMessage->usRequestIDLength);
+        if (pucRequestID != NULL)
+        {
+            memset(&s_commandRecv, 0, sizeof(AzureIoTHubClientCommandRequest_t));
+            memcpy(pucRequestID, pxMessage->pucRequestID, pxMessage->usRequestIDLength);
+            s_commandRecv.pucRequestID      = pucRequestID;
+            s_commandRecv.usRequestIDLength = pxMessage->usRequestIDLength;
+            xEventGroupSetBits(s_evse_event, EVSE_COMMAND_RECEIVE_EVENT);
+        }
     }
 }
 
+static void prvHandleCommand_Terminate()
+{
+    uint32_t ulResponseStatus = 0;
+    AzureIoTResult_t xResult  = eAzureIoTErrorFailed;
+    meter_status_t status     = kMeterStatus_Fail;
+    uint32_t payloadLength    = 0;
+
+    /* Act on the command received and serialize answer */
+    status = serialize_terminate_charging(ucCommandResponsePayloadBuffer, sizeof(ucCommandResponsePayloadBuffer),
+                                          s_isTerminateCharge, &payloadLength);
+    if (status == kMeterStatus_Success)
+    {
+        if ((xResult = AzureIoTHubClient_SendCommandResponse(&xAzureIoTHubClient, &s_commandRecv, ulResponseStatus,
+                                                             ucCommandResponsePayloadBuffer, payloadLength)) !=
+            eAzureIoTSuccess)
+        {
+            LogError(("Error sending command response: result 0x%08x", (uint16_t)xResult));
+        }
+        else
+        {
+            LogInfo(("Message replied successfully. Reply for Command Terminate"));
+        }
+    }
+    else
+    {
+        LogInfo(("Failed to create json payload for command response."));
+    }
+
+    if (s_commandRecv.pucRequestID)
+    {
+        vPortFree(s_commandRecv.pucRequestID);
+        s_commandRecv.pucRequestID = NULL;
+    }
+
+    s_isTerminateCharge = false;
+}
 /**
  * @brief Internal function for handling properties request.
  */
@@ -305,15 +347,13 @@ static void prvDispatchPropertiesRequestToSync(AzureIoTHubClientPropertiesRespon
     }
 
     /* Serialize the properties and send them to cloud. */
-    status = serialize_reported_property(ucReportedPropertiesUpdate,
-                                         REPORTED_PROPERTIES_BUFFER_SIZE, &ulReportedPropertiesUpdateLength);
+    status = serialize_reported_property(ucReportedPropertiesUpdate, REPORTED_PROPERTIES_BUFFER_SIZE,
+                                         &ulReportedPropertiesUpdateLength);
     if (status == kMeterStatus_Success)
     {
-        xResult = AzureIoTHubClient_SendPropertiesReported(&xAzureIoTHubClient,
-                                                           ucReportedPropertiesUpdate,
-                                                           ulReportedPropertiesUpdateLength,
-                                                           NULL);
-        if (xResult !=  eAzureIoTSuccess)
+        xResult = AzureIoTHubClient_SendPropertiesReported(&xAzureIoTHubClient, ucReportedPropertiesUpdate,
+                                                           ulReportedPropertiesUpdateLength, NULL);
+        if (xResult != eAzureIoTSuccess)
         {
             LogError(("Error sending reported properties: result 0x%08x", (uint16_t)xResult));
         }
@@ -333,12 +373,13 @@ static void prvDispatchPropertiesRequestToSync(AzureIoTHubClientPropertiesRespon
  */
 static void prvDispatchPropertiesUpdate(AzureIoTHubClientPropertiesResponse_t *pxMessage)
 {
-    meter_status_t status          = kMeterStatus_Fail;
-    AzureIoTResult_t xResult       = eAzureIoTErrorFailed;
-    uint32_t propertyVersion       = 0U;
-    uint8_t propertiesToUpdate     = 0U;
+    meter_status_t status      = kMeterStatus_Fail;
+    AzureIoTResult_t xResult   = eAzureIoTErrorFailed;
+    uint32_t propertyVersion   = 0U;
+    uint8_t propertiesToUpdate = 0U;
 
-    /* Extract the properties that need updating, update them locally and populate propertyVersion and propertiesToUpdate. */
+    /* Extract the properties that need updating, update them locally and populate propertyVersion and
+     * propertiesToUpdate. */
     if (do_property_update_locally(pxMessage, &propertyVersion, &propertiesToUpdate) != kMeterStatus_Success)
     {
         LogError(("Failed to update properties locally."));
@@ -351,11 +392,9 @@ static void prvDispatchPropertiesUpdate(AzureIoTHubClientPropertiesResponse_t *p
                                                 REPORTED_PROPERTIES_BUFFER_SIZE, &ulReportedPropertiesUpdateLength);
     if (status == kMeterStatus_Success)
     {
-        xResult = AzureIoTHubClient_SendPropertiesReported(&xAzureIoTHubClient,
-                                                           ucReportedPropertiesUpdate,
-                                                           ulReportedPropertiesUpdateLength,
-                                                           NULL);
-        if (xResult !=  eAzureIoTSuccess)
+        xResult = AzureIoTHubClient_SendPropertiesReported(&xAzureIoTHubClient, ucReportedPropertiesUpdate,
+                                                           ulReportedPropertiesUpdateLength, NULL);
+        if (xResult != eAzureIoTSuccess)
         {
             LogError(("Error sending reported properties: result 0x%08x", (uint16_t)xResult));
         }
@@ -373,6 +412,34 @@ static void prvDispatchPropertiesUpdate(AzureIoTHubClientPropertiesResponse_t *p
 static uint64_t ullGetUnixTime(void)
 {
     return (uint64_t)EVSE_Connectivity_GetUnixTime();
+}
+
+static AzureIoTResult_t prvEVSE_Cloud_ProcessLoopWithDelay(AzureIoTHubClient_t *pxAzureIoTHubClient)
+{
+    AzureIoTResult_t xResult = eAzureIoTErrorFailed;
+    int32_t remainingTime    = (MQTT_SEND_TIMEOUT_MS + MQTT_RECV_POLLING_TIMEOUT_MS);
+
+    s_PublishAckRcv = false;
+
+    while ((s_PublishAckRcv == false) && (remainingTime >= 0))
+    {
+        xResult = AzureIoTHubClient_ProcessLoop(&xAzureIoTHubClient);
+        if (xResult != eAzureIoTSuccess)
+        {
+            LogError(("Error processing loop: result 0x%08x", (uint16_t)xResult));
+            break;
+        }
+        remainingTime -= sampleazureiotconfigPOLL_WAIT_INTERVAL_MS;
+        vTaskDelay(sampleazureiotconfigPOLL_WAIT_INTERVAL_MS);
+    }
+
+    if ((xResult == eAzureIoTSuccess) && (s_PublishAckRcv == false))
+    {
+        LogError(("Process Loop timeout."));
+        xResult = eAzureIoTErrorFailed;
+    }
+
+    return xResult;
 }
 
 /**
@@ -422,17 +489,22 @@ static uint32_t prvSetupDPSNetworkCredentials(NetworkCredentials_t *pxNetworkCre
     static char keyLabel[20]  = {0};
     static char certLabel[20] = {0};
 
-    pex_sss_demo_tls_ctx->client_cert_index    = AZURE_IOT_CLIENT_CERT_INDEX_SM;
-    pex_sss_demo_tls_ctx->client_keyPair_index = AZURE_IOT_KEY_INDEX_SM;
+    if (EVSE_SE050_Set_CertificateIdx(pex_sss_demo_tls_ctx) == kStatus_Certificates_Failed)
+    {
+        configPRINTF((error("Error setting up indexes for network credentials")));
+        return TLS_TRANSPORT_INVALID_PARAMETER;
+    }
 
     memset(certLabel, 0, sizeof(certLabel));
-    if (snprintf(certLabel, sizeof(certLabel), "sss:%08lx", pex_sss_demo_tls_ctx->client_cert_index) < 0){
-        LogError(("snprintf error"));
+    if (snprintf(certLabel, sizeof(certLabel), "sss:%08lx", pex_sss_demo_tls_ctx->client_cert_index) < 0)
+    {
+        configPRINTF((error("Error setting up network credentials")));
         return TLS_TRANSPORT_INVALID_CREDENTIALS;
     }
     memset(keyLabel, 0, sizeof(keyLabel));
-    if (snprintf(keyLabel, sizeof(keyLabel), "sss:%08lx", pex_sss_demo_tls_ctx->client_keyPair_index) < 0){
-        LogError(("snprintf error"));
+    if (snprintf(keyLabel, sizeof(keyLabel), "sss:%08lx", pex_sss_demo_tls_ctx->client_keyPair_index) < 0)
+    {
+        configPRINTF((error("Error setting up network credentials")));
         return TLS_TRANSPORT_INVALID_CREDENTIALS;
     }
 
@@ -461,28 +533,32 @@ static uint32_t prvSetupDPSNetworkCredentials(NetworkCredentials_t *pxNetworkCre
  */
 static uint32_t prvSetupHubNetworkCredentials(NetworkCredentials_t *pxNetworkCredentials)
 {
-
 #if (EVSE_X509_SE050_AUTH == 1)
-    static char keyLabel[ 20 ] = {0};
-    static char certLabel[ 20 ] = {0};
+    static char keyLabel[20]  = {0};
+    static char certLabel[20] = {0};
 
-    pex_sss_demo_tls_ctx->client_cert_index    = AZURE_IOT_CLIENT_CERT_INDEX_SM;
-    pex_sss_demo_tls_ctx->client_keyPair_index = AZURE_IOT_KEY_INDEX_SM;
+    if (EVSE_SE050_Set_CertificateIdx(pex_sss_demo_tls_ctx) == kStatus_Certificates_Failed)
+    {
+        configPRINTF((error("Error setting up indexes for network credentials")));
+        return TLS_TRANSPORT_INVALID_PARAMETER;
+    }
 
     memset(certLabel, 0, sizeof(certLabel));
-    if (snprintf(certLabel, sizeof(certLabel), "sss:%08lx", pex_sss_demo_tls_ctx->client_cert_index) < 0){
-        LogError(("snprintf error"));
+    if (snprintf(certLabel, sizeof(certLabel), "sss:%08lx", pex_sss_demo_tls_ctx->client_cert_index) < 0)
+    {
+        configPRINTF((error("Error setting up network credentials")));
         return TLS_TRANSPORT_INVALID_CREDENTIALS;
     }
     memset(keyLabel, 0, sizeof(keyLabel));
-    if (snprintf(keyLabel, sizeof(keyLabel), "sss:%08lx", pex_sss_demo_tls_ctx->client_keyPair_index) < 0){
-        LogError(("snprintf error"));
+    if (snprintf(keyLabel, sizeof(keyLabel), "sss:%08lx", pex_sss_demo_tls_ctx->client_keyPair_index) < 0)
+    {
+        configPRINTF((error("Error setting up network credentials")));
         return TLS_TRANSPORT_INVALID_CREDENTIALS;
     }
 
     /* Set the credentials for establishing a TLS connection. */
-    pxNetworkCredentials->pClientCertLabel = ( const char * ) &certLabel[ 0 ];
-    pxNetworkCredentials->pPrivateKeyLabel = ( const char * ) &keyLabel[ 0 ];
+    pxNetworkCredentials->pClientCertLabel = (const char *)&certLabel[0];
+    pxNetworkCredentials->pPrivateKeyLabel = (const char *)&keyLabel[0];
 #endif /* EVSE_X509_SE050_AUTH */
 
     pxNetworkCredentials->disableSni = pdFALSE;
@@ -508,7 +584,7 @@ static void prvClearNetworkContext(NetworkContext_t *pxNetworkContext)
     }
 
     (void)memset(pxNetworkContext, 0U, sizeof(NetworkContext_t));
-
+    pxNetworkContext->tcpSocket = -1;
 }
 
 /*-----------------------------------------------------------*/
@@ -527,9 +603,10 @@ static void prvAzureTelemetrySendOnConnect()
     status = serialize_telemetry_action_on_connect(ucScratchBuffer, TELEMETRY_BUFFER_SIZE, &ulScratchBufferLength);
     if ((status == kMeterStatus_Success) && (ulScratchBufferLength > 0))
     {
-        /* Send telemetry and block until the message is sent over the network (or fails), though it will not block waiting for an acknowledgement */
+        /* Send telemetry and block until the message is sent over the network (or fails), though it will not block
+         * waiting for an acknowledgement */
         xResult = AzureIoTHubClient_SendTelemetry(&xAzureIoTHubClient, ucScratchBuffer, ulScratchBufferLength, NULL,
-                                                  eAzureIoTHubMessageQoS1, NULL);
+                                                  eAzureIoTHubMessageQoS1, &s_PublishPacketId);
         if (xResult != eAzureIoTSuccess)
         {
             LogError(("Error sending telemetry: result 0x%08x", (uint16_t)xResult));
@@ -538,13 +615,8 @@ static void prvAzureTelemetrySendOnConnect()
         else
         {
             LogInfo(("Finished sending initial telemetry data ..."));
-
-            LogInfo(("Attempt to receive publish message from IoT Hub.\r\n"));
-            xResult = AzureIoTHubClient_ProcessLoop(&xAzureIoTHubClient, sampleazureiotPROCESS_LOOP_TIMEOUT_MS);
-            if (xResult != eAzureIoTSuccess)
-            {
-                LogError(("Error processing loop: result 0x%08x", (uint16_t)xResult));
-            }
+            LogInfo(("Attempt to receive puback message from IoT Hub.\r\n"));
+            xResult = prvEVSE_Cloud_ProcessLoopWithDelay(&xAzureIoTHubClient);
         }
     }
 
@@ -553,6 +625,12 @@ static void prvAzureTelemetrySendOnConnect()
         /* We are properly disconnected but try to do a proper cleanup */
         LogInfo(("Requesting cloud disconnect ...\r\n"));
         EVSE_Cloud_Disconnect(true);
+    }
+    else
+    {
+        EVSE_initialTelemetrySent = 1;
+        /* Update telemetry counter before leaving */
+        telemetryCounter = telemetryCounter + 1;
     }
 }
 
@@ -575,24 +653,19 @@ static void prvAzureTelemetrySend()
     status = serialize_telemetry_action(ucScratchBuffer, TELEMETRY_BUFFER_SIZE, &ulScratchBufferLength);
     if ((status == kMeterStatus_Success) && (ulScratchBufferLength > 0))
     {
+        LogInfo(("Attempt to send telemetry data"));
         xResult = AzureIoTHubClient_SendTelemetry(&xAzureIoTHubClient, ucScratchBuffer, ulScratchBufferLength, NULL,
-                                                  eAzureIoTHubMessageQoS1, NULL);
+                                                  eAzureIoTHubMessageQoS1, &s_PublishPacketId);
         if (xResult != eAzureIoTSuccess)
         {
             LogError(("Error sending telemetry: result 0x%08x", (uint16_t)xResult));
-            /* todo: In the future, log this to filesystem */
         }
         else
         {
             LogInfo(("Finished sending telemetry data ..."));
+            LogInfo(("Attempt to receive puback message from IoT Hub.\r\n"));
 
-            LogInfo(("Attempt to receive publish message from IoT Hub.\r\n"));
-            xResult = AzureIoTHubClient_ProcessLoop(&xAzureIoTHubClient, sampleazureiotPROCESS_LOOP_TIMEOUT_MS);
-
-            if (xResult != eAzureIoTSuccess)
-            {
-                LogError(("Error processing loop: result 0x%08x", (uint16_t)xResult));
-            }
+            xResult = prvEVSE_Cloud_ProcessLoopWithDelay(&xAzureIoTHubClient);
         }
     }
 
@@ -614,36 +687,65 @@ static void prvAzureTelemetrySend()
  */
 static void prvAzureCheckProvisioned(void)
 {
-#if (EVSE_X509_SE050_AUTH == 1)
-    certificates_status_t certStatus = kStatus_Certificates_Failed;
-    uint32_t cert_size               = CERT_BUFFER_SIZE;
+    deviceIDReady = false;
+    bool provDone = true;
+    EVSE_SE05X_status_t status;
+
+#if ((ENABLE_ISO15118 == 1) && (PKCS11_SUPPORTED == 1))
+    status = kStatus_CPOKey_Failed;
 
     EVSE_SE050_Open_Session();
-    certStatus = EVSE_SE050_Check_Certificate(AZURE_IOT_CLIENT_CERT_INDEX_SM, &cert_size);
+    status = EVSE_SE050_Check_CPOKey();
     EVSE_SE050_Close_Session();
 
-    if (certStatus != kStatus_Certificates_Success)
+    provDone = (status == kStatus_CPOKey_Success) ? true : false;
+#endif /* ENABLE_ISO15118 && PKCS11_SUPPORTED */
+
+#if (EVSE_X509_SE050_AUTH == 1)
+    uint32_t cert_size = AZURE_IOT_CLIENTCERT_BUFSIZE;
+
+    EVSE_SE050_Open_Session();
+    status = EVSE_SE050_Check_Cloud_Certificate(&cert_size);
+    EVSE_SE050_Close_Session();
+    provDone = (status == kStatus_Certificates_Success) ? (provDone && true) : false;
+#endif /* EVSE_X509_SE050_AUTH */
+
+    if (!provDone)
     {
-#if EVSE_EDGELOCK_AGENT
+#if (EVSE_EDGELOCK_AGENT == 1)
         /* Contact EdgeLock2Go agent to get certificates for Cloud connection into the SE */
+#if (EVSE_X509_SE050_AUTH == 1)
         prvEVSE_Cloud_SetConnectionState(EVSE_Cloud_EdgeLock_Request);
+#endif /* EVSE_X509_SE050_AUTH */
 
         if (EVSE_EdgeLock_RunClient() != IOT_AGENT_SUCCESS)
         {
             configPRINTF((error("EdgeLock 2GO client failed!\r\n")));
+#if (EVSE_X509_SE050_AUTH == 1)
             prvEVSE_Cloud_SetConnectionState(EVSE_Cloud_EdgeLock_Error);
+#endif /* EVSE_X509_SE050_AUTH */
             return;
         }
 
+#if (EVSE_X509_SE050_AUTH == 1)
         EVSE_SE050_Open_Session();
-        EVSE_SE050_Delete_ServerHostname(AZURE_IOT_HOSTNAME_INDEX_SM);
+        EVSE_SE050_Delete_ServerHostname();
         EVSE_SE050_Close_Session();
+#endif /* EVSE_X509_SE050_AUTH */
+
+#if ((ENABLE_ISO15118 == 1) && (PKCS11_SUPPORTED == 1))
+        EVSE_SE050_Open_Session();
+        EVSE_SE050_Handle_CPOKey();
+        EVSE_SE050_Close_Session();
+#endif /* ENABLE_ISO15118 && PKCS11_SUPPORTED */
+
 #else
         configPRINTF((error("No certificates provisioned in the secure element!\r\n")));
         return;
 #endif /* EVSE_EDGELOCK_AGENT */
     }
 
+#if (EVSE_X509_SE050_AUTH == 1)
     EVSE_SE050_Open_Session();
     if (EVSE_SE050_Get_DeviceIDFromCertificate((uint8_t *)&ucSampleIotHubDeviceId[0], EVSE_DEVICEID_MAX_BUFFER) !=
         kStatus_Certificates_Success)
@@ -651,15 +753,16 @@ static void prvAzureCheckProvisioned(void)
         configPRINTF((error("Reading the device id failed!\r\n")));
     }
     EVSE_SE050_Close_Session();
+#endif /* EVSE_X509_SE050_AUTH */
 
-#elif (EVSE_X509_AUTH == 1)
+#if (EVSE_X509_AUTH == 1)
     if (EVSE_SE050_Get_DeviceIDFromCertificate((uint8_t *)&ucSampleIotHubDeviceId[0], EVSE_DEVICEID_MAX_BUFFER) !=
         kStatus_Certificates_Success)
     {
         configPRINTF((error("Reading the device id failed!\r\n")));
     }
 #endif /* (EVSE_X509_SE050_AUTH == 1)) */
-
+    deviceIDReady = true;
     xEventGroupSetBits(s_evse_event, EVSE_INITIALIZATION_EVENT);
 }
 
@@ -668,7 +771,6 @@ static void prvAzureCheckProvisioned(void)
  */
 static void prvMonitorConnection(void)
 {
-
     if (!EVSE_Connectivity_IsConnectedToInternet())
     {
         if (s_cloudConnectionState == EVSE_Cloud_HubConnected)
@@ -693,14 +795,14 @@ static void prvAzureCloudConnection(bool trySEHostname)
 {
     static NetworkCredentials_t xNetworkCredentials = {0};
     static AzureIoTTransportInterface_t xTransport  = {0};
-    static AzureIoTHubClientOptions_t xHubOptions = {0};
+    static AzureIoTHubClientOptions_t xHubOptions   = {0};
     AzureIoTResult_t xResult;
     uint32_t ulStatus;
     AzureIoTResult_t IoTHub_status;
-    hostname_config_status_t status = kStatus_Hostname_Failed;
+    EVSE_SE05X_status_t status = kStatus_Hostname_Failed;
     bool xSessionPresent;
     static uint8_t *pucIotHubHostname = NULL;
-    uint32_t pulIothubHostnameLength = EVSE_HOSTNAME_MAX_BUFFER;
+    uint32_t pulIothubHostnameLength  = EVSE_HOSTNAME_MAX_BUFFER;
 
     EVSE_SE050_Open_Session();
     if (trySEHostname)
@@ -708,7 +810,7 @@ static void prvAzureCloudConnection(bool trySEHostname)
         status = EVSE_SE050_Get_ServerHostname(ucSampleIotHubHostname, &pulIothubHostnameLength);
         if (status == kStatus_Hostname_Success)
         {
-            pucIotHubHostname = (uint8_t*)ucSampleIotHubHostname;
+            pucIotHubHostname = (uint8_t *)ucSampleIotHubHostname;
         }
     }
 
@@ -745,7 +847,7 @@ static void prvAzureCloudConnection(bool trySEHostname)
 
         /* Run DPS. */
         if ((IoTHub_status = prvIoTHubInfoGet(&xNetworkCredentials, &pucIotHubHostname, &pulIothubHostnameLength,
-                                     &pucIotHubDeviceId, &pulIothubDeviceIdLength)) != eAzureIoTSuccess)
+                                              &pucIotHubDeviceId, &pulIothubDeviceIdLength)) != eAzureIoTSuccess)
         {
             LogError(("Failed on sample_dps_entry!: error code = 0x%08x\r\n", IoTHub_status));
             prvEVSE_Cloud_SetConnectionState(EVSE_Cloud_DPSError);
@@ -775,7 +877,7 @@ static void prvAzureCloudConnection(bool trySEHostname)
          * number of attempts. */
 
         ulStatus = prvConnectToServerWithBackoffRetries((const char *)pucIotHubHostname, democonfigIOTHUB_PORT,
-                                       &xNetworkCredentials, &xNetworkContext);
+                                                        &xNetworkCredentials, &xNetworkContext);
         if (ulStatus != 0)
         {
             configPRINTF(("Failed to connect to server with backoff retries\r\n"));
@@ -787,6 +889,7 @@ static void prvAzureCloudConnection(bool trySEHostname)
         xTransport.pxNetworkContext = &xNetworkContext;
         xTransport.xSend            = TLS_SEND;
         xTransport.xRecv            = TLS_RECV;
+        xTransport.writev           = NULL;
 
         /* Init IoT Hub option */
         xResult = AzureIoTHubClient_OptionsInit(&xHubOptions);
@@ -865,7 +968,6 @@ static void prvAzureCloudConnection(bool trySEHostname)
         /* Send initial telemetry message. */
         prvAzureTelemetrySendOnConnect();
 
-        EVSE_initialTelemetrySent = 1;
         return;
     }
 
@@ -907,11 +1009,13 @@ static void EVSE_Cloud_Disconnect(bool reconnection)
         }
     }
 
-    /* Close the network connection. */
+    if (xNetworkContext.tcpSocket != -1)
+    {
+        /* Close the network connection. */
+        TLS_DISCONNECT(&xNetworkContext);
+    }
 
-    TLS_DISCONNECT(&xNetworkContext);
-
-    memset(&xNetworkContext, 0, sizeof(xNetworkContext));
+    prvClearNetworkContext(&xNetworkContext);
 
     /* Set new cloud state. */
     prvEVSE_Cloud_SetConnectionState(EVSE_Cloud_HubDisconnected);
@@ -933,12 +1037,11 @@ static void EVSE_Cloud_Disconnect(bool reconnection)
  *   This function will block for Provisioning service for result or return failure.
  */
 static AzureIoTResult_t prvIoTHubInfoGet(NetworkCredentials_t *pXNetworkCredentials,
-                                 uint8_t **ppucIothubHostname,
-                                 uint32_t *pulIothubHostnameLength,
-                                 uint8_t **ppucIothubDeviceId,
-                                 uint32_t *pulIothubDeviceIdLength)
+                                         uint8_t **ppucIothubHostname,
+                                         uint32_t *pulIothubHostnameLength,
+                                         uint8_t **ppucIothubDeviceId,
+                                         uint32_t *pulIothubDeviceIdLength)
 {
-
     AzureIoTResult_t xResult;
     AzureIoTTransportInterface_t xTransport;
 
@@ -948,9 +1051,10 @@ static AzureIoTResult_t prvIoTHubInfoGet(NetworkCredentials_t *pXNetworkCredenti
     uint32_t ucSamplepIothubDeviceIdLength = sizeof(ucSampleIotHubDeviceId);
     uint32_t ulStatus;
 
-    ulStatus = prvConnectToServerWithBackoffRetries(ENDPOINT, democonfigIOTHUB_PORT, pXNetworkCredentials, &xNetworkContext);
+    ulStatus =
+        prvConnectToServerWithBackoffRetries(ENDPOINT, democonfigIOTHUB_PORT, pXNetworkCredentials, &xNetworkContext);
 
-    if(ulStatus != 0)
+    if (ulStatus != 0)
     {
         xResult = eAzureIoTErrorServerError;
         goto exit;
@@ -961,6 +1065,7 @@ static AzureIoTResult_t prvIoTHubInfoGet(NetworkCredentials_t *pXNetworkCredenti
     xTransport.pxNetworkContext = &xNetworkContext;
     xTransport.xSend            = TLS_SEND;
     xTransport.xRecv            = TLS_RECV;
+    xTransport.writev           = NULL;
 
 #if ((EVSE_X509_SE050_AUTH == 1) || (EVSE_X509_AUTH == 1))
 #undef REGISTRATION_ID
@@ -976,7 +1081,7 @@ static AzureIoTResult_t prvIoTHubInfoGet(NetworkCredentials_t *pXNetworkCredenti
         sizeof(REGISTRATION_ID) - 1,
 #endif
         NULL, ucMQTTMessageBuffer, sizeof(ucMQTTMessageBuffer), ullGetUnixTime, &xTransport);
-    if(xResult != eAzureIoTSuccess)
+    if (xResult != eAzureIoTSuccess)
     {
         goto exit;
     }
@@ -985,7 +1090,7 @@ static AzureIoTResult_t prvIoTHubInfoGet(NetworkCredentials_t *pXNetworkCredenti
     xResult =
         AzureIoTProvisioningClient_SetSymmetricKey(&xAzureIoTProvisioningClient, (const uint8_t *)DEVICE_SYMMETRIC_KEY,
                                                    sizeof(DEVICE_SYMMETRIC_KEY) - 1, Crypto_HMAC);
-    if(xResult != eAzureIoTSuccess)
+    if (xResult != eAzureIoTSuccess)
     {
         goto exit;
     }
@@ -994,7 +1099,7 @@ static AzureIoTResult_t prvIoTHubInfoGet(NetworkCredentials_t *pXNetworkCredenti
     xResult = AzureIoTProvisioningClient_SetRegistrationPayload(&xAzureIoTProvisioningClient,
                                                                 (const uint8_t *)sampleazureiotPROVISIONING_PAYLOAD,
                                                                 sizeof(sampleazureiotPROVISIONING_PAYLOAD) - 1);
-    if(xResult != eAzureIoTSuccess)
+    if (xResult != eAzureIoTSuccess)
     {
         goto exit;
     }
@@ -1018,7 +1123,7 @@ static AzureIoTResult_t prvIoTHubInfoGet(NetworkCredentials_t *pXNetworkCredenti
     xResult = AzureIoTProvisioningClient_GetDeviceAndHub(&xAzureIoTProvisioningClient, ucSampleIotHubHostname,
                                                          &ucSamplepIothubHostnameLength, ucSampleIotHubDeviceId,
                                                          &ucSamplepIothubDeviceIdLength);
-    if(xResult != eAzureIoTSuccess)
+    if (xResult != eAzureIoTSuccess)
     {
         goto exit;
     }
@@ -1029,7 +1134,8 @@ static AzureIoTResult_t prvIoTHubInfoGet(NetworkCredentials_t *pXNetworkCredenti
 
     TLS_DISCONNECT(&xNetworkContext);
 
-    if (EVSE_SE050_Set_ServerHostname((char*)ucSampleIotHubHostname, (uint32_t)ucSamplepIothubHostnameLength) == kStatus_Hostname_Failed)
+    if (EVSE_SE050_Set_ServerHostname((char *)ucSampleIotHubHostname, (uint32_t)ucSamplepIothubHostnameLength) ==
+        kStatus_Hostname_Failed)
     {
         LogError(("Could not store Hostname in Secure Element!\r\n"));
     }
@@ -1073,11 +1179,10 @@ static uint32_t prvConnectToServerWithBackoffRetries(const char *pcHostName,
     {
         LogInfo(("Creating a TLS connection to %s:%u.\r\n", pcHostName, (uint16_t)port));
 
-
         /* Attempt to create a mutually authenticated TLS connection. */
-        xNetworkStatus = TLS_CONNECT(pxNetworkContext, pcHostName, port, pxNetworkCredentials,
-                                            sampleazureiotTRANSPORT_SEND_RECV_TIMEOUT_MS,
-                                            sampleazureiotTRANSPORT_SEND_RECV_TIMEOUT_MS);
+        xNetworkStatus =
+            TLS_CONNECT(pxNetworkContext, pcHostName, port, pxNetworkCredentials,
+                        sampleazureiotTRANSPORT_SEND_RECV_TIMEOUT_MS, sampleazureiotTRANSPORT_SEND_RECV_TIMEOUT_MS);
 
         if (xNetworkStatus != 0)
         {
@@ -1110,14 +1215,13 @@ static void prvAzureCloudConnectionTask(void *pvParameters)
 {
     EventBits_t uxBits;
     (void)pvParameters;
-    uint8_t retries = 0;
+    uint8_t retries               = 0;
     const TickType_t xTicksToWait = EVSE_WAIT_CLOUD_EVENTS / portTICK_PERIOD_MS;
 
     while (1)
     {
-        uxBits = xEventGroupWaitBits(s_evse_event,
-                                     EVSE_CLOUD_ALL_EVENTS,
-                                     pdTRUE, pdFALSE,       /* Don't wait for all bits, either bit will do. */
+        uxBits = xEventGroupWaitBits(s_evse_event, EVSE_CLOUD_ALL_EVENTS, pdTRUE,
+                                     pdFALSE, /* Don't wait for all bits, either bit will do. */
                                      xTicksToWait);
 
         if (uxBits & (EVSE_INIT_CREDENTIALS_EVENT))
@@ -1141,8 +1245,19 @@ static void prvAzureCloudConnectionTask(void *pvParameters)
             prvAzureTelemetrySend();
         }
 
-        prvMonitorConnection();
+        if ((uxBits & (EVSE_COMMAND_RECEIVE_EVENT)) && (EVSE_COMMAND_RECEIVE_EVENT))
+        {
+            if (s_isTerminateCharge)
+            {
+                prvHandleCommand_Terminate();
+            }
+            else
+            {
+                s_isSuspendCharge = false;
+            }
+        }
 
+        prvMonitorConnection();
     }
 
     /* Shouldn't reach here, but to be sure */
@@ -1203,7 +1318,7 @@ void EVSE_Cloud_Init(void)
          * connect, subscribe, publish, unsubscribe and disconnect from the IoT Hub */
         xReturned = xTaskCreate(
             prvAzureCloudConnectionTask,            /* Function that implements the task. */
-            "Azure Cloud Connectivity",           /* Text name for the task - only used for debugging. */
+            "Azure Cloud Connectivity",             /* Text name for the task - only used for debugging. */
             APP_EVSE_AZURE_CONNECTIVITY_STACK_SIZE, /* Size of stack (in words, not bytes) to allocate for the task. */
             NULL,                                   /* Task parameter - not used in this case. */
             APP_EVSE_AZURE_CONNECTIVITY_PRIORITY,   /* Task priority, must be between 0 and configMAX_PRIORITIES - 1. */

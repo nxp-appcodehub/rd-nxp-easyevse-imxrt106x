@@ -75,6 +75,9 @@ typedef enum AzureIoTMQTTResult
     eAzureIoTMQTTIllegalState,     /** An illegal state in the state record. */
     eAzureIoTMQTTStateCollision,   /** A collision with an existing state record entry. */
     eAzureIoTMQTTKeepAliveTimeout, /** Timeout while waiting for PINGRESP. */
+    eAzureIoTMQTTNeedMoreBytes,    /** MQTT_ProcessLoop/MQTT_ReceiveLoop has received
+                                       incomplete data; it should be called again (probably after
+                                       a delay). */
     eAzureIoTMQTTFailed            /** Function failed with Unknown Error. */
 } AzureIoTMQTTResult_t;
 
@@ -217,6 +220,11 @@ typedef struct AzureIoTMQTTPacketInfo
      * @brief Length of remaining serialized data.
      */
     size_t xRemainingLength;
+
+    /**
+     * @brief The length of the MQTT header including the type and length.
+     */
+    size_t headerLength;
 } AzureIoTMQTTPacketInfo_t;
 
 /**
@@ -253,6 +261,10 @@ typedef void ( * AzureIoTMQTTEventCallback_t )( AzureIoTMQTTHandle_t pContext,
  * notify about incoming packet events.
  * @param[in] pucNetworkBuffer Network buffer provided for the context.
  * @param[in] xNetworkBufferLength Length of network buffer.
+ * @param[in] outgoingPublishesBuffer Buffer provided for the outgoing publishes for QoS1/2.
+ * @param[in] outgoingPublishesBufferLength Length of outgoing publishes buffer.
+ * @param[in] incomingPublishesBuffer Buffer provided for the incoming publishes for QoS1/2.
+ * @param[in] incomingPublishesBufferLength Length of incoming publishes buffer.
  *
  * @return An #AzureIoTMQTTResult_t with the result of the operation.
  */
@@ -261,7 +273,11 @@ AzureIoTMQTTResult_t AzureIoTMQTT_Init( AzureIoTMQTTHandle_t xContext,
                                         AzureIoTMQTTGetCurrentTimeFunc_t xGetTimeFunction,
                                         AzureIoTMQTTEventCallback_t xUserCallback,
                                         uint8_t * pucNetworkBuffer,
-                                        size_t xNetworkBufferLength );
+                                        size_t xNetworkBufferLength,
+                                        MQTTPubAckInfo_t * outgoingPublishesBuffer,
+                                        size_t outgoingPublishesBufferLength,
+                                        MQTTPubAckInfo_t * incomingPublishesBuffer,
+                                        size_t incomingPublishesBufferLength );
 
 
 /**
@@ -361,8 +377,7 @@ AzureIoTMQTTResult_t AzureIoTMQTT_Disconnect( AzureIoTMQTTHandle_t xContext );
  *
  * @return An #AzureIoTMQTTResult_t with the result of the operation.
  */
-AzureIoTMQTTResult_t AzureIoTMQTT_ProcessLoop( AzureIoTMQTTHandle_t xContext,
-                                               uint32_t ulMilliseconds );
+AzureIoTMQTTResult_t AzureIoTMQTT_ProcessLoop( AzureIoTMQTTHandle_t xContext );
 
 /**
  * @brief Get a packet ID.

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 NXP
+ * Copyright 2024-2025 NXP
  * NXP Proprietary. This software is owned or controlled by NXP and may only be used strictly in
  * accordance with the applicable license terms. By expressly accepting such terms or by downloading, installing,
  * activating and/or otherwise using the software, you are agreeing that you have read, and that you agree to comply
@@ -15,6 +15,7 @@
 #include "task.h"
 #include "semphr.h"
 #include "event_groups.h"
+#include "fsl_adapter_gpio.h"
 
 #if (ENABLE_ISO15118 == 1)
 #include "appl-main.h"
@@ -26,20 +27,46 @@
 #endif /* (CLEV663_ENABLE == 1) */
 #include "EVSE_Metering.h"
 
-#include "ISO15118-2.h"
+#include <ISO15118.h>
 #include "IEC61851.h"
+
+#define MASK_INTERRUPT_TIME_MS 1000U
+
+GPIO_HANDLE_DEFINE(PushBtnGpioHandle);
 
 uint16_t stack_delay = 0;
 
-static vehicle_data_t vehicle_data = {0};
+static vehicle_data_t vehicle_data                       = {0};
 static evse_charging_protocol_t s_curentChargingProtocol = EVSE_BasicCharging_J1772;
-static EventGroupHandle_t s_evse_charging_event = NULL;
+static EventGroupHandle_t s_evse_charging_event          = NULL;
+static charging_states_t s_charging_state                = EVSE_ChargingNone;
 
 const char *EVSE_PROTOCOL_strings[EVSE_LastChargingProtocol + 1] = {
-        [EVSE_BasicCharging_J1772]          = "BASIC",
-        [EVSE_HighLevelCharging_ISO15118]   = "ISO15118",
-        [EVSE_LastChargingProtocol]         = "LAST"
-    };
+    [EVSE_BasicCharging_J1772]           = "BASIC",
+    [EVSE_HighLevelCharging_ISO15118]    = "ISO15118-2",
+    [EVSE_HighLevelCharging_ISO15118_20] = "ISO15118-20",
+    [EVSE_LastChargingProtocol]          = "LAST"};
+
+volatile static bool pause_resume_button_pressed;
+
+static void EVSE_ChargingProtocol_PauseResumeBtn_callback()
+{
+    pause_resume_button_pressed = true;
+}
+
+static void EVSE_ChargingProtocol_ChangeDirection_callback()
+{
+    static uint32_t last_callback = 0;
+    uint32_t current_time         = EVSE_GetMsSinceBoot();
+
+    if ((current_time - last_callback) > MASK_INTERRUPT_TIME_MS)
+    {
+#if ENABLE_ISO15118
+        EVSE_ISO15118_ChangeEnergyDirection();
+#endif /* ENABLE_ISO15118 */
+        last_callback = current_time;
+    }
+}
 
 static void EVSE_ChargingProtocol_StopCharging()
 {
@@ -50,13 +77,19 @@ static void EVSE_ChargingProtocol_StopCharging()
 #endif /* ENABLE_ISO15118 */
 }
 
+static void EVSE_ChargingProtocol_PauseCharging()
+{
+#if ENABLE_ISO15118
+    // TODO check iso15118_20 and pause charging session
+#endif /* ENABLE_ISO15118 */
+}
 static void EVSE_ChargingWaitEvent()
 {
     EventBits_t uxBits = 0;
     uxBits             = xEventGroupWaitBits(s_evse_charging_event,    /* The event group being tested. */
                                              EVSE_Charging_ALL_EVENTS, /* The bits within the event group to wait for. */
-                                             pdTRUE, pdFALSE,    /* Don't wait for all bits, either bit will do. */
-                                             pdMS_TO_TICKS(stack_delay));     /* Wait until event */
+                                             pdTRUE, pdFALSE, /* Don't wait for all bits, either bit will do. */
+                                             pdMS_TO_TICKS(stack_delay)); /* Wait until event */
 
     if ((uxBits & EVSE_Charging_EVSERefreshData) == EVSE_Charging_EVSERefreshData)
     {
@@ -70,12 +103,16 @@ static void EVSE_ChargingWaitEvent()
         configPRINTF(("Stop charge request"));
         EVSE_ChargingProtocol_StopCharging();
     }
-
+    else if ((uxBits & EVSE_Charging_EVSESuspendCharging) == EVSE_Charging_EVSESuspendCharging)
+    {
+        configPRINTF(("Suspend charge request"));
+        EVSE_ChargingProtocol_PauseCharging();
+    }
 }
 
 static void EVSE_WaitSigboardReady_Blocking()
 {
-    bool sigbrdReady =  false;
+    bool sigbrdReady = false;
 
     /* Set the delay to 1 until we finished load the firmware */
     EVSE_ChargingProtocol_SetTaskDelay(CHARGINGPROTOCOL_LONGTICK_DELAY);
@@ -96,7 +133,7 @@ static void EVSE_WaitSigboardReady_Blocking()
 
         if (stack_delay < CHARGINGPROTOCOL_MAX_DELAY)
         {
-            stack_delay =  stack_delay * 2;
+            stack_delay = stack_delay * 2;
         }
     }
 }
@@ -129,6 +166,18 @@ static void chargingprotocol_task(void *pvParameters)
     }
 }
 
+void EVSE_ChargingProtocol_SetTaskPriority(charging_priority_t priority_mode)
+{
+    if (priority_mode == EVSE_Charging_EVSEMaxPriority)
+    {
+        vTaskPrioritySet(NULL, configMAX_PRIORITIES - 1);
+    }
+    else
+    {
+        vTaskPrioritySet(NULL, APP_ISO15118_PRIORITY);
+    }
+}
+
 void EVSE_ChargingProtocol_SetEvent(charging_events_t event)
 {
     if (s_evse_charging_event)
@@ -148,7 +197,6 @@ void EVSE_ChargingProtocol_SetTaskDelay(uint16_t new_stack_delay)
 
 void EVSE_ChargingProtocol_SetMaxCurrent(uint32_t max_current)
 {
-
 #if ENABLE_ISO15118
     EVSE_ISO15118_SetMaxCurrent(max_current);
 #elif ENABLE_J1772
@@ -156,7 +204,7 @@ void EVSE_ChargingProtocol_SetMaxCurrent(uint32_t max_current)
 #endif /* ENABLE_ISO15118 */
 }
 
-const char* EVSE_ChargingProtocol_GetStringFromCurrentProtocol()
+const char *EVSE_ChargingProtocol_GetStringFromCurrentProtocol()
 {
     if (s_curentChargingProtocol < EVSE_LastChargingProtocol)
     {
@@ -168,7 +216,7 @@ const char* EVSE_ChargingProtocol_GetStringFromCurrentProtocol()
     }
 }
 
-const char* EVSE_ChargingProtocol_GetStringFromProtocol(evse_charging_protocol_t charging_protocol)
+const char *EVSE_ChargingProtocol_GetStringFromProtocol(evse_charging_protocol_t charging_protocol)
 {
     if (charging_protocol < EVSE_LastChargingProtocol)
     {
@@ -182,11 +230,11 @@ const char* EVSE_ChargingProtocol_GetStringFromProtocol(evse_charging_protocol_t
 
 void EVSE_ChargingProtocol_SetProtocol(evse_charging_protocol_t charging_protocol)
 {
-     if (s_curentChargingProtocol != charging_protocol)
-     {
-         s_curentChargingProtocol = charging_protocol;
-         EVSE_UI_SetEvent(EVSE_UI_ChargingSession);
-     }
+    if (s_curentChargingProtocol != charging_protocol)
+    {
+        s_curentChargingProtocol = charging_protocol;
+        EVSE_UI_SetEvent(EVSE_UI_ChargingSession);
+    }
 }
 
 evse_charging_protocol_t EVSE_ChargingProtocol_GetProtocol()
@@ -194,9 +242,14 @@ evse_charging_protocol_t EVSE_ChargingProtocol_GetProtocol()
     return s_curentChargingProtocol;
 }
 
+const char *EVSE_ChargingProtocol_GetProtocolString(void)
+{
+    return EVSE_PROTOCOL_strings[s_curentChargingProtocol];
+}
+
 bool EVSE_ChargingProtocol_isCharging()
 {
-    bool bCharging;
+    bool bCharging = false;
 #if ENABLE_ISO15118
     EVSE_ISO15118_isCharging(&bCharging);
 #elif ENABLE_J1772
@@ -206,8 +259,40 @@ bool EVSE_ChargingProtocol_isCharging()
     return bCharging;
 }
 
+charging_directions_t EVSE_ChargingProtocol_ChargingDirection()
+{
+    charging_directions_t charging_direction = EVSE_NoChargingDirection;
+
+    if (EVSE_ChargingProtocol_isCharging())
+    {
+        if (s_curentChargingProtocol == EVSE_BasicCharging_J1772)
+        {
+            charging_direction = EVSE_G2V;
+        }
+#if ENABLE_ISO15118
+        else if ((s_curentChargingProtocol == EVSE_HighLevelCharging_ISO15118) ||
+                 (s_curentChargingProtocol == EVSE_HighLevelCharging_ISO15118_20))
+        {
+            charging_direction = EVSE_ISO15118_GetEnergyDirection();
+        }
+#endif /* ENABLE_ISO15118 */
+    }
+
+    return charging_direction;
+}
+
+charging_states_t EVSE_ChargingProtocol_GetChargingState()
+{
+    return s_charging_state;
+}
+
+void EVSE_ChargingProtocol_SetChargingState(charging_states_t charging_state)
+{
+    s_charging_state = charging_state;
+}
+
 /* Check if EV is charging */
-const char* EVSE_ChargingProtocol_isChargingString(void)
+const char *EVSE_ChargingProtocol_isChargingString(void)
 {
     if (EVSE_ChargingProtocol_isCharging())
     {
@@ -221,22 +306,21 @@ const char* EVSE_ChargingProtocol_isChargingString(void)
 
 const vehicle_data_t *EVSE_ChargingProtocol_GetVehicleData(void)
 {
-
 #if ENABLE_ISO15118
     EVSE_ISO15118_GetVehicleData(&vehicle_data);
 #elif ENABLE_J1772
     EVSE_J1772_GetVehicleData(&vehicle_data);
 #endif /* ENABLE_ISO15118 */
 
-    vehicle_data.charging_protocol    = EVSE_ChargingProtocol_GetProtocol();
+    vehicle_data.charging_protocol = EVSE_ChargingProtocol_GetProtocol();
     strcpy(vehicle_data.protocol, EVSE_ChargingProtocol_GetStringFromCurrentProtocol());
 #if (CLEV663_ENABLE == 1)
     strcpy(vehicle_data.vehicleID, EVSE_NFC_Get_VehicleID());
-#endif  /* (CLEV663_ENABLE == 1) */
+#endif /* (CLEV663_ENABLE == 1) */
     return &vehicle_data;
 }
 
-char *EVSE_ChargingProtocol_GetCPStateString ()
+char *EVSE_ChargingProtocol_GetCPStateString()
 {
     static char cpStateString[2] = "A";
 #if ENABLE_ISO15118
@@ -265,11 +349,20 @@ static void EVSE_ChargingProtocol_DataInit()
 
 void EVSE_ChargingProtocol_Init(void)
 {
-
     stack_delay = CHARGINGPROTOCOL_TICK_DELAY;
     SIGBRD_SetChargingProtocol_TickDelayMs(stack_delay);
     SIGBRD_UART_BridgeEntry();
     EVSE_ChargingProtocol_DataInit();
+
+    hal_gpio_pin_config_t user_btn_config = {
+        kHAL_GpioDirectionIn,
+        0,
+        BOARD_USER_BUTTON_GPIO_PORT,
+        BOARD_USER_BUTTON_GPIO_PIN,
+    };
+    HAL_GpioInit(PushBtnGpioHandle, &user_btn_config);
+    HAL_GpioSetTriggerMode(PushBtnGpioHandle, kHAL_GpioInterruptFallingEdge);
+    HAL_GpioInstallCallback(PushBtnGpioHandle, EVSE_ChargingProtocol_ChangeDirection_callback, NULL);
 
     s_evse_charging_event = xEventGroupCreate();
 

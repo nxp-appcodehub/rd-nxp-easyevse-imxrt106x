@@ -6,6 +6,7 @@
 
 /*
  * Copyright (c) 2001-2004 Swedish Institute of Computer Science.
+ * Copyright 2019, 2021-2023 NXP
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -245,10 +246,28 @@
 /**
  * MEM_LIBC_MALLOC==1: Use malloc/free/realloc provided by your C-library
  * instead of the lwip internal allocator. Can save code size if you
- * already use it.
+ * already use it. Specialized case of MEM_CUSTOM_ALLOCATOR.
+ * @see MEM_CUSTOM_ALLOCATOR
  */
 #if !defined MEM_LIBC_MALLOC || defined __DOXYGEN__
 #define MEM_LIBC_MALLOC                 0
+#elif MEM_LIBC_MALLOC
+#define MEM_CUSTOM_ALLOCATOR            1
+#define MEM_CUSTOM_FREE                 free
+#define MEM_CUSTOM_MALLOC               malloc
+#define MEM_CUSTOM_CALLOC               calloc
+#endif
+
+/**
+ * MEM_CUSTOM_ALLOCATOR==1: Use malloc/free/realloc provided by a custom
+ * implementation instead of the lwip internal allocator. Can save code size if
+ * you already use it. If enabled, you have to define those functions:
+ *  \#define MEM_CUSTOM_FREE   my_free
+ *  \#define MEM_CUSTOM_MALLOC my_malloc
+ *  \#define MEM_CUSTOM_CALLOC my_calloc
+ */
+#if !defined MEM_CUSTOM_ALLOCATOR || defined __DOXYGEN__
+#define MEM_CUSTOM_ALLOCATOR            0
 #endif
 
 /**
@@ -671,12 +690,14 @@
 #endif
 
 /**
- * LWIP_VLAN_PCP==1: Enable outgoing VLAN taggning of frames on a per-PCB basis
- * for QoS purposes. With this feature enabled, each PCB has a new variable: "tci".
- * (Tag Control Identifier). The TCI contains three fields: VID, CFI and PCP.
- * VID is the VLAN ID, which should be set to zero.
- * The "CFI" bit is used to enable or disable VLAN tags for the PCB.
- * PCP (Priority Code Point) is a 3 bit field used for Ethernet level QoS.
+ * LWIP_VLAN_PCP==1: Enable outgoing VLAN tagging of frames on a per-PCB basis
+ * for QoS purposes. With this feature enabled, each PCB has a new variable:
+ * "netif_hints.tci" (Tag Control Identifier).
+ * The TCI contains three fields: VID, CFI and PCP.
+ * - VID is the VLAN ID, which should be set to zero.
+ * - The "CFI" bit is used to enable or disable VLAN tags for the PCB.
+ * - PCP (Priority Code Point) is a 3 bit field used for Ethernet level QoS.
+ * See pcb_tci_*() functions to get/set/clear this.
  */
 #ifndef LWIP_VLAN_PCP
 #define LWIP_VLAN_PCP                   0
@@ -967,6 +988,14 @@
 #if !defined LWIP_DHCP_MAX_DNS_SERVERS || defined __DOXYGEN__
 #define LWIP_DHCP_MAX_DNS_SERVERS       DNS_MAX_SERVERS
 #endif
+
+/** LWIP_DHCP_DISCOVER_ADD_HOSTNAME: Set to 0 to not include hostname opt in discover packets.
+ * If the hostname is not set in the DISCOVER packet, then some servers might issue an OFFER with hostname
+ * configured and consequently reject the REQUEST with any other hostname.
+ */
+#if !defined LWIP_DHCP_DISCOVER_ADD_HOSTNAME || defined __DOXYGEN__
+#define LWIP_DHCP_DISCOVER_ADD_HOSTNAME 1
+#endif /* LWIP_DHCP_DISCOVER_ADD_HOSTNAME */
 /**
  * @}
  */
@@ -1601,10 +1630,22 @@
 /**
  * LWIP_PBUF_CUSTOM_DATA: Store private data on pbufs (e.g. timestamps)
  * This extends struct pbuf so user can store custom data on every pbuf.
+ * e.g.:
+ *  \#define LWIP_PBUF_CUSTOM_DATA   u32_t myref;
  */
 #if !defined LWIP_PBUF_CUSTOM_DATA || defined __DOXYGEN__
 #define LWIP_PBUF_CUSTOM_DATA
 #endif
+
+/**
+ * LWIP_PBUF_CUSTOM_DATA_INIT: Initialize private data on pbufs.
+ * e.g. for the above example definition:
+ *  \#define LWIP_PBUF_CUSTOM_DATA(p) (p)->myref = 0
+ */
+#if !defined LWIP_PBUF_CUSTOM_DATA_INIT || defined __DOXYGEN__
+#define LWIP_PBUF_CUSTOM_DATA_INIT(p)
+#endif
+
 /**
  * @}
  */
@@ -2247,7 +2288,7 @@
  * MEM_STATS==1: Enable mem.c stats.
  */
 #if !defined MEM_STATS || defined __DOXYGEN__
-#define MEM_STATS                       ((MEM_LIBC_MALLOC == 0) && (MEM_USE_POOLS == 0))
+#define MEM_STATS                       ((MEM_CUSTOM_ALLOCATOR == 0) && (MEM_USE_POOLS == 0))
 #endif
 
 /**
@@ -2670,10 +2711,10 @@
 #endif
 
 /**
- * LWIP_ND6_NUM_ROUTERS: number of entries in IPv6 default router cache
+ * LWIP_ND6_NUM_ROUTES: number of entries in IPv6 route list.
  */
-#if !defined LWIP_ND6_NUM_ROUTERS || defined __DOXYGEN__
-#define LWIP_ND6_NUM_ROUTERS            3
+#if !defined LWIP_ND6_NUM_ROUTES || defined __DOXYGEN__
+#define LWIP_ND6_NUM_ROUTES             8
 #endif
 
 /**
@@ -2771,11 +2812,19 @@
 #endif
 
 /**
+ * LWIP_IPV6_DHCP6_PD==1: enable DHCPv6 stateful prefix delgation.
+ *  (enables state full and stateless too)
+ */
+#if !defined LWIP_IPV6_DHCP6_PD || defined __DOXYGEN__
+#define LWIP_IPV6_DHCP6_PD        0
+#endif
+
+/**
  * LWIP_IPV6_DHCP6_STATEFUL==1: enable DHCPv6 stateful address autoconfiguration.
- * (not supported, yet!)
+ *  (enables stateless too)
  */
 #if !defined LWIP_IPV6_DHCP6_STATEFUL || defined __DOXYGEN__
-#define LWIP_IPV6_DHCP6_STATEFUL        0
+#define LWIP_IPV6_DHCP6_STATEFUL        LWIP_IPV6_DHCP6_PD
 #endif
 
 /**
@@ -3048,6 +3097,27 @@
  */
 #ifdef __DOXYGEN__
 #define LWIP_HOOK_IP6_INPUT(pbuf, input_netif)
+#endif
+
+/**
+ * LWIP_HOOK_IP6_CANFORWARD(src, dest, p, netif):
+ * Check if an IPv6 packet can be forwarded - called from:
+ * ip6_input() -> ip6_forward() (IPv6)
+ * - calling an output function in this context (e.g. multicast router) is allowed
+ * Signature: \code{.c}
+ *   int my_hook(ip6_addr_t* src, ip6_addr_t* dest, struct pbuf* p, struct netif* netif);
+ * \endcode
+ * Arguments:
+ * - src: source IPv6 address
+ * - dest: destination IPv6 address
+ * - p: packet to forward
+ * - netif: the netif from which the packet was received
+ * Returns values:
+ * - 1: forward
+ * - 0: don't forward - unsuitable or packet consumed
+ */
+#ifdef __DOXYGEN__
+#define LWIP_HOOK_IP6_CANFORWARD(src, dest, p, netif)
 #endif
 
 /**
@@ -3591,6 +3661,16 @@
  */
 #if !defined ND6_DEBUG || defined __DOXYGEN__
 #define ND6_DEBUG                     LWIP_DBG_OFF
+#endif
+/**
+ * @}
+ */
+
+/**
+ * MLD6_DEBUG: Enable debugging of multicast listener discovery.
+ */
+#if !defined MLD6_DEBUG || defined __DOXYGEN__
+#define MLD6_DEBUG                     LWIP_DBG_OFF
 #endif
 /**
  * @}

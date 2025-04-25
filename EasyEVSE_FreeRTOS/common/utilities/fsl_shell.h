@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2015, Freescale Semiconductor, Inc.
- * Copyright 2016-2022 NXP
+ * Copyright 2016-2024 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -65,6 +65,11 @@
 /*! @brief Macro to set shell task stack size. */
 #ifndef SHELL_TASK_STACK_SIZE
 #define SHELL_TASK_STACK_SIZE (1000U)
+#endif
+
+/*! @brief Whether print copyright. */
+#ifndef SHELL_PRINT_COPYRIGHT
+#define SHELL_PRINT_COPYRIGHT (1U)
 #endif
 
 /*! @brief Shell status */
@@ -247,6 +252,21 @@ _Pragma("diag_suppress=Pm120")
      * @return  Returns the number of characters printed or a negative value if an error occurs.
      */
     int SHELL_Printf(shell_handle_t shellHandle, const char *formatString, ...);
+
+#if EASYEVSE
+    /*!
+     * @brief Writes formatted output to the shell output stream.
+     *
+     * The same functionality as SHELL_Printf(), but accepts a va_list as argument.
+     *
+     * @param   shellHandle The shell module handle pointer.
+     * @param   formatString Format string.
+     * @param   ap List that holds the extra arguments that need to be printed.
+     * @return  Returns the number of characters printed or a negative value if an error occurs.
+     */
+    int SHELL_PrintfVaList(shell_handle_t shellHandle, const char *formatString, va_list ap);
+#endif /* EASYEVSE */
+
     /*!
      * @brief Sends data to the shell output stream with OS synchronization.
      *

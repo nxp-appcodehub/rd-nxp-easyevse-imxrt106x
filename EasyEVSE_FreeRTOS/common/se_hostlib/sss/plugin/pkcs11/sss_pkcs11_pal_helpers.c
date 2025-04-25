@@ -3,10 +3,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/* ********************** Include files ********************** */
+/* ************************************************************************** */
+/* Includes                                                                   */
+/* ************************************************************************** */
+
 #include "sss_pkcs11_pal.h"
 
-/* ********************** Defines ********************** */
+/* ************************************************************************** */
+/* Local Defines                                                              */
+/* ************************************************************************** */
+
 #define ASN1_SKIP_TO_NEXT_TAG(pTLV, taglen)            \
     {                                                  \
         if (taglen < 0x7F) {                           \
@@ -20,7 +26,9 @@
         }                                              \
     }
 
-/* ********************** Public Functions ********************** */
+/* ************************************************************************** */
+/* Public Functions                                                           */
+/* ************************************************************************** */
 
 /** @brief ParseSign Mechanism.
  * This function mapping sign mechanism from PKCS#11.
@@ -34,7 +42,7 @@
  * @retval #CKR_MECHANISM_INVALID If unknown mechanism specified.
  *
  */
-CK_RV pkcs11_parse_sign_mechanism(P11SessionPtr_t pxSession, sss_algorithm_t *algorithm)
+CK_RV ParseSignMechanism(P11SessionPtr_t pxSession, sss_algorithm_t *algorithm)
 {
     CK_RV xResult = CKR_OK;
     CK_RSA_PKCS_PSS_PARAMS_PTR param;
@@ -73,53 +81,51 @@ CK_RV pkcs11_parse_sign_mechanism(P11SessionPtr_t pxSession, sss_algorithm_t *al
 
     case CKM_SHA1_RSA_PKCS:
         *algorithm = kAlgorithm_SSS_RSASSA_PKCS1_V1_5_SHA1;
+
         break;
     case CKM_SHA1_RSA_PKCS_PSS:
         *algorithm = kAlgorithm_SSS_RSASSA_PKCS1_PSS_MGF1_SHA1;
         break;
+
     case CKM_SHA256_RSA_PKCS:
         *algorithm = kAlgorithm_SSS_RSASSA_PKCS1_V1_5_SHA256;
+
         break;
     case CKM_SHA256_RSA_PKCS_PSS:
         *algorithm = kAlgorithm_SSS_RSASSA_PKCS1_PSS_MGF1_SHA256;
         break;
+
     case CKM_SHA384_RSA_PKCS:
         *algorithm = kAlgorithm_SSS_RSASSA_PKCS1_V1_5_SHA384;
+
         break;
     case CKM_SHA384_RSA_PKCS_PSS:
         *algorithm = kAlgorithm_SSS_RSASSA_PKCS1_PSS_MGF1_SHA384;
         break;
+
     case CKM_SHA512_RSA_PKCS:
         *algorithm = kAlgorithm_SSS_RSASSA_PKCS1_V1_5_SHA512;
+
         break;
     case CKM_SHA512_RSA_PKCS_PSS:
         *algorithm = kAlgorithm_SSS_RSASSA_PKCS1_PSS_MGF1_SHA512;
         break;
+
     case CKM_SHA224_RSA_PKCS:
         *algorithm = kAlgorithm_SSS_RSASSA_PKCS1_V1_5_SHA224;
+
         break;
     case CKM_SHA224_RSA_PKCS_PSS:
         *algorithm = kAlgorithm_SSS_RSASSA_PKCS1_PSS_MGF1_SHA224;
         break;
 
     case CKM_ECDSA:
-        /* Default */
-        *algorithm = kAlgorithm_SSS_ECDSA_SHA256;
+        /* We will use algorithm according to digest size.
+             * Should be checked from where this function is called
+             */
         break;
     case CKM_ECDSA_SHA1:
         *algorithm = kAlgorithm_SSS_ECDSA_SHA1;
-        break;
-    case CKM_ECDSA_SHA224:
-        *algorithm = kAlgorithm_SSS_ECDSA_SHA224;
-        break;
-    case CKM_ECDSA_SHA256:
-        *algorithm = kAlgorithm_SSS_ECDSA_SHA256;
-        break;
-    case CKM_ECDSA_SHA384:
-        *algorithm = kAlgorithm_SSS_ECDSA_SHA384;
-        break;
-    case CKM_ECDSA_SHA512:
-        *algorithm = kAlgorithm_SSS_ECDSA_SHA512;
         break;
     case CKM_SHA256_HMAC:
         *algorithm = kAlgorithm_SSS_HMAC_SHA256;
@@ -144,7 +150,7 @@ CK_RV pkcs11_parse_sign_mechanism(P11SessionPtr_t pxSession, sss_algorithm_t *al
  * @retval #CKR_MECHANISM_INVALID If unknown mechanism specified.
  *
  */
-CK_RV pkcs11_parse_encryption_mechanism(P11SessionPtr_t pxSession, sss_algorithm_t *algorithm)
+CK_RV ParseEncryptionMechanism(P11SessionPtr_t pxSession, sss_algorithm_t *algorithm)
 {
     CK_RV xResult = CKR_OK;
     CK_RSA_PKCS_OAEP_PARAMS_PTR param;
@@ -231,7 +237,7 @@ CK_RV pkcs11_parse_encryption_mechanism(P11SessionPtr_t pxSession, sss_algorithm
  * @retval #CKR_MECHANISM_INVALID If unknown mechanism specified.
  *
  */
-CK_RV pkcs11_parse_digest_mechanism(P11SessionPtr_t pxSession, sss_algorithm_t *algorithm)
+CK_RV ParseDigestMechanism(P11SessionPtr_t pxSession, sss_algorithm_t *algorithm)
 {
     CK_RV xResult = CKR_OK;
     switch (pxSession->xOperationInProgress) {
@@ -250,6 +256,7 @@ CK_RV pkcs11_parse_digest_mechanism(P11SessionPtr_t pxSession, sss_algorithm_t *
     case CKM_SHA512:
         *algorithm = kAlgorithm_SSS_SHA512;
         break;
+
     default:
         xResult = CKR_MECHANISM_INVALID;
         break;
@@ -257,7 +264,7 @@ CK_RV pkcs11_parse_digest_mechanism(P11SessionPtr_t pxSession, sss_algorithm_t *
     return xResult;
 }
 
-/** @brief Get SSS Algorithm.
+/** @brief GetSSS Algorithm.
  * This function defines the digest algorithm.
  *
  * @param algorithm - Algorithm to be applied, e.g. kAlgorithm_SSS_AES_CBC.
@@ -268,7 +275,7 @@ CK_RV pkcs11_parse_digest_mechanism(P11SessionPtr_t pxSession, sss_algorithm_t *
  * @retval #CKR_ARGUMENTS_BAD The arguments supplied to the function are not appropriate.
  *
  */
-CK_RV pkcs11_get_digest_algorithm(const sss_algorithm_t algorithm, sss_algorithm_t *digest_algo)
+CK_RV GetDigestAlgorithm(const sss_algorithm_t algorithm, sss_algorithm_t *digest_algo)
 {
     switch (algorithm) {
     case kAlgorithm_SSS_SHA1:
@@ -321,7 +328,8 @@ CK_RV pkcs11_get_digest_algorithm(const sss_algorithm_t algorithm, sss_algorithm
  * @returns Status of the operation
  * @retval #CK_FALSE The operation returns zero value.
  */
-CK_BBOOL pkcs11_is_X509_certificate(uint32_t xObject)
+
+CK_BBOOL isX509Certificate(uint32_t xObject)
 {
     CK_BBOOL xResult        = CK_FALSE;
     sss_object_t sss_object = {0};
@@ -329,9 +337,7 @@ CK_BBOOL pkcs11_is_X509_certificate(uint32_t xObject)
     size_t dataLen          = sizeof(data);
     size_t KeyBitLen        = 0;
 
-    /* NOTE: MUTEX LOCK IS NOT USED HERE BECAUSE
-    * THIS FUNCTION IS CALLED ONLY WHEN WE HAVE ALREADY LOCKED THE MUTEX
-    */
+    /* NOTE: MUTEX LOCK IS NOT USED HERE BECAUSE THIS FUNCTION IS CALLED ONLY WHEN WE HAVE ALREADY LOCKED THE MUTEX */
 
     if (kStatus_SSS_Success != (sss_key_object_init(&sss_object, &pex_sss_demo_boot_ctx->ks))) {
         return xResult;
@@ -344,11 +350,12 @@ CK_BBOOL pkcs11_is_X509_certificate(uint32_t xObject)
         return xResult;
     }
 
-    if (0 != pkcs11_parse_Cert(&data[0], dataLen)) {
+    if (0 != port_parseCert(&data[0], dataLen)){
         return xResult;
     }
 
-    return CK_TRUE;
+    xResult = CK_TRUE;
+    return xResult;
 }
 
 /** @brief Label To KeyId.
@@ -363,27 +370,32 @@ CK_BBOOL pkcs11_is_X509_certificate(uint32_t xObject)
  * @retval #CKR_DEVICE_ERROR If some problem has occured with the token or slot.
  * @retval #CKR_ARGUMENTS_BAD The arguments supplied to the function are not appropriate.
  */
-CK_RV pkcs11_label_to_keyId(unsigned char *label, size_t labelSize, uint32_t *keyId)
+CK_RV LabelToKeyId(unsigned char *label, size_t labelSize, uint32_t *keyId)
 {
-    CK_RV result                  = CKR_FUNCTION_FAILED;
-    sss_status_t status           = kStatus_SSS_Fail;
-    sss_digest_t digest_ctx       = {0};
-    uint8_t digest[64]            = {0};
-    size_t digest_size            = sizeof(digest);
-    sss_rng_context_t sss_rng_ctx = {0};
-    uint8_t rngData[10]           = {0};
-    size_t rngDataLen             = sizeof(rngData);
-
-    ENSURE_OR_RETURN_ON_ERROR(sss_pkcs11_mutex_lock() == 0, CKR_CANT_LOCK);
-
+    CK_RV result            = CKR_OK;
+    sss_status_t status     = kStatus_SSS_Fail;
+    sss_digest_t digest_ctx = {0};
+    uint8_t digest[64]      = {0};
+    size_t digest_size      = sizeof(digest);
     if (labelSize == 0) {
-        status = sss_rng_context_init(&sss_rng_ctx, &pex_sss_demo_boot_ctx->session /* Session */);
-        ENSURE_OR_GO_EXIT(status == kStatus_SSS_Success);
+        LOCK_MUTEX_FOR_RTOS
+        {
+            sss_rng_context_t sss_rng_ctx = {0};
+            uint8_t rngData[10]           = {0};
+            size_t rngDataLen             = sizeof(rngData);
+            status = sss_rng_context_init(&sss_rng_ctx, &pex_sss_demo_boot_ctx->session /* Session */);
+            status = sss_rng_get_random(&sss_rng_ctx, rngData, rngDataLen);
+            if (status != kStatus_SSS_Success) {
+                result = CKR_DEVICE_ERROR;
+                UNLOCK_MUTEX_FOR_RTOS
+                goto exit;
+            }
+            *keyId =
+                (rngData[6] << (3 * 8)) | (rngData[7] << (2 * 8)) | (rngData[8] << (1 * 8)) | (rngData[9] << (0 * 8));
 
-        status = sss_rng_get_random(&sss_rng_ctx, rngData, rngDataLen);
-        ENSURE_OR_GO_EXIT(status == kStatus_SSS_Success);
-
-        *keyId = (rngData[6] << (3 * 8)) | (rngData[7] << (2 * 8)) | (rngData[8] << (1 * 8)) | (rngData[9] << (0 * 8));
+            UNLOCK_MUTEX_FOR_RTOS
+        }
+        goto exit;
     }
     else if (strncmp((char *)label, "sss:", strlen("sss:")) == 0) {
         char labelCopy[32] = {0};
@@ -397,29 +409,42 @@ CK_RV pkcs11_label_to_keyId(unsigned char *label, size_t labelSize, uint32_t *ke
             result = CKR_ARGUMENTS_BAD;
             goto exit;
         }
+//        *keyId = (uint32_t)(
+//            (((long_id >> (8 * 0)) & 0x000000FF) << (8 * 3)) | (((long_id >> (8 * 1)) & 0x000000FF) << (8 * 2)) |
+//            (((long_id >> (8 * 2)) & 0x000000FF) << (8 * 1)) | (((long_id >> (8 * 3)) & 0x000000FF) << (8 * 0)));
+
         *keyId = (uint32_t)(
-            (((long_id >> (8 * 0)) & 0x000000FF) << (8 * 0)) | (((long_id >> (8 * 1)) & 0x000000FF) << (8 * 1)) |
-            (((long_id >> (8 * 2)) & 0x000000FF) << (8 * 2)) | (((long_id >> (8 * 3)) & 0x000000FF) << (8 * 3)));
+                    (((long_id >> (8 * 0)) & 0x000000FF) << (8 * 0)) | (((long_id >> (8 * 1)) & 0x000000FF) << (8 * 1)) |
+                    (((long_id >> (8 * 2)) & 0x000000FF) << (8 * 2)) | (((long_id >> (8 * 3)) & 0x000000FF) << (8 * 3)));
+        goto exit;
     }
-    else {
+
+    LOCK_MUTEX_FOR_RTOS
+    {
         status = sss_digest_context_init(
             &digest_ctx, &pex_sss_demo_boot_ctx->session, kAlgorithm_SSS_SHA512, kMode_SSS_Digest);
-        ENSURE_OR_GO_EXIT(status == kStatus_SSS_Success);
+        if (status != kStatus_SSS_Success) {
+            result = CKR_DEVICE_ERROR;
+            UNLOCK_MUTEX_FOR_RTOS
+            goto exit;
+        }
 
         status = sss_digest_one_go(&digest_ctx, label, labelSize, &digest[0], &digest_size);
-        ENSURE_OR_GO_EXIT(status == kStatus_SSS_Success);
+        if (status != kStatus_SSS_Success) {
+            result = CKR_DEVICE_ERROR;
+        }
 
-        *keyId = (digest[60] << (3 * 8)) | (digest[61] << (2 * 8)) | (digest[62] << (1 * 8)) | (digest[63] << (0 * 8));
-    }
-
-    result = CKR_OK;
-exit:
-    if (digest_ctx.session != NULL) {
         sss_digest_context_free(&digest_ctx);
+
+        if (status == kStatus_SSS_Success) {
+            *keyId =
+                (digest[60] << (3 * 8)) | (digest[61] << (2 * 8)) | (digest[62] << (1 * 8)) | (digest[63] << (0 * 8));
+        }
+
+        UNLOCK_MUTEX_FOR_RTOS
     }
-    if (sss_pkcs11_mutex_unlock() != 0) {
-        return CKR_FUNCTION_FAILED;
-    }
+
+exit:
     return result;
 }
 
@@ -438,7 +463,7 @@ exit:
  * @retval #CKR_BUFFER_TOO_SMALL The output of function is too large to fit in supplied buffer.
  * @retval #CKR_ATTRIBUTE_SENSITIVE The value of an attribute of an object which cannot be satisfied because the object is either sensitive or un-extractable.
  */
-CK_RV pkcs11_parse_certificate_get_attribute(
+CK_RV parseCertificateGetAttribute(
     uint32_t xObject, CK_ATTRIBUTE_TYPE attributeType, uint8_t *pData, CK_ULONG *ulAttrLength)
 {
     CK_RV xResult                    = CKR_FUNCTION_FAILED;
@@ -449,24 +474,27 @@ CK_RV pkcs11_parse_certificate_get_attribute(
     uint8_t data[2048]               = {0};
     size_t dataLen                   = sizeof(data);
     size_t KeyBitLen                 = 0;
-    size_t i                         = 0;
+    size_t i              = 0;
 
     /* NOTE: MUTEX LOCK IS NOT USED HERE BECAUSE THIS FUNCTION IS CALLED ONLY WHEN WE HAVE ALREADY LOCKED THE MUTEX */
 
     if (kStatus_SSS_Success != (sss_key_object_init(&sss_object, &pex_sss_demo_boot_ctx->ks))) {
-        goto exit;
+        return xResult;
     }
     if (kStatus_SSS_Success != (sss_key_object_get_handle(&sss_object, xObject))) {
-        goto exit;
+        return xResult;
     }
     if (kStatus_SSS_Success !=
         sss_key_store_get_key(&pex_sss_demo_boot_ctx->ks, &sss_object, &data[0], &dataLen, &KeyBitLen)) {
-        goto exit;
+        return xResult;
     }
 
-    ENSURE_OR_GO_EXIT(pkcs11_parseCert_GetAttr(attributeType, &data[0], dataLen, pData, ulAttrLength) == CKR_OK);
+    xResult = port_parseCertGetAttr(attributeType, &data[0], dataLen, pData, ulAttrLength);
+
+    ENSURE_OR_GO_EXIT(xResult == CKR_OK);
 
     if ((attributeType == CKA_HASH_OF_ISSUER_PUBLIC_KEY) || (attributeType == CKA_HASH_OF_SUBJECT_PUBLIC_KEY)) {
+        xResult       = CKR_FUNCTION_FAILED;
         uint8_t *pTLV = &pData[0];
         ENSURE_OR_GO_EXIT(*pTLV == 0x30);
 
@@ -499,38 +527,85 @@ CK_RV pkcs11_parse_certificate_get_attribute(
             tagLen--;
         }
 
+        xResult = CKR_OK;
+
         status =
             sss_digest_context_init(&digestCtx, &pex_sss_demo_boot_ctx->session, digest_algorithm, kMode_SSS_Digest);
-        ENSURE_OR_GO_EXIT(status == kStatus_SSS_Success);
-
+        if (status != kStatus_SSS_Success) {
+            return CKR_DEVICE_ERROR;
+        }
         status = sss_digest_init(&digestCtx);
-        ENSURE_OR_GO_EXIT(status == kStatus_SSS_Success);
-
+        if (status != kStatus_SSS_Success) {
+            sss_digest_context_free(&digestCtx);
+            return CKR_DEVICE_ERROR;
+        }
         while (tagLen > 500) {
             status = sss_digest_update(&digestCtx, &pTLV[0 + i * 500], 500);
-            ENSURE_OR_GO_EXIT(status == kStatus_SSS_Success);
-
+            if (status != kStatus_SSS_Success) {
+                sss_digest_context_free(&digestCtx);
+                return CKR_DEVICE_ERROR;
+            }
             i++;
             tagLen -= 500;
         }
         status = sss_digest_update(&digestCtx, &pTLV[0 + i * 500], tagLen);
-        ENSURE_OR_GO_EXIT(status == kStatus_SSS_Success);
+        if (status != kStatus_SSS_Success) {
+            sss_digest_context_free(&digestCtx);
+            return CKR_DEVICE_ERROR;
+        }
 
         *ulAttrLength = 20 /* SHA-1 data length */;
         status        = sss_digest_finish(&digestCtx, &pData[0], (size_t *)ulAttrLength);
-        ENSURE_OR_GO_EXIT(status == kStatus_SSS_Success);
-    }
-
-    xResult = CKR_OK;
-exit:
-    if (digestCtx.session != NULL) {
+        if (status != kStatus_SSS_Success) {
+            sss_digest_context_free(&digestCtx);
+            return CKR_DEVICE_ERROR;
+        }
         sss_digest_context_free(&digestCtx);
     }
+
+exit:
     return xResult;
 }
 
-#if SSS_HAVE_SE05X_VER_GTE_07_02
+#if SSS_HAVE_APPLET_SE05X_IOT
+/** @brief read_object_size.
+ * To get the size of secure object.
+ *
+ * @param keyId - Unique keyId associated with every operation.
+ * @param keyLen - Pointer to location of key length.
+ *
+ * @returns Status of the operation
+ * @retval #CKR_OK The operation has completed successfully.
+ * @retval #CKR_FUNCTION_FAILED The requested function could not be performed.
+ * @retval #CKR_KEY_HANDLE_INVALID If some problem has occured with the token or slot.
+ *
+ */
+CK_RV read_object_size(uint32_t keyId, uint16_t *keyLen)
+{
+    CK_RV xResult                      = CKR_FUNCTION_FAILED;
+    smStatus_t sm_status               = SM_NOT_OK;
+    sss_status_t sss_status            = kStatus_SSS_Fail;
+    sss_object_t sss_object            = {0};
+    sss_se05x_session_t *se05x_session = (sss_se05x_session_t *)&pex_sss_demo_boot_ctx->session;
 
+    sss_status = sss_key_object_init(&sss_object, &pex_sss_demo_boot_ctx->ks);
+    ENSURE_OR_GO_EXIT(sss_status == kStatus_SSS_Success);
+    xResult    = CKR_KEY_HANDLE_INVALID;
+    sss_status = sss_key_object_get_handle(&sss_object, keyId);
+    ENSURE_OR_GO_EXIT(sss_status == kStatus_SSS_Success);
+    xResult = CKR_FUNCTION_FAILED;
+
+    sm_status = Se05x_API_ReadSize(&se05x_session->s_ctx, keyId, keyLen);
+    ENSURE_OR_GO_EXIT(sm_status == SM_OK);
+    xResult = CKR_OK;
+
+exit:
+    return xResult;
+}
+
+#endif // SSS_HAVE_APPLET_SE05X_IOT
+
+#if SSS_HAVE_SE05X_VER_GTE_06_00
 /**
  * @brief Parse object attribtes from Se05x_API_ReadObjectAttributes. Check specific policy is allowed
  *
@@ -545,7 +620,7 @@ exit:
  *
  * @return kStatus_SSS_Success if successful.
  */
-sss_status_t pkcs11_parse_atrribute(se05x_object_attribute *pAttribute,
+sss_status_t parseAtrribute(se05x_object_attribute *pAttribute,
     uint8_t *rsp,
     size_t rspLen,
     uint32_t objectType,
@@ -563,6 +638,7 @@ sss_status_t pkcs11_parse_atrribute(se05x_object_attribute *pAttribute,
     uint32_t default_policy = 0;
 
     if (rsp == NULL) {
+        // Object attribute should be at least 19 bytes (without policy).
         LOG_E("Incomplete Object Attribute");
         return kStatus_SSS_Fail;
     }
@@ -594,7 +670,7 @@ sss_status_t pkcs11_parse_atrribute(se05x_object_attribute *pAttribute,
     if ((UINT32_MAX - 4) < policyEnd) {
         return kStatus_SSS_Fail;
     }
-    pAttribute->version = (rsp[policyEnd + 1] << 8 * 3) | (rsp[policyEnd + 2] << 8 * 2) |
+    pAttribute->version     = (rsp[policyEnd + 1] << 8 * 3) | (rsp[policyEnd + 2] << 8 * 2) |
                           (rsp[policyEnd + 3] << 8 * 1) | (rsp[policyEnd + 4]);
 #ifdef DEBUG_PKCS11_PAL
     LOG_I("#####################################################");
@@ -628,7 +704,7 @@ sss_status_t pkcs11_parse_atrribute(se05x_object_attribute *pAttribute,
                 auth_obj_id = ((rsp[i + 1] << 8 * 3) | (rsp[i + 2] << 8 * 2) | (rsp[i + 3] << 8 * 1) | (rsp[i + 4]));
                 ar_header   = ((rsp[i + 5] << 8 * 3) | (rsp[i + 6] << 8 * 2) | (rsp[i + 7] << 8 * 1) | (rsp[i + 8]));
             }
-            else {
+            else{
                 return kStatus_SSS_Fail;
             }
 #ifdef DEBUG_PKCS11_PAL
@@ -705,11 +781,8 @@ sss_status_t pkcs11_parse_atrribute(se05x_object_attribute *pAttribute,
 }
 #endif
 
-/**
- * @brief
-*/
-smStatus_t pkcs11_read_id_list(
-    CK_SESSION_HANDLE xSession, uint32_t *idlist, size_t *idlistlen, CK_ULONG ulMaxObjectCount)
+#if SSS_HAVE_APPLET_SE05X_IOT
+smStatus_t read_id_list(CK_SESSION_HANDLE xSession, uint32_t *idlist, size_t *idlistlen, CK_ULONG ulMaxObjectCount)
 {
     AX_UNUSED_ARG(ulMaxObjectCount);
     P11SessionPtr_t pxSession          = prvSessionPointerFromHandle(xSession);
@@ -722,39 +795,39 @@ smStatus_t pkcs11_read_id_list(
     pSe05xSession_t session_ctx   = &pSession->s_ctx;
 
     /* This condition would be checked by the calling API */
-    ENSURE_OR_GO_EXIT(pxSession != NULL);
-    ENSURE_OR_GO_EXIT(idlist != NULL);
-    ENSURE_OR_GO_EXIT(idlistlen != NULL);
-
-    ENSURE_OR_GO_EXIT(sss_pkcs11_mutex_lock() == 0);
-
-    ENSURE_OR_GO_EXIT(
-        Se05x_API_ReadIDList(session_ctx, pxSession->xFindObjectOutputOffset, 0xFF, &pmore, list, &listlen) == SM_OK);
-
-    if (listlen == 0) {
-        *idlistlen = 0;
-        goto exit;
-    }
-
-    for (i = 0; (i < listlen) && (k < USER_MAX_ID_LIST_SIZE); i += 4) {
-        uint32_t id = 0 | (list[i + 0] << (3 * 8)) | (list[i + 1] << (2 * 8)) | (list[i + 2] << (1 * 8)) |
-                      (list[i + 3] << (0 * 8));
-        idlist[k++] = id;
-        *idlistlen  = k;
-    }
-
-    retStatus = SM_OK;
-exit:
-    if (sss_pkcs11_mutex_unlock() != 0) {
+    if (pxSession == NULL) {
         return SM_NOT_OK;
     }
-    return retStatus;
-}
 
-/**
- * @brief
-*/
-sss_status_t pkcs11_get_validated_object_id(P11SessionPtr_t pxSession, CK_OBJECT_HANDLE xObject, uint32_t *keyId)
+    if (NULL == idlist || NULL == idlistlen) {
+        LOG_E("Null pointer check failed %s:%d", __FUNCTION__, __LINE__);
+        return SM_NOT_OK;
+    }
+
+    LOCK_MUTEX_FOR_RTOS
+    {
+        retStatus = Se05x_API_ReadIDList(session_ctx, pxSession->xFindObjectOutputOffset, 0xFF, &pmore, list, &listlen);
+        if (retStatus != SM_OK) {
+            UNLOCK_MUTEX_FOR_RTOS_RET(retStatus)
+        }
+        if (listlen == 0) {
+            *idlistlen = 0;
+            UNLOCK_MUTEX_FOR_RTOS_RET(SM_NOT_OK);
+        }
+        for (i = 0; (i < listlen) && (k < USER_MAX_ID_LIST_SIZE); i += 4) {
+            uint32_t id = 0 | (list[i + 0] << (3 * 8)) | (list[i + 1] << (2 * 8)) | (list[i + 2] << (1 * 8)) |
+                          (list[i + 3] << (0 * 8));
+            idlist[k++] = id;
+            *idlistlen  = k;
+        }
+        UNLOCK_MUTEX_FOR_RTOS
+    }
+
+    return SM_OK;
+}
+#endif
+
+sss_status_t get_validated_object_id(P11SessionPtr_t pxSession, CK_OBJECT_HANDLE xObject, uint32_t *keyId)
 {
     sss_status_t sss_status = kStatus_SSS_Fail;
     sss_object_t sss_object = {0};
@@ -766,7 +839,6 @@ sss_status_t pkcs11_get_validated_object_id(P11SessionPtr_t pxSession, CK_OBJECT
             LOG_E("Key id cannot be greater than 4 bytes");
             return kStatus_SSS_Fail;
         }
-
         for (size_t i = 0; i < pCurrentKeyStore->keyIdListLen; i++) {
             if (pCurrentKeyStore->SSSObjects[i].keyId == (uint32_t)xObject) {
                 /* True */
@@ -788,18 +860,58 @@ sss_status_t pkcs11_get_validated_object_id(P11SessionPtr_t pxSession, CK_OBJECT
         ENSURE_OR_GO_EXIT(sss_status == kStatus_SSS_Success);
         *keyId = xObject;
     }
+
 exit:
     return sss_status;
 }
 
-/**
- * @brief
-*/
-sss_status_t pkcs11_get_validated_sss_object(
-    P11SessionPtr_t pxSession, CK_OBJECT_HANDLE xObject, sss_object_t *pSSSObject)
+sss_status_t get_validated_cipher_type(
+    P11SessionPtr_t pxSession, CK_OBJECT_HANDLE xObject, sss_cipher_type_t *cipherType)
 {
     sss_status_t sss_status = kStatus_SSS_Fail;
+    sss_object_t sss_object = {0};
+    if (NULL == cipherType) {
+        LOG_E("Null pointer check failed %s:%d", __FUNCTION__, __LINE__);
+        return kStatus_SSS_Fail;
+    }
 
+    if (pxSession->xFindObjectInit == CK_TRUE) {
+        /* Find Objects operation is going on. Read from SW keystore */
+        SwKeyStorePtr_t pCurrentKeyStore = pxSession->pCurrentKs;
+        if (xObject > UINT32_MAX) {
+            LOG_E("Key id cannot be greater than 4 bytes");
+            return kStatus_SSS_Fail;
+        }
+        for (size_t i = 0; i < pCurrentKeyStore->keyIdListLen; i++) {
+            if (pCurrentKeyStore->SSSObjects[i].keyId == (uint32_t)xObject) {
+                /* True */
+                *cipherType = (sss_cipher_type_t)(pCurrentKeyStore->SSSObjects[i].cipherType);
+                sss_status  = kStatus_SSS_Success;
+                break;
+            }
+        }
+    }
+    else {
+        sss_status = sss_key_object_init(&sss_object, &pex_sss_demo_boot_ctx->ks);
+        ENSURE_OR_GO_EXIT(sss_status == kStatus_SSS_Success);
+
+        if (xObject > UINT32_MAX) {
+            LOG_E("Key id cannot be greater than 4 bytes");
+            return kStatus_SSS_Fail;
+        }
+        sss_status = sss_key_object_get_handle(&sss_object, xObject);
+        ENSURE_OR_GO_EXIT(sss_status == kStatus_SSS_Success);
+        *cipherType = (sss_cipher_type_t)(sss_object.cipherType);
+    }
+
+exit:
+    return sss_status;
+}
+
+sss_status_t get_validated_sss_object(P11SessionPtr_t pxSession, CK_OBJECT_HANDLE xObject, sss_object_t *pSSSObject)
+{
+    sss_status_t sss_status = kStatus_SSS_Fail;
+    sss_object_t sss_object = {0};
     if (pxSession->xFindObjectInit == CK_TRUE) {
         /* Find Objects operation is going on. Read from SW keystore */
         SwKeyStorePtr_t pCurrentKeyStore = pxSession->pCurrentKs;
@@ -817,16 +929,18 @@ sss_status_t pkcs11_get_validated_sss_object(
         }
     }
     else {
-        sss_status = sss_key_object_init(pSSSObject, &pex_sss_demo_boot_ctx->ks);
+        sss_status = sss_key_object_init(&sss_object, &pex_sss_demo_boot_ctx->ks);
         ENSURE_OR_GO_EXIT(sss_status == kStatus_SSS_Success);
 
         if (xObject > UINT32_MAX) {
             LOG_E("Key id cannot be greater than 4 bytes");
             return kStatus_SSS_Fail;
         }
-        sss_status = sss_key_object_get_handle(pSSSObject, xObject);
+        sss_status = sss_key_object_get_handle(&sss_object, xObject);
         ENSURE_OR_GO_EXIT(sss_status == kStatus_SSS_Success);
+        memcpy(pSSSObject, &sss_object, sizeof(*pSSSObject));
     }
+
 exit:
     return sss_status;
 }

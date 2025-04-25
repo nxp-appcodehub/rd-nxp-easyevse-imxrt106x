@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 NXP
+ * Copyright 2023-2025 NXP
  * NXP Proprietary. This software is owned or controlled by NXP and may only be used strictly in
  * accordance with the applicable license terms. By expressly accepting such terms or by downloading, installing,
  * activating and/or otherwise using the software, you are agreeing that you have read, and that you agree to comply
@@ -14,7 +14,7 @@
 
 /* CARD_MAX_SIZE_UID should be MAX(PHAC_DISCLOOP_I3P3B_PUPI_LENGTH, PHAC_DISCLOOP_I3P3A_MAX_UID_LENGTH,
  * PHAC_DISCLOOP_FELICA_IDM_LENGTH, PHAC_V_DISCLOOP_MAX_UID_LENGTH) * ASCII size + NULL terminator */
-#define CARD_MAX_SIZE_UID    (10 * 2 + 1)
+#define CARD_MAX_SIZE_UID (10 * 2 + 1)
 
 #define CARD_NOT_PRESENT "N/A"
 
@@ -22,7 +22,7 @@
 typedef struct _nfc_data_info
 {
     char CardUID[CARD_MAX_SIZE_UID];
-    char CardTek[2]; /* A, B, F, V*/
+    char CardTek[2];  /* A, B, F, V*/
     char CardType[4]; /* 1 , 2, 3, P2P */
     uint8_t SizeUID;
 } nfc_data_info_t;
@@ -39,14 +39,14 @@ typedef void (*CardDetect)(uint8_t *CardUID, uint8_t SizeUID);
 
 /**
  * @brief Register a callback that is going to be called when a card is detect
- * 
+ *
  * @param cb Callback to the function
  */
 void EVSE_NFC_RegisterCallbackFunction(CardDetect cb);
 
 /**
  * @brief Set the vehicleId from an external source
- * 
+ *
  * @param cardUID vehicleId
  * @param size vehicleId size
  */
@@ -68,6 +68,6 @@ void EVSE_NFC_Init(void);
 /*
  * @brief Retrieves Vehicle ID from NFC data.
  */
-const char* EVSE_NFC_Get_VehicleID();
+const char *EVSE_NFC_Get_VehicleID();
 
 #endif /* EVSE_NFC_H */

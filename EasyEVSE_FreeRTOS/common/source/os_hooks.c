@@ -101,10 +101,10 @@ void vApplicationGetTimerTaskMemory(StaticTask_t **ppxTimerTaskTCBBuffer,
 }
 
 #if defined __has_include
-#if __has_include("wm_os.h")
-#include "wm_os.h"
+#if __has_include("osa_freertos.h")
+#include "osa_freertos.h"
 #define WIFI_FILE_FOUND 1
-#endif /* __has_include ("wm_os.h") */
+#endif /* __has_include ("osa_freertos.h") */
 #endif /* defined __has_include */
 
 extern void vApplicationTickHookSE(void);
@@ -116,7 +116,6 @@ extern void TrgtHW_TimerISR(void);
 
 void vApplicationIdleHook(void)
 {
-
 }
 
 /*!
@@ -144,15 +143,15 @@ void vApplicationTickHookRegister(void)
 #if (WIFI_FILE_FOUND == 1U)
 
 #if (ENABLE_LCD)
-    os_setup_tick_function(vApplicationTickHookUI);
+    OSA_SetupTickFunction(vApplicationTickHookUI);
 #endif /* ENABLE_LCD */
 
 #if (ENABLE_SE)
-    os_setup_tick_function(vApplicationTickHookSE);
+    OSA_SetupTickFunction(vApplicationTickHookSE);
 #endif /* ENABLE_SE */
 
 #if (ENABLE_ISO15118 == 1)
-    os_setup_tick_function(TrgtHW_TimerISR);
+    OSA_SetupTickFunction(TrgtHW_TimerISR);
 #endif
 
 #endif /* ENABLE_WIFI */

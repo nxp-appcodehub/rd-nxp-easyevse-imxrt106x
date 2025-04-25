@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 NXP
+ * Copyright 2023-2025 NXP
  * NXP Proprietary. This software is owned or controlled by NXP and may only be used strictly in
  * accordance with the applicable license terms. By expressly accepting such terms or by downloading, installing,
  * activating and/or otherwise using the software, you are agreeing that you have read, and that you agree to comply
@@ -40,22 +40,44 @@
 #if (EVSE_X509_AUTH == 1)
 #include "azure_iot_config.h"
 #endif
+
+/* The following Object IDs (OIDs) need to match the OIDs set by the provisioning tool (EdgeLock2GO platform or others). */
+#define AZURE_IOT_KEY_INDEX_SM         0x223344           /* Object ID (OID) of the cloud private client key in SE050. */
+#define AZURE_IOT_CLIENT_CERT_INDEX_SM 0x223345           /* Object ID (OID) of the cloud client certificate in SE050. */
+#define AZURE_IOT_HOSTNAME_INDEX_SM    0x000013           /* Object ID (OID) of the cloud hostname (returned by DPS) in SE050. */
+#define ISO15118_CPO_KEY_INDEX_SM      0x223388           /* Object ID (OID) of the ISO15118 CPO key in SE050. */
+#define ISO15118_CPO_KEY_FORMAT_SM     kSSS_KeyPart_Pair /* Format of the ISO15118 CPO key in SE050: kSSS_KeyPart_Pair for keypair
+                                                          *                                          kSSS_KeyPart_Private if only the private key is stored. */
+
+#if ENABLE_ISO15118
+#define EVSE_ISO15118_CPO_KEY_MAX_BUFFER 256
+
+typedef struct _evse_cpo_key
+{
+    uint8_t buff[EVSE_ISO15118_CPO_KEY_MAX_BUFFER];
+    size_t len;
+} evse_cpo_key_t;
+
+#endif /* ENABLE_ISO15118 */
+
 /*******************************************************************************
  * Definitions
  ******************************************************************************/
-//AT_NONCACHEABLE_SECTION_ALIGN(ex_sss_boot_ctx_t gex_sss_demo_boot_ctx,64);
-//AT_NONCACHEABLE_SECTION_ALIGN(ex_sss_cloud_ctx_t gex_sss_demo_tls_ctx,64);
+// AT_NONCACHEABLE_SECTION_ALIGN(ex_sss_boot_ctx_t gex_sss_demo_boot_ctx,64);
+// AT_NONCACHEABLE_SECTION_ALIGN(ex_sss_cloud_ctx_t gex_sss_demo_tls_ctx,64);
 ex_sss_boot_ctx_t gex_sss_demo_boot_ctx;
 ex_sss_boot_ctx_t *pex_sss_demo_boot_ctx = &gex_sss_demo_boot_ctx;
 
 ex_sss_cloud_ctx_t gex_sss_demo_tls_ctx;
 ex_sss_cloud_ctx_t *pex_sss_demo_tls_ctx = &gex_sss_demo_tls_ctx;
 
+uint8_t EVSE_SE_session_count = 0;
+
 /*******************************************************************************
  * Prototypes
  ******************************************************************************/
 #if ((EVSE_X509_SE050_AUTH == 1) || (EVSE_X509_AUTH == 1))
-static certificates_status_t get_oid_value_in_subject(
+static EVSE_SE05X_status_t get_oid_value_in_subject(
     uint8_t *cert_buffer, size_t cert_len, char *oid, char *value, size_t max_size);
 #endif /* ((EVSE_X509_SE050_AUTH == 1) || (EVSE_X509_AUTH == 1)) */
 /*******************************************************************************
@@ -64,7 +86,7 @@ static certificates_status_t get_oid_value_in_subject(
 static se_events_t se_event_flag;
 
 #if (EVSE_X509_SE050_AUTH == 1)
-static uint8_t certificateBuffer[CERT_BUFFER_SIZE];
+static uint8_t certificateBuffer[AZURE_IOT_CLIENTCERT_BUFSIZE];
 #endif /* ((EVSE_X509_SE050_AUTH == 1) */
 
 #if (EVSE_X509_AUTH == 1)
@@ -126,59 +148,87 @@ end_task:
 }
 #endif /* 0 */
 
-void EVSE_SE050_Open_Session(void)
+EVSE_SE05X_status_t EVSE_SE050_Open_Session(void)
 {
-    sss_status_t status  = kStatus_SSS_Fail;
-    const char *portName = NULL;
+	EVSE_SE05X_status_t session_status = kStatus_Session_Success;
 
-    /* NXP SE05x Secure Element initialization */
-    configPRINTF((info("Starting Comms to SE050...\r\n")));
-
-    // memset(PCONTEXT, 0, sizeof(*PCONTEXT));
-
-    configPRINTF((info("Running ex_sss_boot_open()...")));
-    status = ex_sss_boot_open(&gex_sss_demo_boot_ctx, portName);
-    if (status != kStatus_SSS_Success)
+    if (EVSE_SE_session_count == 0)
     {
-        se_event_flag = SE_INIT_FAIL_EVENT;
-        configPRINTF((error("ex_sss_session_open Failed")));
-        goto exit;
-    }
+        sss_status_t status  = kStatus_SSS_Fail;
+        const char *portName = NULL;
 
-    se_event_flag = SE_INIT_SUCCESS_EVENT;
+        /* NXP SE05x Secure Element initialization */
+        configPRINTF((info("Starting Comms to SE050...\r\n")));
 
-    if (((PCONTEXT)->session.subsystem) == kType_SSS_SubSystem_NONE)
-    {
-        /* Nothing to do. Device is not opened
-         * This is needed for the case when we open a generic communication
-         * channel, without being specific to SE05X
-         */
-    }
-    else
-    {
-        status = ex_sss_key_store_and_object_init((PCONTEXT));
+        // memset(PCONTEXT, 0, sizeof(*PCONTEXT));
+
+        configPRINTF((info("Running ex_sss_boot_open()...")));
+        status = ex_sss_boot_open(&gex_sss_demo_boot_ctx, portName);
         if (status != kStatus_SSS_Success)
         {
-            configPRINTF((error("ex_sss_key_store_and_object_init Failed")));
+            configPRINTF((error("ex_sss_session_open Failed")));
+            se_event_flag = SE_INIT_FAIL_EVENT;
+            session_status = kStatus_Session_Failed;
             goto exit;
         }
+
+        se_event_flag = SE_INIT_SUCCESS_EVENT;
+
+        if (((PCONTEXT)->session.subsystem) == kType_SSS_SubSystem_NONE)
+        {
+            /* Nothing to do. Device is not opened
+             * This is needed for the case when we open a generic communication
+             * channel, without being specific to SE05X
+             */
+        }
+        else
+        {
+            status = ex_sss_key_store_and_object_init((PCONTEXT));
+            if (status != kStatus_SSS_Success)
+            {
+                configPRINTF((error("ex_sss_key_store_and_object_init Failed")));
+                session_status = kStatus_Session_Failed;
+                goto exit;
+            }
+        }
+
     }
 
+    EVSE_SE_session_count++;
+
 exit:
-    return;
+    return session_status;
 }
 
 void EVSE_SE050_Close_Session(void)
 {
-    ex_sss_session_close(&gex_sss_demo_boot_ctx);
-    se_event_flag = SE_NOT_INITIALIZED_EVENT;
+    if (EVSE_SE_session_count == 1)
+    {
+        ex_sss_session_close(&gex_sss_demo_boot_ctx);
+        se_event_flag = SE_NOT_INITIALIZED_EVENT;
+    }
+
+    EVSE_SE_session_count--;
 }
 
-certificates_status_t EVSE_SE050_Get_DeviceIDFromCertificate(uint8_t *deviceid, size_t len)
+EVSE_SE05X_status_t EVSE_SE050_Set_CertificateIdx(ex_sss_cloud_ctx_t *ctx)
+{
+	if (ctx == NULL)
+	{
+		return kStatus_Certificates_Failed;
+	}
+
+    ctx->client_cert_index    = AZURE_IOT_CLIENT_CERT_INDEX_SM;
+    ctx->client_keyPair_index = AZURE_IOT_KEY_INDEX_SM;
+
+    return kStatus_Certificates_Success;
+}
+
+EVSE_SE05X_status_t EVSE_SE050_Get_DeviceIDFromCertificate(uint8_t *deviceid, size_t len)
 {
 #if ((EVSE_X509_SE050_AUTH == 1) || (EVSE_X509_AUTH == 1))
-    certificates_status_t cert_status = kStatus_Certificates_Failed;
-    uint32_t cert_size                = CERT_BUFFER_SIZE;
+	EVSE_SE05X_status_t cert_status = kStatus_Certificates_Failed;
+    uint32_t cert_size              = AZURE_IOT_CLIENTCERT_BUFSIZE;
 
     if (deviceid == NULL)
     {
@@ -192,7 +242,7 @@ certificates_status_t EVSE_SE050_Get_DeviceIDFromCertificate(uint8_t *deviceid, 
     }
 #endif /* EVSE_X509_SE050_AUTH == 1 */
 
-    cert_status = EVSE_SE050_Check_Certificate(AZURE_IOT_CLIENT_CERT_INDEX_SM, &cert_size);
+    cert_status = EVSE_SE050_Check_Cloud_Certificate(&cert_size);
     if (cert_status != kStatus_Certificates_Success)
     {
         return kStatus_Certificates_Failed;
@@ -217,7 +267,7 @@ certificates_status_t EVSE_SE050_Get_DeviceIDFromCertificate(uint8_t *deviceid, 
 #endif /* ((EVSE_X509_SE050_AUTH == 1) || (EVSE_X509_AUTH == 1)) */
 }
 
-certificates_status_t EVSE_SE050_Check_Certificate(uint32_t certidx, uint32_t *certsize)
+EVSE_SE05X_status_t EVSE_SE050_Check_Cloud_Certificate(uint32_t *certsize)
 {
     sss_status_t status = kStatus_SSS_Fail;
 
@@ -229,7 +279,7 @@ certificates_status_t EVSE_SE050_Check_Certificate(uint32_t certidx, uint32_t *c
 #if (EVSE_X509_SE050_AUTH == 1)
     if (se_event_flag == SE_INIT_SUCCESS_EVENT)
     {
-        status = se05x_GetCertificate(certidx, (uint8_t *)&certificateBuffer[0], certsize);
+        status = se05x_GetCertificate(AZURE_IOT_CLIENT_CERT_INDEX_SM, (uint8_t *)&certificateBuffer[0], certsize);
     }
 
 #elif (EVSE_X509_AUTH == 1)
@@ -244,16 +294,16 @@ certificates_status_t EVSE_SE050_Check_Certificate(uint32_t certidx, uint32_t *c
     return (status == kStatus_SSS_Success) ? kStatus_Certificates_Success : kStatus_Certificates_Failed;
 }
 
-certificates_status_t EVSE_SE050_Delete_Certificate(uint32_t certidx, uint32_t keyidx)
+EVSE_SE05X_status_t EVSE_SE050_Delete_Cloud_Certificate(void)
 {
     sss_status_t status                      = kStatus_SSS_Fail;
     sss_status_t keystatus                   = kStatus_SSS_Fail;
-    certificates_status_t status_certificate = kStatus_Certificates_Failed;
+    EVSE_SE05X_status_t status_certificate = kStatus_Certificates_Failed;
 
     if (se_event_flag == SE_INIT_SUCCESS_EVENT)
     {
-        keystatus = se05x_DeleteBinaryFile(keyidx);
-        status    = se05x_DeleteBinaryFile(certidx);
+        keystatus = se05x_DeleteBinaryFile(AZURE_IOT_KEY_INDEX_SM);
+        status    = se05x_DeleteBinaryFile(AZURE_IOT_CLIENT_CERT_INDEX_SM);
         if ((status == kStatus_SSS_Success) && (keystatus == kStatus_SSS_Success))
         {
             status_certificate = kStatus_Certificates_Success;
@@ -263,9 +313,9 @@ certificates_status_t EVSE_SE050_Delete_Certificate(uint32_t certidx, uint32_t k
     return status_certificate;
 }
 
-hostname_config_status_t EVSE_SE050_Get_ServerHostname(char* hostname, uint32_t* hostname_len)
+EVSE_SE05X_status_t EVSE_SE050_Get_ServerHostname(char *hostname, uint32_t *hostname_len)
 {
-    hostname_config_status_t status_hostname_s = kStatus_Hostname_Failed;
+	EVSE_SE05X_status_t status_hostname_s = kStatus_Hostname_Failed;
 
     if (hostname == NULL)
     {
@@ -273,7 +323,7 @@ hostname_config_status_t EVSE_SE050_Get_ServerHostname(char* hostname, uint32_t*
     }
 
 #if defined(HOST_NAME)
-    unsigned char* host_name_buff = (unsigned char*)HOST_NAME;
+    unsigned char *host_name_buff = (unsigned char *)HOST_NAME;
 
     if (CHECK_EMPTY_HOSTNAME(host_name_buff))
     {
@@ -299,8 +349,8 @@ hostname_config_status_t EVSE_SE050_Get_ServerHostname(char* hostname, uint32_t*
     {
         sss_status_t status = kStatus_SSS_Fail;
 
-        memset((char*)hostname, 0x00, (size_t)*hostname_len);
-        status = se05x_ReadBinaryFile(AZURE_IOT_HOSTNAME_INDEX_SM, (uint8_t*)hostname, (size_t*)hostname_len);
+        memset((char *)hostname, 0x00, (size_t)*hostname_len);
+        status = se05x_ReadBinaryFile(AZURE_IOT_HOSTNAME_INDEX_SM, (uint8_t *)hostname, (size_t *)hostname_len);
         status_hostname_s = (status == kStatus_SSS_Success) ? kStatus_Hostname_Success : kStatus_Hostname_Failed;
     }
 
@@ -308,13 +358,12 @@ hostname_config_status_t EVSE_SE050_Get_ServerHostname(char* hostname, uint32_t*
 
 end:
     return status_hostname_s;
-
 }
 
-hostname_config_status_t EVSE_SE050_Set_ServerHostname(const char* hostname, uint32_t hostname_len)
+EVSE_SE05X_status_t EVSE_SE050_Set_ServerHostname(const char *hostname, uint32_t hostname_len)
 {
-    hostname_config_status_t status_hostname_s = kStatus_Hostname_Failed;
-    sss_status_t status = kStatus_SSS_Fail;
+	EVSE_SE05X_status_t status_hostname_s = kStatus_Hostname_Failed;
+    sss_status_t status                        = kStatus_SSS_Fail;
 
     if (hostname == NULL)
     {
@@ -324,9 +373,9 @@ hostname_config_status_t EVSE_SE050_Set_ServerHostname(const char* hostname, uin
 
     if (se_event_flag == SE_INIT_SUCCESS_EVENT)
     {
-        uint8_t *binary_data_buff = (char*)hostname;
-        size_t size_buff = (size_t)hostname_len;
-        status = se05x_WriteBinaryFile(AZURE_IOT_HOSTNAME_INDEX_SM, binary_data_buff, size_buff);
+        uint8_t *binary_data_buff = (char *)hostname;
+        size_t size_buff          = (size_t)hostname_len;
+        status                    = se05x_WriteBinaryFile(AZURE_IOT_HOSTNAME_INDEX_SM, binary_data_buff, size_buff);
 
         if (status != kStatus_SSS_Success)
         {
@@ -344,14 +393,14 @@ end:
     return status_hostname_s;
 }
 
-hostname_config_status_t EVSE_SE050_Delete_ServerHostname(uint32_t index)
+EVSE_SE05X_status_t EVSE_SE050_Delete_ServerHostname(void)
 {
-    sss_status_t status = kStatus_SSS_Fail;
-    hostname_config_status_t status_hostname_s = kStatus_Hostname_Failed;
+    sss_status_t status                   = kStatus_SSS_Fail;
+    EVSE_SE05X_status_t status_hostname_s = kStatus_Hostname_Failed;
 
     if (se_event_flag == SE_INIT_SUCCESS_EVENT)
     {
-        status = se05x_DeleteBinaryFile(index);
+        status = se05x_DeleteBinaryFile(AZURE_IOT_HOSTNAME_INDEX_SM);
         if (status == kStatus_SSS_Success)
         {
             configPRINTF(("Successfully deleted hostname from SE\r\n"));
@@ -366,11 +415,128 @@ hostname_config_status_t EVSE_SE050_Delete_ServerHostname(uint32_t index)
     return status_hostname_s;
 }
 
-static certificates_status_t get_oid_value_in_subject(
+#if ENABLE_ISO15118
+EVSE_SE05X_status_t EVSE_SE050_Check_CPOKey(void)
+{
+    EVSE_SE05X_status_t status_cpokey_s = kStatus_CPOKey_Failed;
+
+    if (se_event_flag == SE_INIT_SUCCESS_EVENT)
+    {
+        sss_status_t status = kStatus_SSS_Fail;
+        uint32_t obj_type = kSSS_KeyPart_NONE;
+        status = se05x_ReadObjectType(ISO15118_CPO_KEY_INDEX_SM, &obj_type);
+        if (status == kStatus_SSS_Success)
+        {
+            if (obj_type == kSSS_KeyPart_Default)
+            {
+                /* Key was injected in binary format so it's not directly usable */
+                status_cpokey_s = kStatus_CPOKey_Failed;
+            }
+            else if ((obj_type == kSSS_KeyPart_Private) || (obj_type == kSSS_KeyPart_Pair))
+            {
+                status_cpokey_s = kStatus_CPOKey_Success;
+            }
+        }
+    }
+
+    return status_cpokey_s;
+}
+
+static EVSE_SE05X_status_t EVSE_SE050_ConvertBinaryToKey(uint32_t key_id, sss_key_part_t key_format)
+{
+	sss_status_t status                 = kStatus_SSS_Fail;
+	EVSE_SE05X_status_t status_cpokey_s = kStatus_CPOKey_Failed;
+
+    evse_cpo_key_t *cpo_key = (evse_cpo_key_t *)pvPortMalloc(sizeof(evse_cpo_key_t));
+    if (cpo_key == NULL)
+    {
+        return status_cpokey_s;
+    }
+
+    memset((uint8_t *)cpo_key->buff, 0x00, sizeof(cpo_key->buff));
+    cpo_key->len = sizeof(cpo_key->buff);
+
+    status = se05x_ReadBinaryFile(key_id, cpo_key->buff, &cpo_key->len);
+    if (status != kStatus_SSS_Success)
+    {
+        configPRINTF((error("Failed to read cpo private key from SE\r\n")));
+        status_cpokey_s = kStatus_CPOKey_Failed;
+        goto end;
+    }
+
+    status = se05x_DeleteBinaryFile(key_id);
+    if (status != kStatus_SSS_Success)
+    {
+        configPRINTF((error("Failed to erase cpo key from SE\r\n")));
+        status_cpokey_s = kStatus_CPOKey_Failed;
+        goto end;
+    }
+
+    status = se05x_WriteKeyFile(key_id, cpo_key->buff, cpo_key->len, key_format);
+    memset((uint8_t *)cpo_key->buff, 0x00, sizeof(cpo_key->buff));
+    if (status != kStatus_SSS_Success)
+    {
+        configPRINTF((error("Failed to set cpo private key to SE\r\n")));
+        status_cpokey_s = kStatus_CPOKey_Failed;
+        goto end;
+    }
+
+    status_cpokey_s = kStatus_CPOKey_Success;
+
+end:
+    vPortFree(cpo_key);
+    return status_cpokey_s;
+}
+
+EVSE_SE05X_status_t EVSE_SE050_Handle_CPOKey(void)
+{
+    EVSE_SE05X_status_t status_cpokey_s   = kStatus_CPOKey_Failed;
+
+    if (EVSE_SE050_Check_CPOKey() == kStatus_CPOKey_Success)
+    {
+        configPRINTF(("CPO key format is valid"));
+        status_cpokey_s = kStatus_CPOKey_Success;
+        goto end;
+    }
+
+    if (se_event_flag == SE_INIT_SUCCESS_EVENT)
+    {
+        status_cpokey_s = EVSE_SE050_ConvertBinaryToKey(ISO15118_CPO_KEY_INDEX_SM, ISO15118_CPO_KEY_FORMAT_SM);
+    }
+
+end:
+    return status_cpokey_s;
+}
+
+EVSE_SE05X_status_t EVSE_SE050_Delete_CPOKey(void)
+{
+    sss_status_t status                   = kStatus_SSS_Fail;
+    EVSE_SE05X_status_t status_cpokey_s   = kStatus_CPOKey_Failed;
+
+    if (se_event_flag == SE_INIT_SUCCESS_EVENT)
+    {
+        status = se05x_DeleteBinaryFile(ISO15118_CPO_KEY_INDEX_SM);
+        if (status == kStatus_SSS_Success)
+        {
+            configPRINTF(("Successfully deleted CPO key from SE\r\n"));
+            status_cpokey_s = kStatus_CPOKey_Success;
+        }
+        else
+        {
+            configPRINTF(("Failed to delete CPO key from SE\r\n"));
+        }
+    }
+
+    return status_cpokey_s;
+}
+
+#endif /* ENABLE_ISO15118 */
+
+static EVSE_SE05X_status_t get_oid_value_in_subject(
     uint8_t *cert_buffer, size_t cert_len, char *oid, char *value, size_t max_size)
 {
 #if ((EVSE_X509_SE050_AUTH == 1) || (EVSE_X509_AUTH == 1))
-    certificates_status_t cert_status = kStatus_Certificates_Success;
+	EVSE_SE05X_status_t cert_status = kStatus_Certificates_Success;
     mbedtls_x509_crt client_cert      = {0};
     char *oid_name                    = NULL;
     mbedtls_x509_name *oid_ptr;

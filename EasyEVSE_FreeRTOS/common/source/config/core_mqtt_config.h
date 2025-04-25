@@ -36,7 +36,8 @@
  * 3. Include the header file "logging_stack.h", if logging is enabled for MQTT.
  */
 
-//#include "logging_levels.h"
+// #include "logging_levels.h"
+#include "FreeRTOSConfig.h"
 
 /* Logging configuration for the MQTT library. */
 #ifndef LIBRARY_LOG_NAME
@@ -47,7 +48,7 @@
 #define LIBRARY_LOG_LEVEL LOG_ERROR
 #endif
 
-//#include "logging.h"
+// #include "logging.h"
 /************ End of logging configuration ****************/
 
 /**
@@ -114,12 +115,12 @@
  */
 #define MQTT_AGENT_MAX_EVENT_QUEUE_WAIT_TIME (50)
 
-#define LogError( message )                  configPRINTF(message)
+#define LogError(message) configPRINTF(message)
 
-#define LogInfo( message )                   configPRINTF(message)
+#define LogInfo(message) configPRINTF(message)
 
-#define LogWarn( message )
+#define LogWarn(message)
 
-#define LogDebug( message )
+#define LogDebug(message)
 
 #endif /* ifndef CORE_MQTT_CONFIG_H */
