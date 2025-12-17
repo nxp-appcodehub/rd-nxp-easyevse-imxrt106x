@@ -1,1 +1,1 @@
-GEN_CSRCS += _mainpng_480x272.c _evse_alpha_60x61.c _debug_alpha_62x62.c _carpng_alpha_60x61.c _meterguage_alpha_60x61.c _nfc_alpha_60x61.c _debug_ISO15118_alpha_62x62.c _returnpng_alpha_32x28.c _readdata_alpha_35x37.c _readnfc_alpha_91x63.c
+GEN_CSRCS += _welcome_bak_RGB565_480x272.c _linking_bak_RGB565_480x272.c _link_icon_RGB565A8_24x39.c _slide_RGB565A8_22x13.c _start_btn_RGB565A8_29x27.c _charging_bak_RGB565A8_395x216.c _charing_RGB565A8_206x133.c _start_btn_RGB565A8_100x100.c _linking_bak_RGB565A8_480x272.c _arrow_RGB565A8_15x11.c

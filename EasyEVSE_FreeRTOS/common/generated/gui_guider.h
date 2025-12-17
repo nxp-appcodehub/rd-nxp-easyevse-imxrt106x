@@ -15,228 +15,103 @@ extern "C" {
 
 #include "lvgl.h"
 
+
 typedef struct
 {
   
 	lv_obj_t *Main_Screen;
 	bool Main_Screen_del;
-	lv_obj_t *Main_Screen_img_1;
-	lv_obj_t *Main_Screen_ID_EV_btn;
-	lv_obj_t *Main_Screen_ID_EV_btn_label;
-	lv_obj_t *Main_Screen_ID_debug_conn_btn;
-	lv_obj_t *Main_Screen_ID_debug_conn_btn_label;
-	lv_obj_t *Main_Screen_ID_car_btn;
-	lv_obj_t *Main_Screen_ID_car_btn_label;
-	lv_obj_t *Main_Screen_ID_meter_btn;
-	lv_obj_t *Main_Screen_ID_meter_btn_label;
-	lv_obj_t *Main_Screen_ID_NFC_btn;
-	lv_obj_t *Main_Screen_ID_NFC_btn_label;
-	lv_obj_t *Main_Screen_type_of_connection_label;
-	lv_obj_t *Main_Screen_SSID_prompt;
-	lv_obj_t *Main_Screen_blue_line_top;
-	lv_obj_t *Main_Screen_blue_line_bottom;
-	lv_obj_t *Main_Screen_blue_line_left;
-	lv_obj_t *Main_Screen_blue_line_right;
-	lv_obj_t *Main_Screen_orange_line_left;
-	lv_obj_t *Main_Screen_green_line_top;
-	lv_obj_t *Main_Screen_green_line_bottom;
-	lv_obj_t *Main_Screen_green_line_left;
-	lv_obj_t *Main_Screen_green_line_right;
-	lv_obj_t *Main_Screen_orange_line_top;
-	lv_obj_t *Main_Screen_orange_line_bottom;
-	lv_obj_t *Main_Screen_orange_line_right;
-	lv_obj_t *Main_Screen_EVSE_software_version;
-	lv_obj_t *Main_Screen_ID_debug_ISO_btn;
-	lv_obj_t *Main_Screen_ID_debug_ISO_btn_label;
+	lv_obj_t *Main_Screen_cont_cover;
+	lv_obj_t *Main_Screen_label_welcome;
+	lv_obj_t *Main_Screen_spangroup_A;
+	lv_span_t *Main_Screen_spangroup_A_span;
 	lv_obj_t *Main_Screen_clock;
-	lv_obj_t *Debug_Conn_Screen;
-	bool Debug_Conn_Screen_del;
-	lv_obj_t *Debug_Conn_Screen_DebugConn_Heading;
-	lv_obj_t *Debug_Conn_Screen_network_status_prompt;
-	lv_obj_t *Debug_Conn_Screen_cloud_status_prompt;
-	lv_obj_t *Debug_Conn_Screen_telemetry_prompt;
-	lv_obj_t *Debug_Conn_Screen_ID_back_btn;
-	lv_obj_t *Debug_Conn_Screen_ID_back_btn_label;
-	lv_obj_t *Debug_Conn_Screen_network_status_value;
-	lv_obj_t *Debug_Conn_Screen_cloud_status_value;
-	lv_obj_t *Debug_Conn_Screen_telemetry_value;
-	lv_obj_t *Debug_Conn_Screen_blue_line_top;
-	lv_obj_t *Debug_Conn_Screen_blue_line_bottom;
-	lv_obj_t *Debug_Conn_Screen_blue_line_left;
-	lv_obj_t *Debug_Conn_Screen_blue_line_right;
-	lv_obj_t *Debug_Conn_Screen_green_line_top;
-	lv_obj_t *Debug_Conn_Screen_green_line_bottom;
-	lv_obj_t *Debug_Conn_Screen_green_line_left;
-	lv_obj_t *Debug_Conn_Screen_green_line_right;
-	lv_obj_t *Debug_Conn_Screen_orange_line_top;
-	lv_obj_t *Debug_Conn_Screen_orange_line_bottom;
-	lv_obj_t *Debug_Conn_Screen_orange_line_left;
-	lv_obj_t *Debug_Conn_Screen_orange_line_right;
-	lv_obj_t *Debug_Conn_Screen_clock;
-	lv_obj_t *Car_Screen;
-	bool Car_Screen_del;
-	lv_obj_t *Car_Screen_Vehicle_settings_heading;
-	lv_obj_t *Car_Screen_ID_back_btn;
-	lv_obj_t *Car_Screen_ID_back_btn_label;
-	lv_obj_t *Car_Screen_vehicle_id_value;
-	lv_obj_t *Car_Screen_blue_line_top;
-	lv_obj_t *Car_Screen_blue_line_bottom;
-	lv_obj_t *Car_Screen_blue_line_left;
-	lv_obj_t *Car_Screen_blue_line_right;
-	lv_obj_t *Car_Screen_green_line_top;
-	lv_obj_t *Car_Screen_green_line_bottom;
-	lv_obj_t *Car_Screen_green_line_left;
-	lv_obj_t *Car_Screen_green_line_right;
-	lv_obj_t *Car_Screen_orange_line_top;
-	lv_obj_t *Car_Screen_orange_line_bottom;
-	lv_obj_t *Car_Screen_orange_line_left;
-	lv_obj_t *Car_Screen_orange_line_right;
-	lv_obj_t *Car_Screen_requested_energy_value;
-	lv_obj_t *Car_Screen_delivered_energy_value;
-	lv_obj_t *Car_Screen_delivered_energy_prompt;
-	lv_obj_t *Car_Screen_protocol_value;
-	lv_obj_t *Car_Screen_requested_energy_prompt;
-	lv_obj_t *Car_Screen_vehicle_id_prompt;
-	lv_obj_t *Car_Screen_protocol_prompt;
-	lv_obj_t *Car_Screen_charge_current_value;
-	lv_obj_t *Car_Screen_charge_current_prompt;
-	lv_obj_t *Car_Screen_elapsed_time_value;
-	lv_obj_t *Car_Screen_elapsed_time_prompt;
-	lv_obj_t *Car_Screen_time_to_charge_prompt;
-	lv_obj_t *Car_Screen_time_to_charge_value;
-	lv_obj_t *Car_Screen_clock;
-	lv_obj_t *Car_Screen_img_1;
-	lv_obj_t *Car_Screen_img_2;
-	lv_obj_t *Car_Screen_stop_resume_btn;
-	lv_obj_t *Car_Screen_stop_resume_btn_label;
-	lv_obj_t *Car_Screen_v2g_img_1;
-	lv_obj_t *Car_Screen_v2g_img_2;
-	lv_obj_t *Car_Screen_v2g_img_3;
-	lv_obj_t *Car_Screen_v2g_img_4;
-	lv_obj_t *Car_Screen_g2v_img_1;
-	lv_obj_t *Car_Screen_g2v_img_2;
-	lv_obj_t *Car_Screen_g2v_img_3;
-	lv_obj_t *Car_Screen_g2v_img_4;
-	lv_obj_t *EVSE_Screen;
-	bool EVSE_Screen_del;
-	lv_obj_t *EVSE_Screen_EVSE_Menu_Heading;
-	lv_obj_t *EVSE_Screen_ID_back_btn;
-	lv_obj_t *EVSE_Screen_ID_back_btn_label;
-	lv_obj_t *EVSE_Screen_power_rate_prompt;
-	lv_obj_t *EVSE_Screen_sigboard_versions_prompt;
-	lv_obj_t *EVSE_Screen_charge_cost_prompt;
-	lv_obj_t *EVSE_Screen_EVDE_ID_prompt;
-	lv_obj_t *EVSE_Screen_grid_limit_prompt;
-	lv_obj_t *EVSE_Screen_temperature_prompt;
-	lv_obj_t *EVSE_Screen_power_rate_value;
-	lv_obj_t *EVSE_Screen_sigboard_versions_value;
-	lv_obj_t *EVSE_Screen_charge_cost_value;
-	lv_obj_t *EVSE_Screen_EVSE_ID_value;
-	lv_obj_t *EVSE_Screen_grid_limit_value;
-	lv_obj_t *EVSE_Screen_temperature_value;
-	lv_obj_t *EVSE_Screen_blue_line_top;
-	lv_obj_t *EVSE_Screen_blue_line_bottom;
-	lv_obj_t *EVSE_Screen_blue_line_left;
-	lv_obj_t *EVSE_Screen_blue_line_right;
-	lv_obj_t *EVSE_Screen_green_line_top;
-	lv_obj_t *EVSE_Screen_green_line_bottom;
-	lv_obj_t *EVSE_Screen_green_line_left;
-	lv_obj_t *EVSE_Screen_green_line_right;
-	lv_obj_t *EVSE_Screen_orange_line_top;
-	lv_obj_t *EVSE_Screen_charge_state_prompt;
-	lv_obj_t *EVSE_Screen_orange_line_bottom;
-	lv_obj_t *EVSE_Screen_orange_line_left;
-	lv_obj_t *EVSE_Screen_orange_line_right;
-	lv_obj_t *EVSE_Screen_charge_state_led;
-	lv_obj_t *EVSE_Screen_up_time_value;
-	lv_obj_t *EVSE_Screen_up_time_prompt;
-	lv_obj_t *EVSE_Screen_clock;
-	lv_obj_t *Meter_Screen;
-	bool Meter_Screen_del;
-	lv_obj_t *Meter_Screen_Meter_Menu_Heading;
-	lv_obj_t *Meter_Screen_V_RMS_prompt;
-	lv_obj_t *Meter_Screen_V_RMS_value;
-	lv_obj_t *Meter_Screen_aparent_prompt;
-	lv_obj_t *Meter_Screen_aparent_value;
-	lv_obj_t *Meter_Screen_active_value;
-	lv_obj_t *Meter_Screen_active_prompt;
-	lv_obj_t *Meter_Screen_I_RMS_value;
-	lv_obj_t *Meter_Screen_I_RMS_prompt;
-	lv_obj_t *Meter_Screen_VARh_value;
-	lv_obj_t *Meter_Screen_VARh_prompt;
-	lv_obj_t *Meter_Screen_kWh_prompt;
-	lv_obj_t *Meter_Screen_reactive_prompt;
-	lv_obj_t *Meter_Screen_reactive_value;
-	lv_obj_t *Meter_Screen_kWh_value;
-	lv_obj_t *Meter_Screen_mode_value;
-	lv_obj_t *Meter_Screen_mode_prompt;
-	lv_obj_t *Meter_Screen_ID_meter_data_btn;
-	lv_obj_t *Meter_Screen_ID_meter_data_btn_label;
-	lv_obj_t *Meter_Screen_refresh_data_prompt;
-	lv_obj_t *Meter_Screen_blue_line_top;
-	lv_obj_t *Meter_Screen_blue_line_bottom;
-	lv_obj_t *Meter_Screen_blue_line_left;
-	lv_obj_t *Meter_Screen_blue_line_right;
-	lv_obj_t *Meter_Screen_green_line_top;
-	lv_obj_t *Meter_Screen_green_line_bottom;
-	lv_obj_t *Meter_Screen_green_line_left;
-	lv_obj_t *Meter_Screen_green_line_right;
-	lv_obj_t *Meter_Screen_orange_line_top;
-	lv_obj_t *Meter_Screen_orange_line_bottom;
-	lv_obj_t *Meter_Screen_orange_line_left;
-	lv_obj_t *Meter_Screen_orange_line_right;
-	lv_obj_t *Meter_Screen_ID_back_btn;
-	lv_obj_t *Meter_Screen_ID_back_btn_label;
-	lv_obj_t *Meter_Screen_clock;
-	lv_obj_t *NFC_Screen;
-	bool NFC_Screen_del;
-	lv_obj_t *NFC_Screen_NFC_Menu_Heading;
-	lv_obj_t *NFC_Screen_Read_UID_prompt;
-	lv_obj_t *NFC_Screen_card_UID_prompt;
-	lv_obj_t *NFC_Screen_card_UID_value;
-	lv_obj_t *NFC_Screen_read_UID_btn;
-	lv_obj_t *NFC_Screen_read_UID_btn_label;
-	lv_obj_t *NFC_Screen_blue_line_top;
-	lv_obj_t *NFC_Screen_blue_line_bottom;
-	lv_obj_t *NFC_Screen_blue_line_left;
-	lv_obj_t *NFC_Screen_blue_line_right;
-	lv_obj_t *NFC_Screen_green_line_top;
-	lv_obj_t *NFC_Screen_green_line_bottom;
-	lv_obj_t *NFC_Screen_green_line_left;
-	lv_obj_t *NFC_Screen_green_line_right;
-	lv_obj_t *NFC_Screen_orange_line_top;
-	lv_obj_t *NFC_Screen_orange_line_bottom;
-	lv_obj_t *NFC_Screen_orange_line_left;
-	lv_obj_t *NFC_Screen_orange_line_right;
-	lv_obj_t *NFC_Screen_ID_back_btn;
-	lv_obj_t *NFC_Screen_ID_back_btn_label;
-	lv_obj_t *NFC_Screen_clock;
-	lv_obj_t *Debug_ISO_Screen;
-	bool Debug_ISO_Screen_del;
-	lv_obj_t *Debug_ISO_Screen_orange_line_right;
-	lv_obj_t *Debug_ISO_Screen_orange_line_left;
-	lv_obj_t *Debug_ISO_Screen_orange_line_bottom;
-	lv_obj_t *Debug_ISO_Screen_orange_line_top;
-	lv_obj_t *Debug_ISO_Screen_green_line_right;
-	lv_obj_t *Debug_ISO_Screen_green_line_left;
-	lv_obj_t *Debug_ISO_Screen_green_line_bottom;
-	lv_obj_t *Debug_ISO_Screen_green_line_top;
-	lv_obj_t *Debug_ISO_Screen_blue_line_right;
-	lv_obj_t *Debug_ISO_Screen_blue_line_left;
-	lv_obj_t *Debug_ISO_Screen_blue_line_bottom;
-	lv_obj_t *Debug_ISO_Screen_ISO15118_status_value;
-	lv_obj_t *Debug_ISO_Screen_blue_line_top;
-	lv_obj_t *Debug_ISO_Screen_ID_back_btn;
-	lv_obj_t *Debug_ISO_Screen_ID_back_btn_label;
-	lv_obj_t *Debug_ISO_Screen_DebugISO_Heading;
-	lv_obj_t *Debug_ISO_Screen_power_request_cntr_value;
-	lv_obj_t *Debug_ISO_Screen_power_request_cntr_prompt;
-	lv_obj_t *Debug_ISO_Screen_V2G_demo_value;
-	lv_obj_t *Debug_ISO_Screen_V2G_demo_prompt;
-	lv_obj_t *Debug_ISO_Screen_ISO15118_status_prompt;
-	lv_obj_t *Debug_ISO_Screen_clock;
-	lv_obj_t *Debug_ISO_Screen_SIGBOARD_connection_prompt;
-	lv_obj_t *Debug_ISO_Screen_SIGBOARD_connection_value;
+	lv_obj_t *Main_Screen_EVSE_software_version;
+	lv_obj_t *Main_Screen_cont_1;
+	lv_obj_t *Main_Screen_wifi_symbol;
+	lv_obj_t *Main_Screen_SSID_prompt;
+	lv_obj_t *Main_Screen_line_1;
+	lv_obj_t *Main_Screen_type_of_connection_label;
+	lv_obj_t *Main_Screen_cont_2;
+	lv_obj_t *Main_Screen_OCPP_status_prompt;
+	lv_obj_t *Main_Screen_OCPP_status_value;
+	lv_obj_t *Main_Screen_telemetry_value;
+	lv_obj_t *Main_Screen_telemetry_prompt;
+	lv_obj_t *Main_Screen_close_btn;
+	lv_obj_t *Main_Screen_close_btn_label;
+	lv_obj_t *Main_Screen_NFC_activation_status;
+	lv_obj_t *Linking_Screen;
+	bool Linking_Screen_del;
+	lv_obj_t *Linking_Screen_cont_linked;
+	lv_obj_t *Linking_Screen_SIGBOARD_connection_prompt;
+	lv_obj_t *Linking_Screen_SIGBOARD_connection_value;
+	lv_obj_t *Linking_Screen_card_UID_prompt;
+	lv_obj_t *Linking_Screen_card_UID_value;
+	lv_obj_t *Linking_Screen_card_type_value;
+	lv_obj_t *Linking_Screen_card_type_prompt;
+	lv_obj_t *Linking_Screen_card_security_value;
+	lv_obj_t *Linking_Screen_card_security_prompt;
+	lv_obj_t *Linking_Screen_close_btn;
+	lv_obj_t *Linking_Screen_close_btn_label;
+	lv_obj_t *Linking_Screen_mode_value;
+	lv_obj_t *Linking_Screen_mode_prompt;
+	lv_obj_t *Linking_Screen_clock;
+	lv_obj_t *Linking_Screen_img_slide;
+	lv_obj_t *Linking_Screen_cont_1;
+	lv_obj_t *Linking_Screen_ISO15118_status_prompt;
+	lv_obj_t *Linking_Screen_ISO15118_status_value;
+	lv_obj_t *Linking_Screen_cont_2;
+	lv_obj_t *Linking_Screen_register_card_btn;
+	lv_obj_t *Linking_Screen_register_card_btn_label;
+	lv_obj_t *Linking_Screen_deregister_card_btn;
+	lv_obj_t *Linking_Screen_deregister_card_btn_label;
+	lv_obj_t *Linking_Screen_label_1;
+	lv_obj_t *Linking_Screen_label_2;
+	lv_obj_t *Linking_Screen_error_cont;
+	lv_obj_t *Linking_Screen_error_status;
+	lv_obj_t *Linking_Screen_closebtn;
+	lv_obj_t *Linking_Screen_closebtn_label;
+	lv_obj_t *Linking_Screen_home_btn;
+	lv_obj_t *Linking_Screen_home_btn_label;
+	lv_obj_t *Linking_Screen_next_btn;
+	lv_obj_t *Linking_Screen_next_btn_label;
+	lv_obj_t *Linking_Screen_NFC_activation_status;
+	lv_obj_t *Charging_Screen;
+	bool Charging_Screen_del;
+	lv_obj_t *Charging_Screen_img_car;
+	lv_obj_t *Charging_Screen_bar_charging;
+	lv_obj_t *Charging_Screen_battery_level;
+	lv_obj_t *Charging_Screen_label_percent;
+	lv_obj_t *Charging_Screen_img_slide;
+	lv_obj_t *Charging_Screen_cont_details;
+	lv_obj_t *Charging_Screen_charge_current_prompt;
+	lv_obj_t *Charging_Screen_current_value;
+	lv_obj_t *Charging_Screen_voltage_value;
+	lv_obj_t *Charging_Screen_label_46;
+	lv_obj_t *Charging_Screen_protocol_value;
+	lv_obj_t *Charging_Screen_label_42;
+	lv_obj_t *Charging_Screen_charging_direction_value;
+	lv_obj_t *Charging_Screen_label_40;
+	lv_obj_t *Charging_Screen_power_request_cntr_value;
+	lv_obj_t *Charging_Screen_power_request_cntr_prompt;
+	lv_obj_t *Charging_Screen_close_btn;
+	lv_obj_t *Charging_Screen_close_btn_label;
+	lv_obj_t *Charging_Screen_mode_value;
+	lv_obj_t *Charging_Screen_label_53;
+	lv_obj_t *Charging_Screen_time_to_charge_value;
+	lv_obj_t *Charging_Screen_label_remain;
+	lv_obj_t *Charging_Screen_label_45;
+	lv_obj_t *Charging_Screen_elapsed_time_value;
+	lv_obj_t *Charging_Screen_label_charged1;
+	lv_obj_t *Charging_Screen_clock;
+	lv_obj_t *Charging_Screen_EVDE_ID_prompt;
+	lv_obj_t *Charging_Screen_EVSE_ID_value;
+	lv_obj_t *Charging_Screen_vehicle_id_value;
+	lv_obj_t *Charging_Screen_label_51;
+	lv_obj_t *Charging_Screen_home_btn;
+	lv_obj_t *Charging_Screen_home_btn_label;
+	lv_obj_t *Charging_Screen_kWh_value;
+	lv_obj_t *Charging_Screen_NFC_activation_status;
 }lv_ui;
 
 typedef void (*ui_setup_scr_t)(lv_ui * ui);
@@ -244,102 +119,52 @@ typedef void (*ui_setup_scr_t)(lv_ui * ui);
 void ui_init_style(lv_style_t * style);
 
 void ui_load_scr_animation(lv_ui *ui, lv_obj_t ** new_scr, bool new_scr_del, bool * old_scr_del, ui_setup_scr_t setup_scr,
-                           lv_scr_load_anim_t anim_type, uint32_t time, uint32_t delay, bool is_clean, bool auto_del);
+                           lv_screen_load_anim_t anim_type, uint32_t time, uint32_t delay, bool is_clean, bool auto_del);
 
-void ui_animation(void * var, int32_t duration, int32_t delay, int32_t start_value, int32_t end_value, lv_anim_path_cb_t path_cb,
-                       uint16_t repeat_cnt, uint32_t repeat_delay, uint32_t playback_time, uint32_t playback_delay,
-                       lv_anim_exec_xcb_t exec_cb, lv_anim_start_cb_t start_cb, lv_anim_ready_cb_t ready_cb, lv_anim_deleted_cb_t deleted_cb);
+void ui_animation(void * var, uint32_t duration, int32_t delay, int32_t start_value, int32_t end_value, lv_anim_path_cb_t path_cb,
+                  uint32_t repeat_cnt, uint32_t repeat_delay, uint32_t playback_time, uint32_t playback_delay,
+                  lv_anim_exec_xcb_t exec_cb, lv_anim_start_cb_t start_cb, lv_anim_completed_cb_t ready_cb, lv_anim_deleted_cb_t deleted_cb);
 
 
 void init_scr_del_flag(lv_ui *ui);
 
+void setup_bottom_layer(void);
+
 void setup_ui(lv_ui *ui);
 
+void video_play(lv_ui *ui);
+
+void init_keyboard(lv_ui *ui);
 
 extern lv_ui guider_ui;
 
 
 void setup_scr_Main_Screen(lv_ui *ui);
-void setup_scr_Debug_Conn_Screen(lv_ui *ui);
-void setup_scr_Car_Screen(lv_ui *ui);
-void setup_scr_EVSE_Screen(lv_ui *ui);
-void setup_scr_Meter_Screen(lv_ui *ui);
-void setup_scr_NFC_Screen(lv_ui *ui);
-void setup_scr_Debug_ISO_Screen(lv_ui *ui);
-LV_IMG_DECLARE(_mainpng_alpha_194x186);
-LV_IMG_DECLARE(_evse_60x61);
-LV_IMG_DECLARE(_evse_60x61);
-LV_IMG_DECLARE(_evse_60x61);
-LV_IMG_DECLARE(_evse_60x61);
-LV_IMG_DECLARE(_debug_66x58);
-LV_IMG_DECLARE(_debug_66x58);
-LV_IMG_DECLARE(_debug_66x58);
-LV_IMG_DECLARE(_debug_66x58);
-LV_IMG_DECLARE(_carpng_60x61);
-LV_IMG_DECLARE(_carpng_60x61);
-LV_IMG_DECLARE(_carpng_60x61);
-LV_IMG_DECLARE(_carpng_60x61);
-LV_IMG_DECLARE(_meterguage_60x61);
-LV_IMG_DECLARE(_meterguage_60x61);
-LV_IMG_DECLARE(_meterguage_60x61);
-LV_IMG_DECLARE(_meterguage_60x61);
-LV_IMG_DECLARE(_nfc_60x61);
-LV_IMG_DECLARE(_nfc_60x61);
-LV_IMG_DECLARE(_nfc_60x61);
-LV_IMG_DECLARE(_nfc_60x61);
-LV_IMG_DECLARE(_debug_ISO15118_62x62);
-LV_IMG_DECLARE(_debug_ISO15118_62x62);
-LV_IMG_DECLARE(_debug_ISO15118_62x62);
-LV_IMG_DECLARE(_debug_ISO15118_62x62);
-LV_IMG_DECLARE(_returnpng_32x28);
-LV_IMG_DECLARE(_returnpng_32x28);
-LV_IMG_DECLARE(_returnpng_32x28);
-LV_IMG_DECLARE(_returnpng_32x28);
-LV_IMG_DECLARE(_returnpng_32x28);
-LV_IMG_DECLARE(_returnpng_32x28);
-LV_IMG_DECLARE(_returnpng_32x28);
-LV_IMG_DECLARE(_returnpng_32x28);
-LV_IMG_DECLARE(_charging_station_alpha_68x66);
-LV_IMG_DECLARE(_EV_alpha_64x56);
-LV_IMG_DECLARE(_v2g_Blue_250x200_25x20);
-LV_IMG_DECLARE(_v2g_Blue_250x200_25x20);
-LV_IMG_DECLARE(_v2g_Blue_250x200_25x20);
-LV_IMG_DECLARE(_v2g_Blue_250x200_25x20);
-LV_IMG_DECLARE(_g2v_Green_250x200_25x20);
-LV_IMG_DECLARE(_g2v_Green_250x200_25x20);
-LV_IMG_DECLARE(_g2v_Green_250x200_25x20);
-LV_IMG_DECLARE(_g2v_Green_250x200_25x20);
-LV_IMG_DECLARE(_returnpng_32x28);
-LV_IMG_DECLARE(_returnpng_32x28);
-LV_IMG_DECLARE(_returnpng_32x28);
-LV_IMG_DECLARE(_returnpng_32x28);
-LV_IMG_DECLARE(_readdata_35x37);
-LV_IMG_DECLARE(_readdata_35x37);
-LV_IMG_DECLARE(_readdata_35x37);
-LV_IMG_DECLARE(_readdata_35x37);
-LV_IMG_DECLARE(_returnpng_32x28);
-LV_IMG_DECLARE(_returnpng_32x28);
-LV_IMG_DECLARE(_returnpng_32x28);
-LV_IMG_DECLARE(_returnpng_32x28);
-LV_IMG_DECLARE(_readnfc_alpha_91x63);
-LV_IMG_DECLARE(_readnfc_alpha_91x63);
-LV_IMG_DECLARE(_readnfc_alpha_91x63);
-LV_IMG_DECLARE(_readnfc_alpha_91x63);
-LV_IMG_DECLARE(_returnpng_alpha_32x28);
-LV_IMG_DECLARE(_returnpng_alpha_32x28);
-LV_IMG_DECLARE(_returnpng_alpha_32x28);
-LV_IMG_DECLARE(_returnpng_alpha_32x28);
-LV_IMG_DECLARE(_returnpng_32x28);
-LV_IMG_DECLARE(_returnpng_32x28);
-LV_IMG_DECLARE(_returnpng_32x28);
-LV_IMG_DECLARE(_returnpng_32x28);
+void setup_scr_Linking_Screen(lv_ui *ui);
+void setup_scr_Charging_Screen(lv_ui *ui);
 
-LV_FONT_DECLARE(lv_font_montserratMedium_12)
+LV_IMAGE_DECLARE(_welcome_bak_RGB565_480x272);
+
+LV_IMAGE_DECLARE(_linking_bak_RGB565_480x272);
+LV_IMAGE_DECLARE(_slide_RGB565A8_22x13);
+
+LV_IMAGE_DECLARE(_start_btn_RGB565A8_29x27);
+LV_IMAGE_DECLARE(_charging_bak_RGB565A8_395x216);
+
+LV_IMAGE_DECLARE(_charing_RGB565A8_200x139);
+
 LV_FONT_DECLARE(lv_font_montserratMedium_18)
-LV_FONT_DECLARE(lv_font_montserratMedium_16)
-LV_FONT_DECLARE(lv_font_montserratMedium_13)
-LV_FONT_DECLARE(lv_font_montserratMedium_8)
 LV_FONT_DECLARE(lv_font_montserratMedium_10)
+LV_FONT_DECLARE(lv_font_montserratMedium_50)
+LV_FONT_DECLARE(lv_font_montserratMedium_20)
+LV_FONT_DECLARE(lv_font_montserratMedium_13)
+LV_FONT_DECLARE(lv_font_montserratMedium_16)
+LV_FONT_DECLARE(lv_font_montserratMedium_8)
+LV_FONT_DECLARE(lv_font_montserratMedium_11)
+LV_FONT_DECLARE(lv_font_montserratMedium_12)
+LV_FONT_DECLARE(lv_font_montserratMedium_15)
+LV_FONT_DECLARE(lv_font_montserratMedium_40)
+LV_FONT_DECLARE(lv_font_montserratMedium_17)
 
 
 #ifdef __cplusplus

@@ -264,21 +264,6 @@ evse_peripheral_status_t EVSE_LPSPI_PostMutex(uint8_t instance)
     return error;
 }
 
-uint8_t EVSE_LPSPI_GetInstance(LPSPI_Type *base)
-{
-    uint8_t instance = 0;
-
-    for (instance = 0; instance < LPSPI_INSTANCES; instance++)
-    {
-        if (base == LPSPI_base_pointer[instance])
-        {
-            return instance;
-        }
-    }
-
-    return 0;
-}
-
 evse_peripheral_status_t EVSE_LPI2C_InitMutex(uint8_t instance)
 {
     evse_peripheral_status_t status = EVSE_Peripheral_Success;

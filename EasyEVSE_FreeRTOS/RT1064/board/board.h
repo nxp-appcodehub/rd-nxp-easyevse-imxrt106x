@@ -1,5 +1,6 @@
 /*
- * Copyright 2018-2024 NXP
+ * Copyright 2018-2025 NXP
+ * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -171,7 +172,7 @@
 #if (BOARD_NFC_ARDUINO_HEADER == 1)
 #define BOARD_NFC_IRQ   ((GPIO_PORT_A << 8) | 03) /**< RC663 IRQ,     GPIO1 b03, J24 P1 */
 #define BOARD_NFC_IRQn                 GPIO1_Combined_0_15_IRQn
-#define BOARD_NFC_INT_PRIORITY         8
+#define BOARD_NFC_INT_PRIORITY         3
 #define BOARD_NFC_IRQHandler           GPIO1_Combined_0_15_IRQHandler
 
 #define BOARD_NFC_SPI_BASE          LPSPI1_BASE
@@ -180,10 +181,10 @@
 #define BOARD_NFC_PIN_SSEL          ((GPIO_PORT_C << 8) | 13) /* Chip select pin 13 gpio3. This is the same as SPI1 PCS */
 #define BOARD_NFC_PCS               kLPSPI_Pcs0
 #else
-#define BOARD_NFC_IRQ   ((GPIO_PORT_A << 8) | 25) /**< RC663 IRQ,     GPIO1 b25, J35 P11 */
-#define BOARD_NFC_IRQn                 GPIO1_Combined_16_31_IRQn
-#define BOARD_NFC_INT_PRIORITY         8
-#define BOARD_NFC_IRQHandler           GPIO1_Combined_16_31_IRQHandler
+#define BOARD_NFC_IRQ                   ((GPIO_PORT_A << 8) | 25) /**< RC663 IRQ,     GPIO1 b25, J35 P11 */
+#define BOARD_NFC_IRQn                  GPIO1_Combined_16_31_IRQn
+#define BOARD_NFC_INT_PRIORITY          3
+#define BOARD_NFC_IRQHandler            GPIO1_Combined_16_31_IRQHandler
 
 #define BOARD_NFC_SPI_BASE            LPSPI3_BASE
 #define BOARD_NFC_SPI               LPSPI3
@@ -191,6 +192,9 @@
 #define BOARD_NFC_PIN_SSEL          ((GPIO_PORT_A << 8) | 27) /* Chip select pin 27 gpio1 GPIO_AD_B1_11*/
 #define BOARD_NFC_PCS                kLPSPI_Pcs1
 #endif /* BOARD_NFC_ARDUINO_HEADER */
+
+#define BOARD_CP_TOGGLE_PORT    GPIO1
+#define BOARD_CP_TOGGLE_PIN     27U
 
 /* SIGBOARD */
 
@@ -207,18 +211,20 @@
 #define SIGBOARD_SPI_CLK_SRC        LPSPI_MASTER_CLOCK_FREQ
 #define SIGBOARD_SPI_LSB_FIRST      (1U)
 
-#if (BOARD_SIGBOARD_ARDUINO_HEADER == 1)
+#if defined(BOARD_SIGBOARD_ARDUINO_HEADER) && (BOARD_SIGBOARD_ARDUINO_HEADER == 1)
 #define SIGBOARD_SPI_BASE                LPSPI1_BASE
 #define SIGBOARD_SPI                     LPSPI1
 #define SIGBOARD_SPI_IMX_SPI_IRQ         LPSPI1_IRQn
 #define SIGBOARD_SPI_CS_PORT             GPIO3
 #define SIGBOARD_SPI_CS_PIN              13U /* Chip select pin 13 gpio 3 GPIO_SD_B0_01 same as LPSPI1_PCS0*/
-#else
+#elif defined(BOARD_SIGBOARD_ARDUINO_HEADER) && (BOARD_SIGBOARD_ARDUINO_HEADER == 0)
 #define SIGBOARD_SPI_BASE                LPSPI3_BASE
 #define SIGBOARD_SPI                     LPSPI3
 #define SIGBOARD_SPI_IMX_SPI_IRQ         LPSPI3_IRQn
 #define SIGBOARD_SPI_CS_PORT             GPIO1
 #define SIGBOARD_SPI_CS_PIN              28U /* Chip select pin 28 gpio 1 GPIO_AD_B1_12 same as LPSPI3_PCS0*/
+#else
+
 #endif /* BOARD_SIGBOARD_ARDUINO_HEADER */
 
 #define SIGBRD_LPUART_Base       LPUART3_BASE
@@ -238,15 +244,6 @@
 #else
 #define METER_SIGBOARD_LPUART_SHARED 0
 #endif /* (METER_LPUART_Base == SIGBRD_LPUART_Base) */
-
-/* The MCUXpresso seems to show what is the true define wrong. Double check */
-#if (SIGBOARD_SPI_BASE == BOARD_NFC_SPI_BASE)
-/* Need this because the Lumissil SPI is LSB */
-#define BOARD_NFC_SPI_LSB_FIRST SIGBOARD_SPI_LSB_FIRST
-#else
-#define BOARD_NFC_SPI_LSB_FIRST (0U)
-#endif /* (BOARD_NFC_SPI == SIGBOARD_SPI) */
-
 
 /* FILESYSTEM */
 
@@ -351,7 +348,11 @@ uint32_t BOARD_GetMDIOClock(void);
  */
 void BOARD_LPSPI_Init(LPSPI_Type *base, const lpspi_master_config_t *config);
 
-
+/**
+ * @brief Reinit LPSPI interface
+ *
+ */
+void BOARD_LPSPI_Reinit(LPSPI_Type *base, const lpspi_master_config_t *config);
 /**
  * @brief Used to send or exchange over SPI in a Multithread system
  * 

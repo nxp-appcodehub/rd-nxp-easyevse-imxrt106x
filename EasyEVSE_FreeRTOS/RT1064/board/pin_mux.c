@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 NXP
+ * Copyright 2023-2025 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -13,11 +13,11 @@
  * TEXT BELOW IS USED AS SETTING FOR TOOLS *************************************
 !!GlobalInfo
 product: Pins v13.0
-processor: MIMXRT1062xxxxA
-package_id: MIMXRT1062DVL6A
+processor: MIMXRT1064xxxxA
+package_id: MIMXRT1064DVL6A
 mcu_data: ksdk2_0
-processor_version: 13.0.1
-board: MIMXRT1060-EVK
+processor_version: 13.0.2
+board: MIMXRT1064-EVK
 pin_labels:
 - {pin_num: G11, pin_signal: GPIO_AD_B0_03, label: 'USB_OTG1_OC/J24[1]', identifier: RC_633_IRQ}
 - {pin_num: G10, pin_signal: GPIO_AD_B0_11, label: 'JTAG_nTRST/J21[3]/INT2_COMBO/LCD_TOUCH_INT/J22[3]/U32[9]', identifier: INT2_COMBO;SE_RST}
@@ -26,6 +26,7 @@ pin_labels:
 - {pin_num: L11, pin_signal: GPIO_AD_B1_02, label: 'SPDIF_OUT/J22[7]', identifier: SPDIF_OUT;Meter_TX}
 - {pin_num: M12, pin_signal: GPIO_AD_B1_03, label: 'SPDIF_IN/J22[8]', identifier: SPDIF_IN;Meter_RX}
 - {pin_num: H13, pin_signal: GPIO_AD_B1_08, label: 'AUD_INT/CSI_D9//J35[13]/J22[4]', identifier: CSI_D9;RC_633_nPDOWN}
+- {pin_num: J13, pin_signal: GPIO_AD_B1_11, label: 'SAI1_RX_BCLK/CSI_D6/J35[7]/J23[2]', identifier: CSI_D6;CP_toggle}
 - {pin_num: J4, pin_signal: GPIO_SD_B0_00, label: 'SD1_CMD/J24[6]', identifier: SD1_CMD;RC_663_SPI_CLK}
 - {pin_num: J3, pin_signal: GPIO_SD_B0_01, label: 'SD1_CLK/J24[3]', identifier: SD1_CLK;RC_633_SPI_SSEL}
 - {pin_num: J1, pin_signal: GPIO_SD_B0_02, label: 'SD1_D0/J24[4]/SPI_MOSI/PWM', identifier: SD1_D0;RC_633_SPI_MOSI}
@@ -45,12 +46,16 @@ pin_labels:
  *
  * END ****************************************************************************************************************/
 void BOARD_InitBootPins(void) {
-    BOARD_InitPins();
+#if EASYEVSE_EV
+    BOARD_InitEVPins();
+#else
+    BOARD_InitEVSEPins();
+#endif /* EASYEVSE_EV */
     BOARD_InitI2CPins();
 
-#if (CLEV663_ENABLE == 1)
+#if (ENABLE_CLEV663_NFC == 1)
     BOARD_Init_NFCPins();
-#endif /* CLEV663_ENABLE */
+#endif /* ENABLE_CLEV663_NFC */
 
 #if (ENABLE_METER == 1)
     BOARD_InitMeterPins();
@@ -63,7 +68,7 @@ void BOARD_InitBootPins(void) {
 
 /*
  * TEXT BELOW IS USED AS SETTING FOR TOOLS *************************************
-BOARD_InitPins:
+BOARD_InitEVSEPins:
 - options: {callFromInitBoot: 'true', coreID: core0, enableClock: 'true'}
 - pin_list:
   - {pin_num: L14, peripheral: LPUART1, signal: RX, pin_signal: GPIO_AD_B0_13, software_input_on: Disable, hysteresis_enable: Disable, pull_up_down_config: Pull_Down_100K_Ohm,
@@ -124,11 +129,11 @@ BOARD_InitPins:
 
 /* FUNCTION ************************************************************************************************************
  *
- * Function Name : BOARD_InitPins
+ * Function Name : BOARD_InitEVSEPins
  * Description   : Configures pin routing and optionally pin electrical features.
  *
  * END ****************************************************************************************************************/
-void BOARD_InitPins(void) {
+void BOARD_InitEVSEPins(void) {
     CLOCK_EnableClock(kCLOCK_Iomuxc);
 
     /* GPIO configuration of SE_RST on GPIO_AD_B0_11 (pin G10) */
@@ -223,6 +228,70 @@ slew_rate: Fast}
  * BE CAREFUL MODIFYING THIS COMMENT - IT IS YAML SETTINGS FOR TOOLS ***********
  */
 
+/* FUNCTION ************************************************************************************************************
+ *
+ * Function Name : BOARD_InitEVPins
+ * Description   : Configures pin routing and optionally pin electrical features.
+ *
+ * END ****************************************************************************************************************/
+void BOARD_InitEVPins(void) {
+    CLOCK_EnableClock(kCLOCK_Iomuxc);
+
+    /* GPIO configuration of CP_toggle on GPIO_AD_B1_11 (pin J13) */
+    gpio_pin_config_t CP_toggle_config = {
+      .direction = kGPIO_DigitalOutput,
+      .outputLogic = 0U,
+      .interruptMode = kGPIO_NoIntmode
+    };
+    /* Initialize GPIO functionality on GPIO_AD_B1_11 (pin J13) */
+    GPIO_PinInit(GPIO1, 27U, &CP_toggle_config);
+
+    IOMUXC_SetPinMux(IOMUXC_GPIO_AD_B1_11_GPIO1_IO27, 0U);
+
+    IOMUXC_SetPinMux(IOMUXC_GPIO_AD_B0_09_GPIO1_IO09, 0U);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_AD_B0_10_GPIO1_IO10, 0U);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_AD_B0_11_GPIO1_IO11, 0U);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_AD_B0_02_GPIO1_IO02, 0U);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_AD_B0_03_GPIO1_IO03, 0U);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_B1_15_GPIO2_IO31, 0U);
+    IOMUXC_SetPinConfig(IOMUXC_GPIO_AD_B0_09_GPIO1_IO09, 0xB0A9U);
+    IOMUXC_SetPinConfig(IOMUXC_GPIO_AD_B0_10_GPIO1_IO10, 0xB0A9U);
+
+#if defined(ENABLE_EV_UI)
+    // LCD pins
+    IOMUXC_SetPinMux(IOMUXC_GPIO_B0_00_LCD_CLK, 0U);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_B0_01_LCD_ENABLE, 0U);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_B0_02_LCD_HSYNC, 0U);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_B0_03_LCD_VSYNC, 0U);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_B0_04_LCD_DATA00, 0U);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_B0_05_LCD_DATA01, 0U);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_B0_06_LCD_DATA02, 0U);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_B0_07_LCD_DATA03, 0U);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_B0_08_LCD_DATA04, 0U);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_B0_09_LCD_DATA05, 0U);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_B0_10_LCD_DATA06, 0U);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_B0_11_LCD_DATA07, 0U);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_B0_12_LCD_DATA08, 0U);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_B0_13_LCD_DATA09, 0U);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_B0_14_LCD_DATA10, 0U);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_B0_15_LCD_DATA11, 0U);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_B1_00_LCD_DATA12, 0U);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_B1_01_LCD_DATA13, 0U);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_B1_02_LCD_DATA14, 0U);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_B1_03_LCD_DATA15, 0U);
+#endif /* ENABLE_EV_UI */
+    IOMUXC_GPR->GPR26 = ((IOMUXC_GPR->GPR26 & (~(BOARD_INITPINS_IOMUXC_GPR_GPR26_GPIO_MUX1_GPIO_SEL_MASK))) |
+                             IOMUXC_GPR_GPR26_GPIO_MUX1_GPIO_SEL(0x00U));
+    IOMUXC_GPR->GPR27 = ((IOMUXC_GPR->GPR27 & (~(BOARD_INITPINS_IOMUXC_GPR_GPR27_GPIO_MUX2_GPIO_SEL_MASK))) |
+                         IOMUXC_GPR_GPR27_GPIO_MUX2_GPIO_SEL(0x00U));
+
+    // UART pins
+    IOMUXC_SetPinMux(IOMUXC_GPIO_AD_B0_12_LPUART1_TX, 0U);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_AD_B0_13_LPUART1_RX, 0U);
+    IOMUXC_SetPinConfig(IOMUXC_GPIO_AD_B0_12_LPUART1_TX, 0x10B0U);
+    IOMUXC_SetPinConfig(IOMUXC_GPIO_AD_B0_13_LPUART1_RX, 0x10B0U);
+
+}
 /* FUNCTION ************************************************************************************************************
  *
  * Function Name : BOARD_InitEthPins
@@ -706,12 +775,12 @@ void BOARD_Init_SIGBOARDPins(void)
     IOMUXC_SetPinMux(IOMUXC_GPIO_AD_B1_06_LPUART3_TX, 0U);
     IOMUXC_SetPinMux(IOMUXC_GPIO_AD_B1_07_LPUART3_RX, 0U);
 
-#if (BOARD_SIGBOARD_ARDUINO_HEADER == 1)
+#if defined(BOARD_SIGBOARD_ARDUINO_HEADER) && (BOARD_SIGBOARD_ARDUINO_HEADER == 1)
     IOMUXC_SetPinMux(IOMUXC_GPIO_SD_B0_00_LPSPI1_SCK, 0U);
     IOMUXC_SetPinMux(IOMUXC_GPIO_SD_B0_01_LPSPI1_PCS0, 0U);
     IOMUXC_SetPinMux(IOMUXC_GPIO_SD_B0_02_LPSPI1_SDO, 0U);
     IOMUXC_SetPinMux(IOMUXC_GPIO_SD_B0_03_LPSPI1_SDI, 0U);
-#else
+#elif defined(BOARD_SIGBOARD_ARDUINO_HEADER) && (BOARD_SIGBOARD_ARDUINO_HEADER == 0)
     /* Need to init the SPI */
     IOMUXC_SetPinMux(IOMUXC_GPIO_AD_B1_13_LPSPI3_SDI, 0U);
     IOMUXC_SetPinMux(IOMUXC_GPIO_AD_B1_14_LPSPI3_SDO, 0U);

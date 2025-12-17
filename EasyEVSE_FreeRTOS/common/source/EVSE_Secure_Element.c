@@ -31,20 +31,15 @@
 #include "se05x_tlv.h"
 #include "EVSE_Secure_Element.h"
 
-#if ((EVSE_X509_SE050_AUTH == 1) || (EVSE_X509_AUTH == 1))
 #include <mbedtls/sha256.h>
 #include <mbedtls/oid.h>
 #include <mbedtls/x509_crt.h>
-#endif /* ((EVSE_X509_SE050_AUTH == 1) || (EVSE_X509_AUTH == 1)) */
 
 #if (EVSE_X509_AUTH == 1)
 #include "azure_iot_config.h"
 #endif
 
 /* The following Object IDs (OIDs) need to match the OIDs set by the provisioning tool (EdgeLock2GO platform or others). */
-#define AZURE_IOT_KEY_INDEX_SM         0x223344           /* Object ID (OID) of the cloud private client key in SE050. */
-#define AZURE_IOT_CLIENT_CERT_INDEX_SM 0x223345           /* Object ID (OID) of the cloud client certificate in SE050. */
-#define AZURE_IOT_HOSTNAME_INDEX_SM    0x000013           /* Object ID (OID) of the cloud hostname (returned by DPS) in SE050. */
 #define ISO15118_CPO_KEY_INDEX_SM      0x223388           /* Object ID (OID) of the ISO15118 CPO key in SE050. */
 #define ISO15118_CPO_KEY_FORMAT_SM     kSSS_KeyPart_Pair /* Format of the ISO15118 CPO key in SE050: kSSS_KeyPart_Pair for keypair
                                                           *                                          kSSS_KeyPart_Private if only the private key is stored. */
@@ -217,17 +212,18 @@ EVSE_SE05X_status_t EVSE_SE050_Set_CertificateIdx(ex_sss_cloud_ctx_t *ctx)
 	{
 		return kStatus_Certificates_Failed;
 	}
-
-    ctx->client_cert_index    = AZURE_IOT_CLIENT_CERT_INDEX_SM;
-    ctx->client_keyPair_index = AZURE_IOT_KEY_INDEX_SM;
-
+#if 0
+    ctx->client_cert_index    = cert_index;
+    ctx->client_keyPair_index = key_idx;
+#endif
     return kStatus_Certificates_Success;
 }
 
 EVSE_SE05X_status_t EVSE_SE050_Get_DeviceIDFromCertificate(uint8_t *deviceid, size_t len)
 {
+    EVSE_SE05X_status_t cert_status = kStatus_Certificates_Failed;
 #if ((EVSE_X509_SE050_AUTH == 1) || (EVSE_X509_AUTH == 1))
-	EVSE_SE05X_status_t cert_status = kStatus_Certificates_Failed;
+
     uint32_t cert_size              = AZURE_IOT_CLIENTCERT_BUFSIZE;
 
     if (deviceid == NULL)
@@ -262,9 +258,9 @@ EVSE_SE05X_status_t EVSE_SE050_Get_DeviceIDFromCertificate(uint8_t *deviceid, si
     {
         configPRINTF(("Certificate was issued for device id: %s\r\n", deviceid));
     }
+#endif /* ((EVSE_X509_SE050_AUTH == 1) || (EVSE_X509_AUTH == 1)) */
 
     return cert_status;
-#endif /* ((EVSE_X509_SE050_AUTH == 1) || (EVSE_X509_AUTH == 1)) */
 }
 
 EVSE_SE05X_status_t EVSE_SE050_Check_Cloud_Certificate(uint32_t *certsize)
@@ -279,7 +275,7 @@ EVSE_SE05X_status_t EVSE_SE050_Check_Cloud_Certificate(uint32_t *certsize)
 #if (EVSE_X509_SE050_AUTH == 1)
     if (se_event_flag == SE_INIT_SUCCESS_EVENT)
     {
-        status = se05x_GetCertificate(AZURE_IOT_CLIENT_CERT_INDEX_SM, (uint8_t *)&certificateBuffer[0], certsize);
+        status = se05x_GetCertificate(AZURE_IOT_CLIENT_CERT_INDEX_SM, (uint8_t *)&certificateBuffer[0],(size_t *) certsize);
     }
 
 #elif (EVSE_X509_AUTH == 1)
@@ -296,10 +292,11 @@ EVSE_SE05X_status_t EVSE_SE050_Check_Cloud_Certificate(uint32_t *certsize)
 
 EVSE_SE05X_status_t EVSE_SE050_Delete_Cloud_Certificate(void)
 {
+
     sss_status_t status                      = kStatus_SSS_Fail;
     sss_status_t keystatus                   = kStatus_SSS_Fail;
     EVSE_SE05X_status_t status_certificate = kStatus_Certificates_Failed;
-
+#if 0
     if (se_event_flag == SE_INIT_SUCCESS_EVENT)
     {
         keystatus = se05x_DeleteBinaryFile(AZURE_IOT_KEY_INDEX_SM);
@@ -309,7 +306,7 @@ EVSE_SE05X_status_t EVSE_SE050_Delete_Cloud_Certificate(void)
             status_certificate = kStatus_Certificates_Success;
         }
     }
-
+#endif
     return status_certificate;
 }
 
@@ -321,7 +318,7 @@ EVSE_SE05X_status_t EVSE_SE050_Get_ServerHostname(char *hostname, uint32_t *host
     {
         goto end;
     }
-
+#if 0
 #if defined(HOST_NAME)
     unsigned char *host_name_buff = (unsigned char *)HOST_NAME;
 
@@ -355,7 +352,7 @@ EVSE_SE05X_status_t EVSE_SE050_Get_ServerHostname(char *hostname, uint32_t *host
     }
 
 #endif /* defined(HOST_NAME) */
-
+#endif
 end:
     return status_hostname_s;
 }
@@ -364,7 +361,7 @@ EVSE_SE05X_status_t EVSE_SE050_Set_ServerHostname(const char *hostname, uint32_t
 {
 	EVSE_SE05X_status_t status_hostname_s = kStatus_Hostname_Failed;
     sss_status_t status                        = kStatus_SSS_Fail;
-
+#if 0
     if (hostname == NULL)
     {
         status_hostname_s = kStatus_Hostname_Failed;
@@ -388,7 +385,7 @@ EVSE_SE05X_status_t EVSE_SE050_Set_ServerHostname(const char *hostname, uint32_t
             status_hostname_s = kStatus_Hostname_Success;
         }
     }
-
+#endif
 end:
     return status_hostname_s;
 }
@@ -397,7 +394,7 @@ EVSE_SE05X_status_t EVSE_SE050_Delete_ServerHostname(void)
 {
     sss_status_t status                   = kStatus_SSS_Fail;
     EVSE_SE05X_status_t status_hostname_s = kStatus_Hostname_Failed;
-
+#if 0
     if (se_event_flag == SE_INIT_SUCCESS_EVENT)
     {
         status = se05x_DeleteBinaryFile(AZURE_IOT_HOSTNAME_INDEX_SM);
@@ -411,7 +408,7 @@ EVSE_SE05X_status_t EVSE_SE050_Delete_ServerHostname(void)
             configPRINTF(("Failed to delete hostname from SE\r\n"));
         }
     }
-
+#endif
     return status_hostname_s;
 }
 
@@ -532,10 +529,9 @@ EVSE_SE05X_status_t EVSE_SE050_Delete_CPOKey(void)
 
 #endif /* ENABLE_ISO15118 */
 
-static EVSE_SE05X_status_t get_oid_value_in_subject(
+EVSE_SE05X_status_t get_oid_value_in_subject(
     uint8_t *cert_buffer, size_t cert_len, char *oid, char *value, size_t max_size)
 {
-#if ((EVSE_X509_SE050_AUTH == 1) || (EVSE_X509_AUTH == 1))
 	EVSE_SE05X_status_t cert_status = kStatus_Certificates_Success;
     mbedtls_x509_crt client_cert      = {0};
     char *oid_name                    = NULL;
@@ -603,7 +599,6 @@ static EVSE_SE05X_status_t get_oid_value_in_subject(
 exit:
     mbedtls_x509_crt_free(&client_cert);
     return cert_status;
-#endif /* ((EVSE_X509_SE050_AUTH == 1) || (EVSE_X509_AUTH == 1)) */
 }
 
 #if 0

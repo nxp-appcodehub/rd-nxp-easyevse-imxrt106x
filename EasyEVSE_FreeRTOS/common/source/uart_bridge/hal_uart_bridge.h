@@ -12,6 +12,7 @@
  * Definitions
  ******************************************************************************/
 #define INVALID_SIGBOARD_HW_VERSION 0xFFFFFFFF
+#define INVALID_SIGBOARD_SW_VERSION 0xFFFFFFFF
 #define SIGBRD_RING_BUFFER_SIZE     64
 #define SIGBRD_RING_BUFFER_NUMBERS  4
 

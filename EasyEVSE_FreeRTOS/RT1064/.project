@@ -62,6 +62,11 @@
 			<locationURI>PARENT-1-PROJECT_LOC/common/custom</locationURI>
 		</link>
 		<link>
+			<name>custom_EV</name>
+			<type>2</type>
+			<locationURI>PARENT-1-PROJECT_LOC/common/custom_EV</locationURI>
+		</link>
+		<link>
 			<name>drivers</name>
 			<type>2</type>
 			<locationURI>PARENT-1-PROJECT_LOC/common/drivers</locationURI>
@@ -75,6 +80,11 @@
 			<name>generated</name>
 			<type>2</type>
 			<locationURI>PARENT-1-PROJECT_LOC/common/generated</locationURI>
+		</link>
+		<link>
+			<name>generated_EV</name>
+			<type>2</type>
+			<locationURI>PARENT-1-PROJECT_LOC/common/generated_EV</locationURI>
 		</link>
 		<link>
 			<name>littlefs</name>

@@ -108,6 +108,13 @@ EVSE_SE05X_status_t EVSE_SE050_Set_ServerHostname(const char *hostname, uint32_t
  */
 EVSE_SE05X_status_t EVSE_SE050_Delete_ServerHostname(void);
 
+/**
+ * @brief Retrieves the OID value from certificate
+ * @return kStatus_Hostname_Success on succeeded operation or kStatus_Hostname_Failed on failed operation
+ */
+EVSE_SE05X_status_t get_oid_value_in_subject(
+    uint8_t *cert_buffer, size_t cert_len, char *oid, char *value, size_t max_size);
+
 #if ENABLE_ISO15118
 /**
  * @brief Checks if the cpo key is stored in the secured element.

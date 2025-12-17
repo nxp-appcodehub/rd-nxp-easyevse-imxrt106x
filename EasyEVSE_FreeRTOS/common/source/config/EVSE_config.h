@@ -10,9 +10,9 @@ extern "C" {
 
 #include "task_config.h"
 
-#define FIRMWARE_VERSION_MAJOR  4U
+#define FIRMWARE_VERSION_MAJOR  5U
 #define FIRMWARE_VERSION_MINOR  0U
-#define FIRMWARE_VERSION_HOTFIX 4U
+#define FIRMWARE_VERSION_HOTFIX 8U
 
 /* ENABLE_ISO15118 contains also the J1772 basic charging */
 #ifndef ENABLE_ISO15118
@@ -31,20 +31,12 @@ extern "C" {
 #define ENABLE_SIGBOARD 1
 #endif /* ENABLE_SIGBOARD */
 
-#ifndef ENABLE_ISO15118
-#if ENABLE_SIGBOARD
-#define ENABLE_ISO15118 1
-#else
-#define ENABLE_ISO15118 0
-#endif /* ENABLE_SIGBOARD */
-#endif /* ENABLE_ISO15118 */
-
 #ifndef BOARD_SIGBOARD_ETH
-/* Cloud connection is done over ETH (default option) */
+/* Internet connection is done over ETH (default option) */
 #ifndef ENABLE_ETH
 #define ENABLE_ETH 1
 #endif /* ENABLE_ETH */
-/* Cloud connection is done over WiFi */
+/* Internet connection is done over WiFi */
 #ifndef ENABLE_WIFI
 #define ENABLE_WIFI 0
 #endif /* ENABLE_WIFI */
@@ -63,13 +55,39 @@ extern "C" {
 #undef BOARD_SIGBOARD_ARDUINO_HEADER
 #endif /* BOARD_SIGBOARD_ETH */
 
-/*************************************************************************************************/
-/* This sample uses three different schemes to authenticate to IoT Central                                   */
-/*  Select ONLY ONE authentication scheme by setting it to 1, the other two should be set to 0    */
-/*************************************************************************************************/
-#define EVSE_SAS_AUTH        0 /*  Set to 1 to use  : symmetric keys  */
-#define EVSE_X509_AUTH       0 /*  Set to 1 to use  : certificate stored in i.MX RT106x Flash*/
-#define EVSE_X509_SE050_AUTH 1 /*  Set to 1 to use  : certificate stored securely in SE050 Secure module */
+#if EASYEVSE_EV
+#define ENABLE_CLEV663_NFC  0
+#define ENABLE_CONNECTIVITY 0
+#define ENABLE_METER        0
+#define ENABLE_SE           0
+#define ENABLE_SHELL        1
+#define ENABLE_OCPP         0
+#if BUILD_EV_UI
+#define ENABLE_EV_UI        1
+#endif /* BUILD_EV_UI */
+#else
+#define ENABLE_CLEV663_NFC  0
+#define ENABLE_CONNECTIVITY 1
+#define ENABLE_METER        1
+#define ENABLE_SE           1
+#define ENABLE_SHELL        1
+#define ENABLE_EVSE_UI      1
+#define ENABLE_OCPP         1
+#endif
+
+#if (ENABLE_EVSE_UI || ENABLE_EV_UI)
+#undef ENABLE_LCD
+#define ENABLE_LCD 1
+#endif
+
+#ifndef PKCS11_SUPPORTED
+#define PKCS11_SUPPORTED 1
+#endif
+
+#if (ENABLE_SE == 0)
+#undef PKCS11_SUPPORTED
+#define PKCS11_SUPPORTED 0
+#endif /* (ENABLE_SE == 0)*/
 
 #define RED_TEXT(x)    "\033[31;1m" x "\033[0m"
 #define GREEN_TEXT(x)  "\033[32;1m" x "\033[0m"
@@ -80,6 +98,7 @@ extern "C" {
 #define success(x) GREEN_TEXT(x)
 #define warning(x) YELLOW_TEXT(x)
 #define info(x)    BLUE_TEXT(x)
+
 
 #ifdef __cplusplus
 }

@@ -30,14 +30,6 @@ typedef enum _evse_iso15118_state
     EVSE_ISO15118_LAST
 } evse_iso15118_state_t;
 
-typedef enum _vehicle_auth_methods
-{
-    VehicleAuth_EIM,
-    VehicleAuth_PnC,
-    VehicleAuth_None,
-    LAST_AUTH_METHOD
-} vehicle_auth_methods_t;
-
 typedef enum _V2G_status
 {
     NOT_CONNECTED,
@@ -84,14 +76,14 @@ void EVSE_ISO15118_Loop(bool *stopCharging);
  *
  * @param _auth_method
  */
-void EVSE_ISO15118_SetVehicleAuthMethod(vehicle_auth_methods_t _auth_method);
+void EVSE_ISO15118_SetVehicleAuthMethod(evse_auth_methods_t _auth_method);
 
 /**
  * @brief Get Vehicle Auth Mode EIM - external identification method or PNC plug and charge
  *
- * @return vehicle_auth_methods_t
+ * @return evse_auth_methods_t
  */
-vehicle_auth_methods_t EVSE_ISO15118_GetVehicleAuthMethod(void);
+evse_auth_methods_t EVSE_ISO15118_GetVehicleAuthMethod(void);
 
 /**
  * @brief Get Vehicle Auth Mode EIM - external identification method or PNC plug and charge
@@ -159,6 +151,7 @@ void EVSE_ISO15118_SetMaxCurrent(uint32_t max_current);
  * @param vehicle_data
  */
 void EVSE_ISO15118_GetVehicleData(vehicle_data_t *vehicle_data);
+
 /**
  * @brief Get current charging state
  *
@@ -195,4 +188,94 @@ void EVSE_ISO15118_Init(void);
  */
 void EVSE_ISO15118_Loop(bool *stopCharging);
 
+/**
+ * @brief Select payment method
+ *
+ */
+void EVSE_ISO15118_SetPaymentMethod(evse_auth_methods_t method);
+
+/**
+ * @brief Starts charging from EVSE side
+ *
+ */
+void EVSE_ISO15118_StartCharging(void);
+
+/**
+ * @brief Marks that an NFC card was detected for auth
+ *
+ */
+void EVSE_ISO15118_SetNFCAuthentication(uint8_t *cardUID, uint8_t size);
+
+/**
+ * @brief Gets the eMAID value used in PnC
+ *
+ */
+char* EVSE_ISO15118_GetEmaidValue();
+
+#if EASYEVSE_EV
+/**
+ * @brief Get the vehicle data as describe in the Charging Protocol structure.
+ * if some attributes are not supported by the stack the value will not be updated.
+ *
+ * @param vehicle_data
+ */
+void EV_ISO15118_GetVehicleData(vehicle_data_t *vehicle_data);
+
+/**
+ * @brief Get selected authorisation method (EIM or PnC)
+ *
+ */
+evse_auth_methods_t EV_GetAuthMethod(void);
+
+/**
+ * @brief Get current charging state
+ *
+ * @param bCharging
+ * @return true if the car is charging
+ * @return false if the car is not charging
+ */
+void EV_ISO15118_isCharging(bool *bCharging);
+
+/**
+ * @brief Changes charging direction from EV side
+ */
+void EV_ISO15118_ChangeChargingDirection();
+
+/**
+ * @brief Sets EV battery level to full or empty
+ * @param battery_level level of the battery (full or empty)
+ */
+void EV_ISO15118_ResetBatteryLevel(battery_levels_t battery_level);
+
+/**
+ * @brief Stops charging from EV side
+ */
+void EV_ISO15118_StopCharging(void);
+
+/**
+ * @brief Sets charging protocol from EV side
+ */
+void EV_ISO15118_SetProtocol(evse_charging_protocol_t protocol);
+
+/**
+ * @brief Starts charging from EV side
+ */
+void EV_ISO15118_StartCharging();
+
+/**
+ * @brief Sets auth method from EV side
+ */
+void EV_ISO15118_SetAuthMethod(evse_auth_methods_t auth_method);
+
+/**
+ * @brief Gets charging protocol configured on EV side
+ */
+evse_charging_protocol_t EV_ISO15118_GetProtocol();
+
+/**
+ * @brief Set Variable defaults in the ISO15118-2/20
+ */
+void EV_ISO15118_SetDefault();
+
+#endif /* EASYEVSE_EV */
 #endif /* CHARGING_PROTOCOL_ISO15118_H_ */

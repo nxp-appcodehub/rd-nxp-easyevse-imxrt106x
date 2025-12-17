@@ -11,6 +11,7 @@
 #define EVSE_ISO15118_H_
 
 #include "EVSE_NFC.h"
+#include "EVSE_Utils.h"
 
 #define CHARGINGPROTOCOL_NOTICK_DELAY     (1U)
 #define CHARGINGPROTOCOL_SHORTTICK_DELAY  (2U)
@@ -59,23 +60,67 @@ typedef enum _evse_charging_protocol
     EVSE_LastChargingProtocol,
 } evse_charging_protocol_t;
 
+typedef enum _evse_auth_methods
+{
+    VehicleAuth_EIM,
+    VehicleAuth_PnC,
+    VehicleAuth_None,
+    LAST_AUTH_METHOD
+} evse_auth_methods_t;
+
+typedef enum _battery_levels
+{
+    EMPTY_BATTERY,
+    FULL_BATTERY,
+}battery_levels_t;
+
 typedef struct _vehicle_data
 {
     char vehicleID[CARD_MAX_SIZE_UID];
     char protocol[MAX_PROTOCOL_LENGTH];
-    evse_charging_protocol_t charging_protocol;
     uint32_t batteryLevel;        /* Current vehicle battery level as % */
     uint32_t chargedBatteryUnits; /* Battery units increased during EV charging*/
     uint32_t batteryCapacity;     /* Vehicle battery capacity read from tag in kWh */
-    float chargeCurrent;
-    uint32_t timeToCharge;        /* Time remaining in seconds until battery is fully charged */
     uint32_t elapsedTime;         /* Time elapse in seconds since start charging */
     uint32_t requestedEnergy;     /* Energy requested by the EV */
     uint32_t deliveredEnergy;     /* Energy delivered by the EVSE from EV connection until EV disconnection */
     uint32_t deliveredEnergyHLC;  /* Energy delivered by the EVSE during high-level charging */
     uint8_t energyDeliveryStatus; /* How much of the requested energy is actually delivered */
+    uint32_t timeToCharge;        /* Time remaining in seconds until battery is fully charged */
+    float chargeCurrent;          /* EV charging current */
+#if EASYEVSE_EV
+    float chargeVoltage;   /* EV charging voltage */
+    float chargePower;     /* EV charging power */
+    float fBatteryLevel;   /* EV float battery level (for a user friendlier UI) */
+#endif /* EASYEVSE_EV */
     bool vehicleAuth;             /* Vehicle authentication status */
+    evse_charging_protocol_t charging_protocol;
+
 } vehicle_data_t;
+
+/**
+ * @brief Function to init the ISO15118 stack.
+ *
+ */
+void EVSE_ChargingProtocol_Init(void);
+
+/**
+ * @brief Get a string of the charging protocol present in the charging parameter
+ *
+ * @param charging_protocol the protocol for which there is a charging request
+ * @return const char*
+ */
+const char *EVSE_ChargingProtocol_GetStringFromProtocol(evse_charging_protocol_t charging_protocol);
+
+/**
+ * @brief Start charging from EVSE side
+ */
+void EVSE_ChargingProtocol_StartCharging(void);
+
+/**
+ * @brief Stop charging from EVSE side
+ */
+void EVSE_ChargingProtocol_StopCharging(void);
 
 /**
  * @brief Set the priority of the charging task. Use it with caution
@@ -99,25 +144,11 @@ void EVSE_ChargingProtocol_SetEvent(charging_events_t event);
 void EVSE_ChargingProtocol_SetTaskDelay(uint16_t new_stack_delay);
 
 /**
- * @brief Function to init the ISO15118 stack.
- *
- */
-void EVSE_ChargingProtocol_Init(void);
-
-/**
  * @brief Get a string of the current charging protocol used
  *
  * @return const char*
  */
 const char *EVSE_ChargingProtocol_GetStringFromCurrentProtocol(void);
-
-/**
- * @brief Get a string of the charging protocol present in the charging parameter
- *
- * @param charging_protocol the protocol for which there is a charging request
- * @return const char*
- */
-const char *EVSE_ChargingProtocol_GetStringFromProtocol(evse_charging_protocol_t charging_protocol);
 
 /**
  * @brief Set the current charging protocol
@@ -154,6 +185,14 @@ bool EVSE_ChargingProtocol_isCharging(void);
  * @return charging direction (Grid to EV/ EV to Grid/ None)
  */
 charging_directions_t EVSE_ChargingProtocol_ChargingDirection();
+
+/**
+ * @brief Get charging direction
+ *
+ * @param charging direction
+ * @return charging direction "Grid to Vehicle" "Vehicle to Grid"  "No charging direction";
+ */
+const char *EVSE_ChargingProtocol_GetStringFromDirection(charging_directions_t charging_direction);
 
 /**
  * @brief Returns current charging state
@@ -198,4 +237,70 @@ void EVSE_ChargingProtocol_SetMaxCurrent(uint32_t max_current);
  */
 char *EVSE_ChargingProtocol_GetCPStateString();
 
+/**
+ * @brief Set NFC authentication from EVSE side
+ */
+void EVSE_ChargingProtocol_SetNFCAuthentication(uint8_t *cardUID, uint8_t size);
+
+/**
+ * @brief Set payment method for vehicle authentication
+ *
+ * @param method The authentication method to be set
+ */
+void EVSE_ChargingProtocol_SetPaymentMethod(evse_auth_methods_t method);
+
+#if EASYEVSE_EV
+/**
+ * @brief Get Vehicle data
+ *
+ * @return const vehicle_data_t*
+ */
+const vehicle_data_t *EV_ChargingProtocol_GetVehicleData(void);
+
+/**
+ * @brief Get if the car is charging
+ *
+ * @return true
+ * @return false
+ */
+bool EV_ChargingProtocol_isCharging(void);
+
+/**
+ * @brief Change energy direction (V2G or G2V)
+ *
+ */
+void EV_ChargingProtocol_ChangeChargingDirection(void);
+
+/**
+ * @brief Reset battery level (to full or empty)
+ *
+ */
+evse_return_status_t EV_ChargingProtocol_ResetBatteryLevel(battery_levels_t battery_level);
+
+/**
+ * @brief Start charging from EV side
+ */
+evse_return_status_t EV_ChargingProtocol_StartCharging(void);
+
+/**
+ * @brief Stop charging from EV side
+ */
+evse_return_status_t EV_ChargingProtocol_StopCharging(void);
+
+/**
+ * @brief Set charging protocol from EV side
+ */
+evse_return_status_t EV_ChargingProtocol_SetProtocol(evse_charging_protocol_t protocol);
+
+/**
+ * @brief Get charging protocol on EV side
+ */
+evse_charging_protocol_t EV_ChargingProtocol_GetProtocol(void);
+
+/**
+ * @brief Ev set Auth method
+ */
+void EV_ChargingProtocol_SetAuthMethod(evse_auth_methods_t auth_method);
+
+#endif /* EASYEVSE_EV */
 #endif /* EVSE_ISO15118_H_ */

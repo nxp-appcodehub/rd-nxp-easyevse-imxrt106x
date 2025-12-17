@@ -6,3 +6,4 @@
 /script.jlink
 /RT1060_EasyEVSE_FreeRTOS JLink Debug.launch
 /EVSE/
+/EV_UI/

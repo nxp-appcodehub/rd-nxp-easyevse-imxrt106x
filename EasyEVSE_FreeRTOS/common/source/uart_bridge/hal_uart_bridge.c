@@ -36,7 +36,7 @@
 
 #define SIGBRD_RESP_TIMEOUT 0x10
 
-#define SIGBRD_EVSE_COMMAND_BUFFER_SIZE 7
+#define SIGBRD_EVSE_COMMAND_BUFFER_SIZE 8
 #define SIGBRD_EV_COMMAND_BUFFER_SIZE   4
 #define SIGBRD_EVSE_MAX_TRIES_WAIT      3
 
@@ -95,6 +95,7 @@ struct sigbrd_state_t SigbrdRawState = {
 
 static uint32_t adc_sample_size        = 0;
 static uint32_t iso15118_tick_delay_ms = 0;
+static bool s_init = false;
 
 static void reset_sigbrd_state_machine()
 {
@@ -706,11 +707,16 @@ int SIGBRD_EVSE_UARTCommsProcess(char command_code, uint16_t value_transmitted, 
     struct timeval timeout = {0, 20000};
     int len                = 0;
     char message_rcv[SIGBRD_RING_BUFFER_SIZE];
-    char command[SIGBRD_EVSE_COMMAND_BUFFER_SIZE] = {' ', ' ', ' ', ' ', ' ', ' ', SIGBRD_END_OF_MSG};
+    char command[SIGBRD_EVSE_COMMAND_BUFFER_SIZE] = {' ', ' ',' ',' ', ' ', ' ', ' ', SIGBRD_END_OF_MSG};
     COMMAND_UART_CODE reply_code                  = CMD_ERR;
 
     uint8_t bSize_command = 0;
     uint8_t bWait_tries   = 0;
+ 
+    if (s_init == false)
+    {
+        return -1;
+    }
 
     memset(message_rcv, 0, SIGBRD_RING_BUFFER_SIZE);
 
@@ -808,7 +814,7 @@ exit_uart_send:
 
 void SIGBRD_GetPWMDutyInPercent(uint16_t *dutyVal)
 {
-    uint16_t dutyVal_Milli;
+    uint16_t dutyVal_Milli = 0;
 
     if (dutyVal == NULL)
     {
@@ -969,6 +975,10 @@ int SIGBRD_EV_UARTCommsProcess(char command_code, uint16_t value_transmitted, ui
     uint8_t bSize_command = 0;
     uint8_t bWait_tries   = 0;
 
+    if (s_init == false)
+    {
+        return -1;
+    }
     memset(message_rcv, 0, SIGBRD_RING_BUFFER_SIZE); /*clear message_buffer before read*/
 
     switch (command_code)
@@ -1097,8 +1107,8 @@ void SIGBRD_SetChargingProtocol_TickDelayMs(uint32_t delay)
 
 void SIGBRD_UART_BridgeEntry(void)
 {
-    static bool init = false;
-    if (init == true)
+
+    if (s_init == true)
     {
         return;
     }
@@ -1125,5 +1135,5 @@ void SIGBRD_UART_BridgeEntry(void)
 #endif /* EASYEVSE */
 
     Init_SigBrd_Uart();
-    init = true;
+    s_init = true;
 }

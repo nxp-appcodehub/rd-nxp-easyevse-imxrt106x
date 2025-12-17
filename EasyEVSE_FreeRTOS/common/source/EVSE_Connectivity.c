@@ -27,11 +27,13 @@
 #include "timers.h"
 
 #include "EVSE_ConnectivityConfig.h"
-#include "EVSE_Cloud_Connectivity.h"
+#include "EVSE_Ocpp.h"
 #include "EVSE_Connectivity.h"
 #include "EVSE_UI.h"
 #include "EVSE_Utils.h"
-#include "custom_evse.h"
+#if EVSE_EDGELOCK_AGENT
+#include "EVSE_EdgeLock2goAgent.h"
+#endif
 
 #if (ENABLE_WIFI == 1)
 #include "wpl.h"
@@ -93,6 +95,9 @@ static const char *networkConnectionStateString[EVSE_Network_Last + 1] = {
     [EVSE_Network_SNTPError]                   = "Failed SNTP",
     [EVSE_Network_NetworkConnected]            = "Connected to network",
     [EVSE_Network_NetworkDisconnected]         = "Disconnected from network",
+    [EVSE_Network_EdgelockInit]                = "Initializing EdgeLock2GO",
+    [EVSE_Network_WaitEdgelock]                = "Waiting for EdgeLock2GO",
+    [EVSE_Network_OCPP_Init]                   = "Initializing OCPP",
     [EVSE_Network_Last]                        = "LAST",
 };
 
@@ -514,8 +519,21 @@ static void SNTP_Connection()
         prvConnectivity_SetState(EVSE_Network_SNTPError);
         ERROR_LOOP;
     }
-
+#if EVSE_EDGELOCK_AGENT
+    if(!EVSE_EdgeLock_IsReady())
+    {
+        prvConnectivity_SetState(EVSE_Network_EdgelockInit);
+    }
+    else
+    {
+        prvConnectivity_SetState(EVSE_Network_NetworkConnected);
+    }
+#elif ENABLE_OCPP
+    prvConnectivity_SetState(EVSE_Network_OCPP_Init);
+#else
     prvConnectivity_SetState(EVSE_Network_NetworkConnected);
+#endif
+
 }
 
 /**
@@ -617,14 +635,39 @@ static void EVSE_Connectivity_Task(void *args)
             case EVSE_Network_DHCPRequest:
                 //  DNS_SetServer();
                 SNTP_Connection();
-#if EVSE_CLOUD_TELEMETRY
-                EVSE_Cloud_Init();
-#endif /* EVSE_CLOUD_TELEMETRY */
                 break;
-            case EVSE_Network_NetworkConnected:
             case EVSE_Network_NetworkDisconnected:
+#if ENABLE_OCPP
+                EVSE_OCPP_SetEvent(EVSE_NETWORK_DOWN_EVENT);
+#endif
+            case EVSE_Network_NetworkConnected:
                 EVSE_Connectivity_CheckNetwork();
                 vTaskDelay(1000);
+                break;
+            case EVSE_Network_EdgelockInit:
+#if EVSE_EDGELOCK_AGENT
+                EVSE_EdgeLock_Init();
+                prvConnectivity_SetState(EVSE_Network_WaitEdgelock);
+#endif /* EVSE_EDGELOCK_AGENT */
+                break;
+            case EVSE_Network_WaitEdgelock:
+#if EVSE_EDGELOCK_AGENT
+                if(EVSE_EdgeLock_IsReady())
+#endif /* EVSE_EDGELOCK_AGENT */
+                {
+#if ENABLE_OCPP
+                    prvConnectivity_SetState(EVSE_Network_OCPP_Init);
+#else
+                    prvConnectivity_SetState(EVSE_Network_NetworkConnected);
+#endif
+                }
+                vTaskDelay(100);
+                break;
+            case EVSE_Network_OCPP_Init:
+#if ENABLE_OCPP
+                EVSE_OCPP_Init();
+#endif /* ENABLE_OCPP */
+                prvConnectivity_SetState(EVSE_Network_NetworkConnected);
                 break;
             default:
                 configPRINTF((error("Error state")));

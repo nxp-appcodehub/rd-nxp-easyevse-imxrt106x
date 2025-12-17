@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 NXP
+ * Copyright 2023-2025 NXP
  * NXP Proprietary. This software is owned or controlled by NXP and may only be used strictly in
  * accordance with the applicable license terms. By expressly accepting such terms or by downloading, installing,
  * activating and/or otherwise using the software, you are agreeing that you have read, and that you agree to comply
@@ -92,7 +92,7 @@ void vApplicationDaemonTaskStartupHook(void)
 //     EVSE_Secure_Element_Init();
 #endif
 
-#if (CLEV663_ENABLE == 1)
+#if (ENABLE_CLEV663_NFC == 1)
     /* Init NFC Frontend */
     EVSE_NFC_Init();
 #endif

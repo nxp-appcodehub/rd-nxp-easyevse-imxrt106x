@@ -11,7 +11,7 @@ extern "C" {
 /* Task priorities. */
 
 /* Logging task configuration */
-#define LOGGING_TASK_PRIORITY   (tskIDLE_PRIORITY + 1)
+#define LOGGING_TASK_PRIORITY   (tskIDLE_PRIORITY + 1 )
 #define LOGGING_TASK_STACK_SIZE 512
 #define LOGGING_QUEUE_LENGTH    256
 
@@ -19,10 +19,13 @@ extern "C" {
 #define APP_CONECTIVITY_STACK_SIZE (configMINIMAL_STACK_SIZE * 30)
 
 #define APP_NFC_PRIORITY   (APP_ISO15118_PRIORITY)
-#define APP_NFC_STACK_SIZE (configMINIMAL_STACK_SIZE * 10)
+#define APP_NFC_STACK_SIZE (configMINIMAL_STACK_SIZE * 15)
 
-#define APP_EVSE_AZURE_CONNECTIVITY_PRIORITY   (configMAX_PRIORITIES - 5)
-#define APP_EVSE_AZURE_CONNECTIVITY_STACK_SIZE (configMINIMAL_STACK_SIZE * 100)
+#define APP_EVSE_EDGELOCK_PRIORITY   (configMAX_PRIORITIES - 5)
+#define APP_EVSE_EDGELOCK_STACK_SIZE (configMINIMAL_STACK_SIZE * 70)
+
+#define APP_EVSE_OCPP_PRIORITY   (configMAX_PRIORITIES - 3) //(configMAX_PRIORITIES - 5)
+#define APP_EVSE_OCPP_STACK_SIZE (2048 * 12)
 
 #if 0
 #define APP_SE05X_PRIORITY   (configMAX_PRIORITIES - 2)
@@ -30,7 +33,7 @@ extern "C" {
 #endif /* 0 */
 
 #define APP_UI_PRIORITY   (configMAX_PRIORITIES - 3)
-#define APP_UI_STACK_SIZE (configMINIMAL_STACK_SIZE * 10)
+#define APP_UI_STACK_SIZE (configMINIMAL_STACK_SIZE * 16)
 
 #define APP_METER_REQUEST_PRIORITY   (configMAX_PRIORITIES - 6)
 #define APP_METER_REQUEST_STACK_SIZE (2 * 1024U)
@@ -46,6 +49,10 @@ extern "C" {
 
 #define APP_SHELL_PRIORITY   (tskIDLE_PRIORITY + 1)
 #define APP_SHELL_STACK_SIZE (512 * 4)
+
+#define configDEFAULT_STD_THREAD_PRIORITY 2 //7 //(TCPIP_THREAD_PRIO - 1)
+/* Set stack size to 1792 words, so 7 kB */
+#define configDEFAULT_STD_THREAD_STACK_SIZE 1792U
 
 #ifdef __cplusplus
 }

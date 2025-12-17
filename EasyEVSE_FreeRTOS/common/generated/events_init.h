@@ -19,12 +19,8 @@ extern "C" {
 void events_init(lv_ui *ui);
 
 void events_init_Main_Screen(lv_ui *ui);
-void events_init_Debug_Conn_Screen(lv_ui *ui);
-void events_init_Car_Screen(lv_ui *ui);
-void events_init_EVSE_Screen(lv_ui *ui);
-void events_init_Meter_Screen(lv_ui *ui);
-void events_init_NFC_Screen(lv_ui *ui);
-void events_init_Debug_ISO_Screen(lv_ui *ui);
+void events_init_Linking_Screen(lv_ui *ui);
+void events_init_Charging_Screen(lv_ui *ui);
 
 #ifdef __cplusplus
 }

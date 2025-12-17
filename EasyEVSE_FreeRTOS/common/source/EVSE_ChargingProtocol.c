@@ -22,12 +22,12 @@
 #endif /* (ENABLE_ISO15118 == 1)*/
 #include "EVSE_ChargingProtocol.h"
 #include "EVSE_UI.h"
-#if (CLEV663_ENABLE == 1)
+#if (ENABLE_CLEV663_NFC == 1)
 #include "EVSE_NFC.h"
-#endif /* (CLEV663_ENABLE == 1) */
+#endif /* (ENABLE_CLEV663_NFC == 1) */
 #include "EVSE_Metering.h"
 
-#include <ISO15118.h>
+#include "ISO15118.h"
 #include "IEC61851.h"
 
 #define MASK_INTERRUPT_TIME_MS 1000U
@@ -68,7 +68,14 @@ static void EVSE_ChargingProtocol_ChangeDirection_callback()
     }
 }
 
-static void EVSE_ChargingProtocol_StopCharging()
+void EVSE_ChargingProtocol_StartCharging()
+{
+#if ENABLE_ISO15118
+    EVSE_ISO15118_StartCharging();
+#endif
+}
+
+void EVSE_ChargingProtocol_StopCharging()
 {
 #if ENABLE_ISO15118
     EVSE_ISO15118_StopCharging(true);
@@ -83,6 +90,16 @@ static void EVSE_ChargingProtocol_PauseCharging()
     // TODO check iso15118_20 and pause charging session
 #endif /* ENABLE_ISO15118 */
 }
+#if EASYEVSE_EV
+static void EV_ChargingProtocol_SetDefaults()
+{
+#if ENABLE_ISO15118
+    EV_ISO15118_SetDefault();
+#endif /* ENABLE_ISO15118 */
+
+}
+#endif /* EASYEVSE_EV */
+
 static void EVSE_ChargingWaitEvent()
 {
     EventBits_t uxBits = 0;
@@ -120,13 +137,22 @@ static void EVSE_WaitSigboardReady_Blocking()
     while (sigbrdReady == false)
     {
         uint32_t hwversion = INVALID_SIGBOARD_HW_VERSION;
+        uint32_t swversion_major = INVALID_SIGBOARD_SW_VERSION;
+        uint32_t swversion_minor = INVALID_SIGBOARD_SW_VERSION;
+        uint32_t swversion_hot_fix = INVALID_SIGBOARD_SW_VERSION;
 
         SIGBRD_GetGetHWVersion(&hwversion);
 
         if (hwversion != INVALID_SIGBOARD_HW_VERSION)
         {
-            sigbrdReady = true;
             configPRINTF(("SIGBOARD detected, HW Version %d", hwversion));
+        }
+
+        SIGBRD_GetSWVersion(&swversion_major, &swversion_minor, &swversion_hot_fix);
+        if ((swversion_major != INVALID_SIGBOARD_SW_VERSION) && (swversion_minor != INVALID_SIGBOARD_SW_VERSION) && (swversion_hot_fix != INVALID_SIGBOARD_SW_VERSION))
+        {
+            sigbrdReady = true;
+            configPRINTF(("SIGBOARD detected, SW Version %d.%d.%d", swversion_major, swversion_minor, swversion_hot_fix));
         }
 
         vTaskDelay(pdMS_TO_TICKS(stack_delay));
@@ -281,6 +307,22 @@ charging_directions_t EVSE_ChargingProtocol_ChargingDirection()
     return charging_direction;
 }
 
+const char *EVSE_ChargingProtocol_GetStringFromDirection(charging_directions_t charging_direction)
+{
+    if(charging_direction == EVSE_G2V)
+    {
+        return "Grid to Vehicle";
+    }
+    else if(charging_direction == EVSE_V2G)
+    {
+        return "Vehicle to Grid";
+    }
+    else
+    {
+        return "No charging direction";
+    }
+}
+
 charging_states_t EVSE_ChargingProtocol_GetChargingState()
 {
     return s_charging_state;
@@ -314,9 +356,9 @@ const vehicle_data_t *EVSE_ChargingProtocol_GetVehicleData(void)
 
     vehicle_data.charging_protocol = EVSE_ChargingProtocol_GetProtocol();
     strcpy(vehicle_data.protocol, EVSE_ChargingProtocol_GetStringFromCurrentProtocol());
-#if (CLEV663_ENABLE == 1)
+#if (ENABLE_CLEV663_NFC == 1)
     strcpy(vehicle_data.vehicleID, EVSE_NFC_Get_VehicleID());
-#endif /* (CLEV663_ENABLE == 1) */
+#endif /* (ENABLE_CLEV663_NFC == 1) */
     return &vehicle_data;
 }
 
@@ -345,6 +387,11 @@ static void EVSE_ChargingProtocol_DataInit()
     vehicle_data.batteryCapacity      = 0;
     vehicle_data.batteryLevel         = 0;
     vehicle_data.charging_protocol    = EVSE_ChargingProtocol_GetProtocol();
+#if EASYEVSE_EV
+    vehicle_data.chargeVoltage = 0.0;
+    vehicle_data.chargePower   = 0.0;
+    vehicle_data.fBatteryLevel = 0.0;
+#endif /* EASYEVSE_EV */
 }
 
 void EVSE_ChargingProtocol_Init(void)
@@ -353,6 +400,9 @@ void EVSE_ChargingProtocol_Init(void)
     SIGBRD_SetChargingProtocol_TickDelayMs(stack_delay);
     SIGBRD_UART_BridgeEntry();
     EVSE_ChargingProtocol_DataInit();
+#if EASYEVSE_EV
+    EV_ChargingProtocol_SetDefaults();
+#endif /* EASYEVSE_EV */
 
     hal_gpio_pin_config_t user_btn_config = {
         kHAL_GpioDirectionIn,
@@ -381,3 +431,111 @@ void EVSE_ChargingProtocol_Init(void)
             ;
     }
 }
+
+void EVSE_ChargingProtocol_SetPaymentMethod(evse_auth_methods_t method)
+{
+#if ENABLE_ISO15118
+    EVSE_ISO15118_SetPaymentMethod(method);
+#endif
+}
+
+void EVSE_ChargingProtocol_SetNFCAuthentication(uint8_t *cardUID, uint8_t size)
+{
+#if ENABLE_ISO15118
+    EVSE_ISO15118_SetNFCAuthentication(cardUID, size);
+#elif ENABLE_J1772
+    EVSE_J1772_SetNFCAuthentication(cardUID, size);
+#endif
+}
+
+#if EASYEVSE_EV
+const vehicle_data_t *EV_ChargingProtocol_GetVehicleData(void)
+{
+#if ENABLE_ISO15118
+    EV_ISO15118_GetVehicleData(&vehicle_data);
+#elif ENABLE_J1772
+    EV_J1772_GetVehicleData(&vehicle_data);
+#endif /* ENABLE_ISO15118 */
+
+    return &vehicle_data;
+}
+
+bool EV_ChargingProtocol_isCharging()
+{
+    bool bCharging = false;
+#if ENABLE_ISO15118
+    EV_ISO15118_isCharging(&bCharging);
+#elif ENABLE_J1772
+    EV_J1772_isCharging(&bCharging);
+#endif /* ENABLE_ISO15118 */
+
+    return bCharging;
+}
+
+void EV_ChargingProtocol_ChangeChargingDirection()
+{
+#if ENABLE_ISO15118
+    EV_ISO15118_ChangeChargingDirection();
+#endif
+}
+
+evse_return_status_t EV_ChargingProtocol_ResetBatteryLevel(battery_levels_t battery_level)
+{
+#if ENABLE_ISO15118
+    EV_ISO15118_ResetBatteryLevel(battery_level);
+    return SUCCESS;
+#elif ENABLE_J1772
+    EV_J1772_ResetBatteryLevel(battery_level);
+    return SUCCESS;
+#endif
+}
+
+evse_return_status_t EV_ChargingProtocol_StartCharging()
+{
+#if ENABLE_ISO15118
+    EV_ISO15118_StartCharging();
+    return SUCCESS;
+#elif ENABLE_J1772
+    EV_J1772_StartCharging();
+    return NOT_IMPLEMENTED;
+#endif
+}
+
+evse_return_status_t EV_ChargingProtocol_StopCharging()
+{
+#if ENABLE_ISO15118
+    EV_ISO15118_StopCharging();
+    return SUCCESS;
+#elif ENABLE_J1772
+    EV_J1772_StopCharging();
+    return NOT_IMPLEMENTED;
+#endif
+}
+
+evse_return_status_t EV_ChargingProtocol_SetProtocol(evse_charging_protocol_t protocol)
+{
+#if ENABLE_ISO15118
+    EV_ISO15118_SetProtocol(protocol);
+    return SUCCESS;
+#elif ENABLE_J1772
+    return NOT_IMPLEMENTED;
+#endif
+}
+
+void EV_ChargingProtocol_SetAuthMethod(evse_auth_methods_t auth_method)
+{
+#if ENABLE_ISO15118
+    EV_ISO15118_SetAuthMethod(auth_method);
+#endif
+}
+
+evse_charging_protocol_t EV_ChargingProtocol_GetProtocol()
+{
+#if ENABLE_ISO15118
+    EV_ISO15118_GetProtocol();
+#elif ENABLE_J1772
+    return EVSE_BasicCharging_J1772;
+#endif
+}
+
+#endif /* EASYEVSE_EV */

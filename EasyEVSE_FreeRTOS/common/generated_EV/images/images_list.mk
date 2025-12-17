@@ -1,0 +1,1 @@
+GEN_CSRCS += _EV_alpha_78x77.c

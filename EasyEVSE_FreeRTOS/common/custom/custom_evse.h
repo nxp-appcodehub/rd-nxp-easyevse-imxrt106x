@@ -38,12 +38,8 @@ extern "C" {
 typedef enum _evse_screens
 {
     Screen_Main,
-    Screen_NetworkDebug,
-    Screen_CarSimulation,
-    Screen_EVSE,
-    Screen_Meter,
-    Screen_NFC,
-    Screen_ISODebug,
+    Screen_Linking,
+    Screen_Charging,
     LAST_SCREEN,
 } evse_screens_t;
 
@@ -53,89 +49,72 @@ typedef enum _evse_screens
 evse_screens_t ui_getCurentScreen(void);
 
 /**
- * Update the Vehicle Id in NFC screen
+ * Update Vehicle ID
  * @param vehicleID string that points to a vehicle ID
  */
-void UI_Update_NFC_VehicleID(const char *vehicleID);
+void UI_Update_NFC_ID(const char *vehicleID);
 
 /**
- * Set the telemetry counter in Debug screen
+ * Update card type
+ */
+void UI_Update_NFC_Card_Type(const char *cardType);
+
+/**
+ * Update card security status
+ */
+void UI_Update_NFC_Card_Security(const char *cardSecurityStatus);
+
+/**
+ * Update all NFC data
+ */
+void UI_Update_NFC_Values(const char *vehicleID, const char *cardType, const char *cardSecurityStatus);
+
+/**
+ * Update metering data
+ */
+void UI_Update_Metering_Values(const meter_data_t *meter_data);
+
+/**
+ * Set the telemetry counter
  * @param telemetryCnt telemetry counter
  */
-void UI_Update_Debug_TelemetryCnt(uint32_t telemetryCnt);
+void UI_Update_Connectivity_Telemetry_Cntr(uint32_t telemetryCnt);
 
 /**
- * Set the Cloud Status prompt text inside Debug screen
- * @param CloudMessage text to be displayed
+ * Set the OCPP Status prompt text
+ * @param OCPPMessage text to be displayed
  */
-void UI_Update_Debug_CloudMessage(const char *CloudMessage);
+void UI_Update_Connectivity_OCPP_Status(const char *OCPPMessage);
 
 /**
- * Set the Network Status prompt text inside Debug screen
- * @param NetworkMessage text to be displayed
+ * Update SSID header
  */
-void UI_Update_Debug_NetworkMessage(const char *NetworkMessage);
+void UI_Update_Connectivity_SSID(const char *SSID);
 
 /**
- * Set all the values in Debug screen
- * @param NetworkMessage text to be displayed in the network status prompt
- * @param CloudMessage text to be displayed in the cloud status prompt
- * @param telemetryCnt telemetry counter
+ * Update all connectivity data
  */
-void UI_Update_Debug_Values(const char *NetworkMessage, const char *CloudMessage, uint32_t telemetryCnt);
+void UI_Update_Connectivity_Values(const char *OCPPMessage, uint32_t telemetryCnt, const char *SSID);
 
 /**
- * Update the meter values in Meter screen
- *
- * @param meter structure that includes all the metered parameters
+ * Update vehicle data
  */
-void UI_Update_Meter_Values(const meter_data_t *meter);
+void UI_Update_Vehicle_Values(const vehicle_data_t *vehicle_data);
 
 /**
- * Update the widgets in Car screen
- * @param chargingMessage The charging prompt message
- * @param battery_level the battery level
- */
-void UI_Update_Car_Values(const vehicle_data_t *vehicle_data);
-
-/**
- * Update the widgets from the EVSE screen
- * @param evse_data Evse data
+ * Update EVSE data
  */
 void UI_Update_EVSE_Values(const evse_data_t *evse_data);
 
 /**
- * Update the widgets in the Main screen
- * @param header value
- */
-void UI_Update_Main_Values(const char *header);
+ * Update power request counter
+ *  */
+void UI_Update_PwrReqCntr(const uint32_t power_req_cntr);
 
 /**
- * Update EVSE uptime (time passed since the application started)
+ * Update ISO15118 status
  */
-void UI_Update_EVSE_Uptime(void);
-
-/**
- * Update data displayed on ISO15118 Debug screen
- */
-void UI_Update_ISO15118_Debug_Values(const evse_iso15118_state_t status,
-                                     const V2G_status_t V2G_status,
-                                     const uint32_t Telemetry_cntr);
-
-/**
- * Update Power Request Cntr displayed on ISO15118 Debug screen
- */
-void UI_Update_ISO15118_Debug_PwrReqCntr(const uint32_t power_req_cntr);
-
-/**
- * Update V2G Demo displayed on ISO15118 Debug screen
- */
-void UI_Update_Debug_V2GStatus(const V2G_status_t status);
-
-/**
- * Update ISO15118 Status displayed on ISO15118 Debug screen
- */
-void UI_Update_Debug_ISO15118Status(const evse_iso15118_state_t status);
+void UI_Update_ISO15118Status(const evse_iso15118_state_t status);
 
 /**
  * Update digital clocks from every screen
@@ -143,24 +122,10 @@ void UI_Update_Debug_ISO15118Status(const evse_iso15118_state_t status);
 void UI_Update_Localtime(void);
 
 /**
- * Update Vehicle ID displayed on Car screen
+ * Update NFC activation status icon
  */
-void UI_Update_Car_VehicleID(const char *vehicleID);
+void UI_Update_NFC_Activation_Status(void);
 
-/**
- * Update charging direction for Grid to Vehicle scenario
- */
-void GridtoVehicle_animation();
-
-/**
- * Update charging direction for Vehicle to Grid scenario
- */
-void VehicletoGrid_animation(void);
-
-/**
- * Clean the charging animation.
- */
-void CleanCharging_animation(void);
 #ifdef __cplusplus
 }
 #endif

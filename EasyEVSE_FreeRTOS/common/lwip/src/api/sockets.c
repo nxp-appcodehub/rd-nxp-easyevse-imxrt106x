@@ -6,7 +6,7 @@
 /*
  * Copyright (c) 2001-2004 Swedish Institute of Computer Science.
  * Copyright 2015 Freescale Semiconductor, Inc.
- * Copyright 2019-2020 NXP
+ * Copyright 2019-2020, 2025 NXP
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -4022,6 +4022,21 @@ lwip_fcntl(int s, int cmd, int val)
   done_socket(sock);
   return ret;
 }
+
+#if 0
+/* EASYEVSE: fcntl() is declared in std lib headers used by occp with variable args */
+int
+fcntl(int s, int cmd, ...)
+{
+  va_list ap;
+  int val;
+
+  va_start(ap, cmd);
+  val = va_arg(ap, int);
+  va_end(ap);
+  return lwip_fcntl(s, cmd, val);
+}
+#endif
 
 #if LWIP_COMPAT_SOCKETS == 2 && LWIP_POSIX_SOCKETS_IO_NAMES
 int

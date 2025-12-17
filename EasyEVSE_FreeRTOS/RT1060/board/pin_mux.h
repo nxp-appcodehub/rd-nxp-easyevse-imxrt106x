@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 NXP
+ * Copyright 2023-2025 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -307,10 +307,16 @@ void BOARD_InitBootPins(void);
 #define BOARD_INITPINS_RC_633_nPDOWN_PIN_MASK                        (1U << 24U)   /*!< PORT pin mask */
 
 /*!
- * @brief Configures pin routing and optionally pin electrical features.
+ * @brief Configures pin routing and optionally pin electrical features on EVSE side
  *
  */
-void BOARD_InitPins(void);
+void BOARD_InitEVSEPins(void);
+
+/*!
+ * @brief Configures pin routing and optionally pin electrical features on EV side
+ *
+ */
+void BOARD_InitEVPins(void);
 
 /* GPIO_EMC_09 (coord C2), SEMC_A0 */
 /* Routed pin properties */

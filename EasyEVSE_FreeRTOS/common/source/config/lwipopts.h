@@ -4,7 +4,7 @@
  * This file is based on \src\include\lwip\opt.h
  ******************************************************************************
  * Copyright (c) 2013-2016, Freescale Semiconductor, Inc.
- * Copyright 2016-2018, 2022 NXP
+ * Copyright 2016-2018, 2022, 2025 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -13,8 +13,12 @@
 #ifndef __LWIPOPTS_H__
 #define __LWIPOPTS_H__
 
-#if USE_RTOS
 
+#define LWIP_CHECKSUM_ON_COPY 1
+
+#define LWIP_DNS_SECURE 0
+
+#define CONFIG_NETWORK_HIGH_PERF 1
 /**
  * SYS_LIGHTWEIGHT_PROT==1: if you want inter-task protection for certain
  * critical regions during buffer allocation, deallocation and memory
@@ -52,21 +56,6 @@
  */
 #define LWIP_RAW 1
 
-#else
-/**
- * NO_SYS==1: Bare metal lwIP
- */
-#define NO_SYS       1
-/**
- * LWIP_NETCONN==0: Disable Netconn API (require to use api_lib.c)
- */
-#define LWIP_NETCONN 0
-/**
- * LWIP_SOCKET==0: Disable Socket API (require to use sockets.c)
- */
-#define LWIP_SOCKET  0
-
-#endif
 
 /* ---------- Multicast DNS options ---------- */
 /* Multicast DNS module */
@@ -110,6 +99,9 @@ void sys_mark_tcpip_thread(void);
 #define LWIP_MARK_TCPIP_THREAD() sys_mark_tcpip_thread()
 
 /* ---------- Memory options ---------- */
+
+#define MEMP_USE_CUSTOM_POOLS 0 //1
+
 /**
  * MEM_ALIGNMENT: should be set to the alignment of the CPU
  *    4 byte alignment -> #define MEM_ALIGNMENT 4
@@ -134,7 +126,7 @@ void sys_mark_tcpip_thread(void);
 #if CONFIG_NETWORK_HIGH_PERF
 #define MEMP_NUM_PBUF 30
 #else
-#define MEMP_NUM_PBUF 15
+#define MEMP_NUM_PBUF 10
 #endif
 #endif
 
@@ -177,7 +169,7 @@ void sys_mark_tcpip_thread(void);
 /* MEMP_NUM_UDP_PCB: the number of UDP protocol control blocks. One
    per active UDP "connection". */
 #ifndef MEMP_NUM_UDP_PCB
-#define MEMP_NUM_UDP_PCB (6 + (LWIP_MDNS_RESPONDER))
+#define MEMP_NUM_UDP_PCB (7 + (LWIP_MDNS_RESPONDER))
 #endif
 /* MEMP_NUM_TCP_PCB: the number of simulatenously active TCP
    connections. */
@@ -187,8 +179,13 @@ void sys_mark_tcpip_thread(void);
 /* MEMP_NUM_TCP_PCB_LISTEN: the number of listening TCP
    connections. */
 #ifndef MEMP_NUM_TCP_PCB_LISTEN
-#define MEMP_NUM_TCP_PCB_LISTEN 6
+#define MEMP_NUM_TCP_PCB_LISTEN 2
 #endif
+
+#ifndef MEMP_NUM_NETCONN
+#define MEMP_NUM_NETCONN (MEMP_NUM_TCP_PCB + MEMP_NUM_TCP_PCB_LISTEN + MEMP_NUM_UDP_PCB)
+#endif
+
 /* MEMP_NUM_TCP_SEG: the number of simultaneously queued TCP
    segments. */
 #ifndef MEMP_NUM_TCP_SEG
@@ -202,18 +199,31 @@ void sys_mark_tcpip_thread(void);
 /* MEMP_NUM_REASS_DATA: The number of whole IP packets
    queued for reassembly. */
 #ifndef MEMP_NUM_REASSDATA
-#define MEMP_NUM_REASSDATA 2
+#define MEMP_NUM_REASSDATA 4
 #endif
 
 /* ---------- Pbuf options ---------- */
 /* PBUF_POOL_SIZE: the number of buffers in the pbuf pool. */
 #ifndef PBUF_POOL_SIZE
-#define PBUF_POOL_SIZE 5
+#define PBUF_POOL_SIZE 15
 #endif
 
-/* PBUF_POOL_BUFSIZE: the size of each pbuf in the pbuf pool. */
-/* Default value is defined in lwip\src\include\lwip\opt.h as
- * LWIP_MEM_ALIGN_SIZE(TCP_MSS+40+PBUF_LINK_ENCAPSULATION_HLEN+PBUF_LINK_HLEN)*/
+/**
+ * PBUF_POOL_BUFSIZE: the size of each pbuf in the pbuf pool. The default is
+ * designed to accomodate single full size TCP frame in one pbuf, including
+ * TCP_MSS, IP header, and link header.
+ */
+#define PBUF_POOL_BUFSIZE 1580
+
+/**
+ * MEMP_NUM_FRAG_PBUF: the number of IP fragments simultaneously sent
+ * (fragments, not whole packets!).
+ * This is only used with LWIP_NETIF_TX_SINGLE_PBUF==0 and only has to be > 1
+ * with DMA-enabled MACs where the packet is not yet sent when netif->output
+ * returns.
+ */
+#define MEMP_NUM_FRAG_PBUF 15
+
 
 /* ---------- TCP options ---------- */
 #ifndef LWIP_TCP
@@ -237,17 +247,13 @@ void sys_mark_tcpip_thread(void);
 
 /* TCP sender buffer space (bytes). */
 #ifndef TCP_SND_BUF
-#if CONFIG_NETWORK_HIGH_PERF
-#define TCP_SND_BUF (12 * TCP_MSS)
-#else
 #define TCP_SND_BUF (6 * TCP_MSS)
-#endif
 #endif
 
 /* TCP sender buffer space (pbufs). This must be at least = 2 *
    TCP_SND_BUF/TCP_MSS for things to work. */
 #ifndef TCP_SND_QUEUELEN
-#define TCP_SND_QUEUELEN (3 * TCP_SND_BUF) / TCP_MSS // 6
+#define TCP_SND_QUEUELEN ((3 * TCP_SND_BUF) / TCP_MSS)
 #endif
 
 /* TCP receive window. */
@@ -255,31 +261,51 @@ void sys_mark_tcpip_thread(void);
 #if CONFIG_NETWORK_HIGH_PERF
 #define TCP_WND (15 * TCP_MSS)
 #else
-#define TCP_WND (2 * TCP_MSS)
+#define TCP_WND (5 * TCP_MSS)
+#endif /* CONFIG_NETWORK_HIGH_PERF */
 #endif
-#endif
+
+/**
+ * Enable TCP_KEEPALIVE
+ */
+#define LWIP_TCP_KEEPALIVE 1
+/* Enable keepalive for all sockets */
+#define TCP_KEEPALIVE_DEFAULT 1
 
 /* Enable backlog*/
 #ifndef TCP_LISTEN_BACKLOG
 #define TCP_LISTEN_BACKLOG 1
-#endif
+#endif /* TCP_LISTEN_BACKLOG */
 
 /* ---------- Network Interfaces options ---------- */
+
+/**
+ * TCP_RESOURCE_FAIL_RETRY_LIMIT: limit for retrying sending of tcp segment
+ * on resource failure error returned by driver.
+ */
+#define TCP_RESOURCE_FAIL_RETRY_LIMIT 50
+
+/**
+ * LWIP_NETIF_HOSTNAME==1: use DHCP_OPTION_HOSTNAME with netif's hostname
+ * field.
+ */
+#define LWIP_NETIF_HOSTNAME 1
+
 /* Support netif api (in netifapi.c). */
 #ifndef LWIP_NETIF_API
 #define LWIP_NETIF_API 1
-#endif
+#endif /* LWIP_NETIF_API */
 
 /* ---------- ICMP options ---------- */
 #ifndef LWIP_ICMP
 #define LWIP_ICMP 1
-#endif
+#endif /* LWIP_ICMP */
 
 /* ---------- DHCP options ---------- */
 /* Enable DHCP module. */
 #ifndef LWIP_DHCP
 #define LWIP_DHCP 1
-#endif
+#endif /* LWIP_DHCP */
 
 /* ---------- IGMP options ---------- */
 /**
@@ -290,15 +316,23 @@ void sys_mark_tcpip_thread(void);
 /* ---------- UDP options ---------- */
 #ifndef LWIP_UDP
 #define LWIP_UDP 1
-#endif
+#endif /* LWIP_UDP */
+
 #ifndef UDP_TTL
 #define UDP_TTL 255
-#endif
+#endif /* UDP_TTL */
 
 /* ---------- Statistics options ---------- */
-#ifndef LWIP_STATS
-#define LWIP_STATS 0
-#endif
+/**
+ * LWIP_STATS==1: Enable statistics collection in lwip_stats.
+ */
+#define LWIP_STATS 1
+
+/**
+ * LWIP_STATS_DISPLAY==1: Compile in the statistics output functions.
+ */
+#define LWIP_STATS_DISPLAY 1
+
 #ifndef LWIP_PROVIDE_ERRNO
 #define LWIP_PROVIDE_ERRNO 1
 #endif
@@ -308,12 +342,14 @@ void sys_mark_tcpip_thread(void);
 #endif
 
 #ifndef SNTP_SET_SYSTEM_TIME
+#include "stdint.h"
+extern void EVSE_Connectivity_SetUnixTime(uint32_t sec);
 #define SNTP_SET_SYSTEM_TIME EVSE_Connectivity_SetUnixTime
-#endif
+#endif /* SNTP_SET_SYSTEM_TIME */
 
 #ifndef LWIP_DHCP_MAX_NTP_SERVERS
 #define LWIP_DHCP_MAX_NTP_SERVERS 2
-#endif
+#endif /* LWIP_DHCP_MAX_NTP_SERVERS */
 /*
    --------------------------------------
    ---------- Checksum options ----------
@@ -353,7 +389,7 @@ Some MCU allow computing and verifying the IP, UDP, TCP and ICMP checksums by ha
 #define CHECKSUM_CHECK_UDP 1
 /* CHECKSUM_CHECK_TCP==1: Check checksums in software for incoming TCP packets.*/
 #define CHECKSUM_CHECK_TCP 1
-#endif
+#endif /* CHECKSUM_BY_HARDWARE */
 
 /**
  * DEFAULT_THREAD_STACKSIZE: The stack size used by any other lwIP thread.
@@ -362,7 +398,7 @@ Some MCU allow computing and verifying the IP, UDP, TCP and ICMP checksums by ha
  */
 #ifndef DEFAULT_THREAD_STACKSIZE
 #define DEFAULT_THREAD_STACKSIZE 3000
-#endif
+#endif /* DEFAULT_THREAD_STACKSIZE */
 
 /**
  * DEFAULT_THREAD_PRIO: The priority assigned to any other lwIP thread.
@@ -371,7 +407,7 @@ Some MCU allow computing and verifying the IP, UDP, TCP and ICMP checksums by ha
  */
 #ifndef DEFAULT_THREAD_PRIO
 #define DEFAULT_THREAD_PRIO 3
-#endif
+#endif /* DEFAULT_THREAD_PRIO */
 
 /*
    ------------------------------------
@@ -413,13 +449,13 @@ Some MCU allow computing and verifying the IP, UDP, TCP and ICMP checksums by ha
 #define PPP_DEBUG           (LWIP_DBG_OFF)
 #define SNTP_DEBUG          (LWIP_DBG_OFF)
 
-// #define LWIP_DEBUG
+//#define LWIP_DEBUG
 #ifdef LWIP_DEBUG
 #ifndef LWIP_PLATFORM_DIAG
 #include "FreeRTOSConfig.h"
 #define LWIP_PLATFORM_DIAG(x) configPRINTF(x)
-#endif
-#endif
+#endif /* LWIP_PLATFORM_DIAG */
+#endif /* LWIP_DEBUG */
 
 #ifdef LWIP_DEBUG
 #define U8_F  "c"
@@ -432,18 +468,23 @@ Some MCU allow computing and verifying the IP, UDP, TCP and ICMP checksums by ha
 #define S32_F "d"
 #define X32_F "x"
 #define SZT_F "u"
-#endif
+#endif /* LWIP_DEBUG */
 
-#ifndef TCPIP_MBOX_SIZE
-#if CONFIG_NETWORK_HIGH_PERF
-#define TCPIP_MBOX_SIZE 64
-#else
-#define TCPIP_MBOX_SIZE 32
-#endif
-#endif
 
+/**
+ * Loopback demo related options.
+ */
+#define LWIP_NETIF_LOOPBACK                1
+#define LWIP_HAVE_LOOPIF                   1
+#define LWIP_NETIF_LOOPBACK_MULTITHREADING 1
+#define LWIP_LOOPBACK_MAX_PBUFS            8
+
+#define TCPIP_THREAD_NAME      "tcpip_thread"
 #define TCPIP_THREAD_STACKSIZE 1024
 #define TCPIP_THREAD_PRIO      8
+#ifndef TCPIP_MBOX_SIZE
+#define TCPIP_MBOX_SIZE 32
+#endif /* TCPIP_MBOX_SIZE */
 
 /**
  * DEFAULT_RAW_RECVMBOX_SIZE: The mailbox size for the incoming packets on a
@@ -473,7 +514,10 @@ Some MCU allow computing and verifying the IP, UDP, TCP and ICMP checksums by ha
  */
 #define DEFAULT_ACCEPTMBOX_SIZE 12
 
-#define LWIP_DNS 1
+#define DNS_TABLE_SIZE      2   // Sufficient for OCPP + NTP + updates
+#define DNS_MAX_NAME_LENGTH 128  // Adequate for typical server hostnames
+#define DNS_DOES_NAME_CHECK 1   // Security validation
+#define DNS_MAX_SERVERS     2   // Primary + secondary DNS
 
 #if (LWIP_DNS || LWIP_IGMP || LWIP_IPV6) && !defined(LWIP_RAND)
 /* TODO make it random */
@@ -481,7 +525,7 @@ Some MCU allow computing and verifying the IP, UDP, TCP and ICMP checksums by ha
 #include "stdint.h"
 uint32_t EVSE_Random(void);
 #define LWIP_RAND() EVSE_Random()
-#endif
+#endif /* (LWIP_DNS || LWIP_IGMP || LWIP_IPV6) && !defined(LWIP_RAND) */
 
 /**
  * LWIP_NETIF_EXT_STATUS_CALLBACK==1: Support an extended callback function
@@ -501,7 +545,7 @@ uint32_t EVSE_Random(void);
  */
 #ifndef IP_REASS_MAX_PBUFS
 #define IP_REASS_MAX_PBUFS 4
-#endif
+#endif /* IP_REASS_MAX_PBUFS */
 
 #endif /* __LWIPOPTS_H__ */
 

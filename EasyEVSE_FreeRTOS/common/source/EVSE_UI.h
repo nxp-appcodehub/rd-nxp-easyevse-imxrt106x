@@ -16,12 +16,12 @@ typedef enum _ui_events
     EVSE_UI_NFC                   = 1 << 2,
     EVSE_UI_NetworkStatus         = 1 << 3,
     EVSE_UI_ChargingSession       = 1 << 4,
-    EVSE_UI_CloudStatus           = 1 << 5,
-    EVSE_UI_UpdateUptime          = 1 << 6,
+    EVSE_UI_OcppStatus            = 1 << 5,
+	EVSE_UI_OcppDisplayMessage    = 1 << 6,
     EVSE_UI_ISO15118_Stack_Status = 1 << 7,
-    EVSE_UI_ISO15118_V2G_status   = 1 << 8,
-    EVSE_UI_RequestedPower        = 1 << 9,
-    EVSE_UI_UpdateLocalTime       = 1 << 10,
+    EVSE_UI_RequestedPower        = 1 << 8,
+    EVSE_UI_UpdateLocalTime       = 1 << 9,
+    EVSE_UI_NFCActivation         = 1 << 10,
     /* Internal use only */
     EVSE_UI_RefreshScreen = 0xF00000,
     EVSE_UI_ALL_EVENTS    = 0xFFFFFF,
@@ -36,9 +36,11 @@ typedef enum _ui_events
  */
 void EVSE_UI_SetEvent(ui_events_t event);
 
+#if ENABLE_LCD
 /**
  * Creates refresh timer, creates UI task
  */
 void EVSE_UI_Init(void);
+#endif
 
 #endif /* EVSE_UI_H_ */

@@ -19,4 +19,15 @@
  */
 iot_agent_status_t EVSE_EdgeLock_RunClient(void);
 
+
+/**
+ * @brief Creates the EdgeLock2Go task, initializes internal components.
+ */
+void EVSE_EdgeLock_Init(void);
+
+/**
+ * @brief Returns true when EdgeLock2Go agent finishes provisioning CPO key or if it is already provisioned.
+ */
+bool EVSE_EdgeLock_IsReady(void);
+
 #endif /* EVSE_EDGELOCK2GOAGENT_H_ */

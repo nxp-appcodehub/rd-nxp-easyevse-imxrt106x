@@ -9,7 +9,7 @@
  */
 /*
  *  Copyright The Mbed TLS Contributors
- *  Copyright 2017, 2021, 2024 NXP
+ *  Copyright 2017, 2021, 2024, 2025 NXP
  *  SPDX-License-Identifier: Apache-2.0
  */
 
@@ -1229,7 +1229,7 @@ void *pvPortCalloc(size_t num, size_t size); /*Calloc for HEAP3.*/
 //#define MBEDTLS_ECP_DP_SECP192K1_ENABLED
 //#define MBEDTLS_ECP_DP_SECP224K1_ENABLED
 //#define MBEDTLS_ECP_DP_SECP256K1_ENABLED
-//#define MBEDTLS_ECP_DP_BP256R1_ENABLED
+#define MBEDTLS_ECP_DP_BP256R1_ENABLED
 //#define MBEDTLS_ECP_DP_BP384R1_ENABLED
 //#define MBEDTLS_ECP_DP_BP512R1_ENABLED
 /* Montgomery curves (supporting ECP) */

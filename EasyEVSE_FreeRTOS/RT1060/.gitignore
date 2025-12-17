@@ -1,3 +1,56 @@
 /EVSE/
 /EV/
 /EVSE_ETH/
+/EV_UI/
+!*.ld
+
+# IDE and editor configurations
+.vscode/
+.settings/
+
+# VS Code generated files
+CMSIS/
+CMakeLists.txt
+CMakePresets.json
+*.cmake
+mcux_config.cmake
+mcux_include.json
+user_override.cmake
+flags.cmake
+
+# Board specific
+DAL/
+board/
+custom/
+custom_EV/
+device/
+drivers/
+component/
+utilities/
+
+# Generated code LVGL
+generated/
+generated_EV/
+
+# Third-party libraries and dependencies
+lvgl/
+azure-iot-middleware-freertos/
+freertos/
+libwebsockets/
+littlefs/
+lwip/
+mbedtls/
+mflash/
+ocpp/
+pkcs11/
+sdmmc/
+sevenstax/
+
+# NXP
+usb/
+video/
+wifi/
+source/
+touchpanel/
+se_hostlib/
+NxpNfcRdLib/

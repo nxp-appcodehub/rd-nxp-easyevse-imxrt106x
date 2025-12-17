@@ -1,7 +1,8 @@
 /*
  * FreeRTOS Kernel V10.4.3
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
- *
+ * Copyright 2025 NXP
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
  * the Software without restriction, including without limitation the rights to
@@ -44,7 +45,7 @@
 #define configCPU_CLOCK_HZ                      (SystemCoreClock)
 #define configTICK_RATE_HZ                      ((TickType_t)1000)
 #define configMAX_PRIORITIES                    10
-#define configMINIMAL_STACK_SIZE                ((unsigned short)90)
+#define configMINIMAL_STACK_SIZE                ((unsigned short)128)
 #define configMAX_TASK_NAME_LEN                 30
 #define configUSE_16_BIT_TICKS                  0
 #define configIDLE_SHOULD_YIELD                 1
@@ -68,7 +69,7 @@
 /* Memory allocation related definitions. */
 #define configSUPPORT_STATIC_ALLOCATION  1
 #define configSUPPORT_DYNAMIC_ALLOCATION 1
-#define configTOTAL_HEAP_SIZE            ((size_t)(1024 * 1024))
+#define configTOTAL_HEAP_SIZE            ((size_t)(1024 * 1024 * 2))
 #define configAPPLICATION_ALLOCATED_HEAP 0
 
 /* Hook function related definitions. */
@@ -81,7 +82,7 @@
 /* Run time and task stats gathering related definitions. */
 #define configGENERATE_RUN_TIME_STATS        0
 #define configUSE_TRACE_FACILITY             1
-#define configUSE_STATS_FORMATTING_FUNCTIONS 0
+#define configUSE_STATS_FORMATTING_FUNCTIONS 1
 
 /* Task aware debugging. */
 #define configRECORD_STACK_HIGH_ADDRESS 1
@@ -156,10 +157,18 @@ to all Cortex-M ports, and do not rely on any particular library functions. */
 See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
 #define configMAX_SYSCALL_INTERRUPT_PRIORITY (configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY << (8 - configPRIO_BITS))
 
+#if defined(__cplusplus)
+ extern "C" {
+#endif
+
 extern void vLoggingPrintf(const char *pcFormat, ...);
 
 /* Map the FreeRTOS printf() to the logging task printf. */
 #define configPRINTF(x) vLoggingPrintf x
+
+#if defined(__cplusplus)
+ }
+#endif
 
 /* Map the logging task's printf to the board specific output function. */
 #define configPRINT_STRING(x) \

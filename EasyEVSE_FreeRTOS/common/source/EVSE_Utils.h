@@ -37,6 +37,13 @@ typedef enum _timestamp_formats
     MM_SS
 } timestamp_formats_t;
 
+typedef enum _evse_return_status
+{
+    SUCCESS,
+    FAIL,
+    NOT_IMPLEMENTED,
+}evse_return_status_t;
+
 /**
  * Get the the number of miliseconds since the scheduler started
  * @return number of miliseconds
@@ -114,14 +121,6 @@ evse_peripheral_status_t EVSE_LPSPI_GetMutex(uint8_t instance);
  * @return evse_peripheral_status_t EVSE_Peripheral_Fail
  */
 evse_peripheral_status_t EVSE_LPSPI_PostMutex(uint8_t instance);
-
-/**
- * @brief Get the instance number from a base address
- *
- * @param base The LPSPI base address
- * @return uint8_t Return an instance number
- */
-uint8_t EVSE_LPSPI_GetInstance(LPSPI_Type *base);
 
 /**
  * Creates a mutex that should be used for LPI2C exclusive access

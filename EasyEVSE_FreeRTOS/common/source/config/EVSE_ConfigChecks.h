@@ -30,6 +30,36 @@
 #endif /* ENABLE_WIFI == 1 && BOARD_NFC_ARDUINO_HEADER == 1 */
 #endif /* EASYEVSE_EV */
 
+#if (defined(BUILD_EV_UI) && (ENABLE_EV_UI == 0))
+#error "EV_UI build config is selected, enable ENABLE_EV_UI"
+#endif
+
+#if (ENABLE_EVSE_UI && ENABLE_EV_UI)
+#error "Choose only one UI version"
+#endif
+
+#if ((ENABLE_LCD == 0) && (ENABLE_EVSE_UI || ENABLE_EV_UI))
+#error "Enable the display when enabling a UI"
+#endif
+
+#if (ENABLE_LCD && (ENABLE_EVSE_UI == 0) && (ENABLE_EV_UI == 0))
+#error "Display enabled but no UI selected"
+#endif
+
+#if EASYEVSE_EV
+#if(ENABLE_CLEV663_NFC || ENABLE_CONNECTIVITY || ENABLE_METER || ENABLE_SE)
+#error "EV does not support NFC, connectivity, meter and SE. Please disable all of these modules."
+#endif
+#endif
+
+#if ((defined(BUILD_EVSE) || defined(BUILD_EVSE_ETH) || defined(BUILD_EV)) && ENABLE_EV_UI)
+#error "Enable ENABLE_EV_UI only for EV_UI build config"
+#endif
+
+#if ((defined(BUILD_EV_UI)|| defined(BUILD_EV)) && ENABLE_EVSE_UI)
+#error "Disable ENABLE_EVSE_UI when building EV build configs"
+#endif
+
 #if ((ENABLE_ISO15118 == 1) && (ENABLE_J1772 == 1))
 #error "ENABLE only one charging protocol. ISO15118 contains also BC J1772"
 #endif
@@ -44,25 +74,12 @@
 #endif /* (BOARD_SIGBOARD_ARDUINO_HEADER == 1) && (BOARD_NFC_ARDUINO_HEADER == 1) */
 #endif /* EASYEVSE_EV */
 
-#if (((EVSE_SAS_AUTH == EVSE_X509_AUTH) && (EVSE_SAS_AUTH == 1)) ||         \
-     ((EVSE_X509_AUTH == EVSE_X509_SE050_AUTH) && (EVSE_X509_AUTH == 1)) || \
-     ((EVSE_X509_SE050_AUTH == EVSE_SAS_AUTH) && (EVSE_X509_SE050_AUTH == 1)))
-#error "Can't have more than one connection security method enabled at a time."
-#endif /* EVSE_X509_SE050_AUTH */
-
-#if ((EVSE_SAS_AUTH == 0) && (EVSE_X509_AUTH == 0) && (EVSE_X509_SE050_AUTH == 0))
-#error "No security method enabled."
-#endif
-
 #if (ENABLE_SE == 0)
 #if (PKCS11_SUPPORTED == 1)
 #error "PKCS11 needs SE05X enabled."
 #endif
 #if (EVSE_EDGELOCK_AGENT == 1)
 #error "EdgeLock2GO agent needs SE05x enabled."
-#endif
-#if ((ENABLE_CONNECTIVITY == 1) && (EVSE_X509_SE050_AUTH == 1))
-#error "Authentication method needs SE05X enabled."
 #endif
 #endif /* ENABLE_SE == 0 */
 

@@ -569,28 +569,32 @@ static int privateKeySigningCallback( void * pvContext,
         xResult = CKR_ARGUMENTS_BAD;
     }
 
-    /* Format the hash data to be signed. */
-    if( CKK_RSA == pxTLSContext->xKeyType )
+    if( CKR_OK == xResult )
     {
-        xMech.mechanism = CKM_RSA_PKCS;
+        /* Format the hash data to be signed. */
+        if( CKK_RSA == pxTLSContext->xKeyType )
+        {
+            xMech.mechanism = CKM_RSA_PKCS;
 
-        /* mbedTLS expects hashed data without padding, but PKCS #11 C_Sign function performs a hash
-         * & sign if hash algorithm is specified.  This helper function applies padding
-         * indicating data was hashed with SHA-256 while still allowing pre-hashed data to
-         * be provided. */
-        xResult = vAppendSHA256AlgorithmIdentifierSequence( ( uint8_t * ) pucHash, xToBeSigned );
-        xToBeSignedLen = pkcs11RSA_SIGNATURE_INPUT_LENGTH;
+            /* mbedTLS expects hashed data without padding, but PKCS #11 C_Sign function performs a hash
+            * & sign if hash algorithm is specified.  This helper function applies padding
+            * indicating data was hashed with SHA-256 while still allowing pre-hashed data to
+            * be provided. */
+            xResult = vAppendSHA256AlgorithmIdentifierSequence( ( uint8_t * ) pucHash, xToBeSigned );
+            xToBeSignedLen = pkcs11RSA_SIGNATURE_INPUT_LENGTH;
+        }
+        else if( CKK_EC == pxTLSContext->xKeyType )
+        {
+            xMech.mechanism = CKM_ECDSA;
+            memcpy( xToBeSigned, pucHash, xHashLen );
+            xToBeSignedLen = xHashLen;
+        }
+        else
+        {
+            xResult = CKR_ARGUMENTS_BAD;
+        }
     }
-    else if( CKK_EC == pxTLSContext->xKeyType )
-    {
-        xMech.mechanism = CKM_ECDSA;
-        memcpy( xToBeSigned, pucHash, xHashLen );
-        xToBeSignedLen = xHashLen;
-    }
-    else
-    {
-        xResult = CKR_ARGUMENTS_BAD;
-    }
+
 
     if( CKR_OK == xResult )
     {

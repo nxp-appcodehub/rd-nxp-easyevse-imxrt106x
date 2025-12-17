@@ -1,5 +1,5 @@
 /*
- * Copyright 2020, 2024 NXP
+ * Copyright 2020, 2024 - 2025 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -101,9 +101,12 @@ void vApplicationGetTimerTaskMemory(StaticTask_t **ppxTimerTaskTCBBuffer,
 }
 
 #if defined __has_include
-#if __has_include("osa_freertos.h")
+#if __has_include("osa.h")
 #include "osa_freertos.h"
+#include "osa.h"
 #define WIFI_FILE_FOUND 1
+#else
+#define WIFI_FILE_FOUND 0
 #endif /* __has_include ("osa_freertos.h") */
 #endif /* defined __has_include */
 
@@ -113,7 +116,6 @@ extern void TrgtHW_TimerISR(void);
 
 /* If the wifi files are present, use wifi abstraction layer*/
 #if (WIFI_FILE_FOUND == 0U)
-
 void vApplicationIdleHook(void)
 {
 }
@@ -136,7 +138,7 @@ void vApplicationTickHook(void)
 #endif /* ENABLE_ISO15118 */
 }
 
-#endif /* ENABLE_WIFI */
+#endif /* WIFI_FILE_FOUND */
 
 void vApplicationTickHookRegister(void)
 {

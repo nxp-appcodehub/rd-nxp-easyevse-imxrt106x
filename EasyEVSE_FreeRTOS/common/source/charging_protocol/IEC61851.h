@@ -36,6 +36,7 @@
 #define PWM5_VALUE     50
 
 #define STATEB2_TRANSITION_B1_MIN_TIME 3000
+#define STATEC1_TRANSITION_C2_MIN_TIME 2000
 #define STATEA_MIN_LEVEL               58000
 #define STATEA_MAX_LEVEL               62000
 #define STATEB_MIN_LEVEL               52000
@@ -224,6 +225,11 @@ void EVSE_J1772_StopCharging(bool bCharging);
 void EVSE_J1772_GetVehicleData(vehicle_data_t *vehicle_data);
 
 /**
+ * Set NFC authentication
+ */
+void EVSE_J1772_SetNFCAuthentication(uint8_t *cardUID, uint8_t size);
+
+/**
  * @brief Init the J1772 stack
  *
  */
@@ -235,4 +241,39 @@ void EVSE_J1772_Init(void);
  * @param stopCharging
  */
 void EVSE_J1772_Loop(bool *stopCharging);
+
+#if EASYEVSE_EV
+/**
+ * @brief Get vehicle data as described in the charging protocol header.
+ * if the values are not valid for J1772 they will be left untouched
+ *
+ * @param vehicle_data
+ */
+void EV_J1772_GetVehicleData(vehicle_data_t *vehicle_data);
+
+/**
+ * @brief Get current charging state of the system
+ *
+ * @param bCharging
+ * @return true if the car is charging
+ * @return false if the car is not charging
+ */
+void EV_J1772_isCharging(bool *bCharging);
+
+/**
+ * @brief Resets EV battery level to full or empty
+ */
+void EV_J1772_ResetBatteryLevel(battery_levels_t battery_level);
+
+/**
+ * @brief Stops charging from EV side
+ */
+void EV_J1772_StopCharging(void);
+
+/**
+ * @brief Starts charging from EV side
+ */
+void EV_J1772_StartCharging();
+
+#endif /* EASYEVSE_EV */
 #endif /* J1772_IEC61851_H_ */

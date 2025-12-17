@@ -8,6 +8,12 @@
  */
 
 #include "EVSE_ConnectivityConfig.h"
+#include "EVSE_Ocpp.h"
+#include "EVSE_Secure_Element.h"
+
+#include "FreeRTOS.h"
+#include "task.h"
+#include "event_groups.h"
 
 /* EdgeLock 2GO agent includes */
 #include "nxp_iot_agent.h"
@@ -33,6 +39,8 @@ static iot_agent_status_t agent_start(ex_sss_boot_ctx_t *pCtx);
 static void print_status_report(const nxp_iot_UpdateStatusReport *status_report);
 static iot_agent_status_t iot_agent_print_uid(sss_se05x_session_t *pSession);
 static void iot_agent_print_uid_integer(char *hexString, size_t len);
+static bool EVSE_EdgeLock_CheckProvisioned(void);
+static bool edgelock_ready = false;
 
 /*******************************************************************************
  * Variables
@@ -45,24 +53,80 @@ extern ex_sss_cloud_ctx_t gex_sss_demo_tls_ctx;
  * Code
  ******************************************************************************/
 
-/* Called from prvAzureCheckProvisioned, after the EVSE has successfully connected to network. */
-iot_agent_status_t EVSE_EdgeLock_RunClient(void)
+static bool EVSE_EdgeLock_CheckProvisioned(void)
+{
+    bool provDone = true;
+    EVSE_SE05X_status_t status;
+
+#if ((ENABLE_ISO15118 == 1) && (PKCS11_SUPPORTED == 1))
+    status = kStatus_CPOKey_Failed;
+
+    EVSE_SE050_Open_Session();
+    status = EVSE_SE050_Check_CPOKey();
+    EVSE_SE050_Close_Session();
+
+    provDone = (status == kStatus_CPOKey_Success) ? true : false;
+#endif /* ENABLE_ISO15118 && PKCS11_SUPPORTED */
+
+    return provDone;
+}
+
+bool EVSE_EdgeLock_IsReady()
+{
+    return edgelock_ready;
+}
+
+void EVSE_EdgeLock_RunClient(void *arg)
 {
     iot_agent_status_t agent_status = IOT_AGENT_FAILURE;
 
-    configPRINTF(("Starting EdgeLock2GO agent."));
-
-    /* Start an EdgeLock 2GO agent session */
-    agent_status = agent_start(&gex_sss_demo_boot_ctx);
-    if (agent_status != IOT_AGENT_SUCCESS)
+    if(EVSE_EdgeLock_CheckProvisioned() == false)
     {
-        configPRINTF(("agent_start() failed with %d", agent_status));
-        return IOT_AGENT_FAILURE;
+        configPRINTF(("Starting EdgeLock2GO agent."));
+
+        /* Start an EdgeLock 2GO agent session */
+        agent_status = agent_start(&gex_sss_demo_boot_ctx);
+        if (agent_status != IOT_AGENT_SUCCESS)
+        {
+            configPRINTF(("agent_start() failed with %d", agent_status));
+        }
+        else
+        {
+#if ((ENABLE_ISO15118 == 1) && (PKCS11_SUPPORTED == 1))
+        EVSE_SE050_Open_Session();
+        EVSE_SE050_Handle_CPOKey();
+        EVSE_SE050_Close_Session();
+#endif /* ENABLE_ISO15118 && PKCS11_SUPPORTED */
+            configPRINTF((success("EdgeLock2GO agent started.")));
+            edgelock_ready = true;
+        }
+    }
+    else
+    {
+        configPRINTF((info("CPO key already provisioned")));
+        edgelock_ready = true;
     }
 
-    return IOT_AGENT_SUCCESS;
+    vTaskDelete(NULL);
 }
 
+void EVSE_EdgeLock_Init(void)
+{
+	static bool first_time = false;
+
+	if (first_time == false)
+	{
+		if (xTaskCreate(EVSE_EdgeLock_RunClient, "EdgeLock2Go", APP_EVSE_EDGELOCK_STACK_SIZE, NULL, APP_EVSE_EDGELOCK_PRIORITY, NULL) != pdPASS)
+		{
+			configPRINTF((error(" %s Failed to create task "), __FUNCTION__));
+			while (1)
+				;
+		}
+
+		first_time = true;
+	}
+
+}
 /* Open an IoT agent session */
 static iot_agent_status_t agent_start(ex_sss_boot_ctx_t *pCtx)
 {

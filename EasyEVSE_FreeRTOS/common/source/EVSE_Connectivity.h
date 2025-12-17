@@ -37,6 +37,9 @@ typedef enum _connectionState
     EVSE_Network_SNTPError,
     EVSE_Network_NetworkConnected,
     EVSE_Network_NetworkDisconnected,
+    EVSE_Network_EdgelockInit,
+    EVSE_Network_WaitEdgelock,
+    EVSE_Network_OCPP_Init,
     EVSE_Network_Last
 } connectionState_t;
 

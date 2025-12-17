@@ -18,13 +18,17 @@
 #include "v2g_cp_service.h"
 #endif /* ENABLE_ISO15118 */
 
+#if ENABLE_OCPP
+#include "EVSE_Ocpp.h"
+#endif /* ENABLE_OCPP */
+
 #if (PKCS11_SUPPORTED == 1)
 #include "EVSE_Secure_Element.h"
 #endif /* (PKCS11_SUPPORTED == 1) */
 
 static uint32_t power_requests_cntr = 0;
 
-static vehicle_auth_methods_t vehicle_auth_method = LAST_AUTH_METHOD;
+static evse_auth_methods_t vehicle_auth_method = LAST_AUTH_METHOD;
 static V2G_status_t V2G_status                    = NOT_CONNECTED;
 
 static evse_iso15118_state_t s_currentState = EVSE_ISO15118_NotEnable;
@@ -61,7 +65,7 @@ static uint8_t getEnergyDeliveryStatus(uint32_t requestedEnergy, uint32_t delive
 
 static void EVSE_ISO15118_SetUIEvent(ui_events_t event)
 {
-#ifndef EASYEVSE_EV
+#if ENABLE_LCD
     EVSE_UI_SetEvent(event);
 #endif
 }
@@ -74,20 +78,22 @@ const char *EVSE_ISO15118_GetStringFromState(evse_iso15118_state_t state)
         return NULL;
 }
 
+
 evse_iso15118_state_t EVSE_ISO15118_GetState()
 {
     return s_currentState;
 }
 
-vehicle_auth_methods_t EVSE_ISO15118_GetVehicleAuthMethod(void)
+evse_auth_methods_t EVSE_ISO15118_GetVehicleAuthMethod(void)
 {
-    if (s_currentState < EVSE_ISO15118_AuthWait)
+    if ((s_currentState >= EVSE_ISO15118_AuthWait) ||
+              (s_currentState == EVSE_ISO15118_SLACSucces))
     {
-        return VehicleAuth_None;
+         return vehicle_auth_method;
     }
     else
     {
-        return vehicle_auth_method;
+        return VehicleAuth_None;
     }
 }
 
@@ -102,8 +108,11 @@ charging_directions_t EVSE_ISO15118_GetEnergyDirection(void)
 {
     uint8_t direction = 0;
     bool result       = false;
-
+#ifndef EASYEVSE_EV
     stxV2GApplExt_EVSEGetEnergyTransferDir(&direction, &result);
+#else
+    stxV2GApplExt_EVGetEnergyTransferDir(&direction, &result);
+#endif
     if (result == true)
     {
         if (direction == 0)
@@ -140,11 +149,10 @@ void EVSE_ISO15118_SetState(evse_iso15118_state_t state)
 
 		s_currentState = state;
 		EVSE_ISO15118_SetUIEvent(EVSE_UI_ISO15118_Stack_Status);
-
 	}
 }
 
-void EVSE_ISO15118_SetVehicleAuthMethod(vehicle_auth_methods_t auth_method)
+void EVSE_ISO15118_SetVehicleAuthMethod(evse_auth_methods_t auth_method)
 {
     vehicle_auth_method = auth_method;
 }
@@ -173,7 +181,6 @@ void EVSE_ISO15118_SetV2GStatus(V2G_status_t status)
     if (V2G_status != status)
     {
         V2G_status = status;
-        EVSE_ISO15118_SetUIEvent(EVSE_UI_ISO15118_V2G_status);
     }
 }
 
@@ -207,6 +214,9 @@ void EVSE_ISO15118_SetMaxCurrent(uint32_t max_current)
     bool result = 0;
     stxV2GApplExt_EVSESetMaxACCurrentLimit((float)max_current, &result);
 }
+
+/* Prototype declaration */
+extern void stxV2GApplExt_EVSEGetCP(V2GCPS_STATE *cpState, bool *result);
 
 char EVSE_ISO15118_GetCpStateString()
 {
@@ -296,5 +306,120 @@ void EVSE_ISO15118_Loop(bool *stopCharging)
         *stopCharging = false;
     }
 }
+
+void EVSE_ISO15118_SetPaymentMethod(evse_auth_methods_t method)
+{
+    stxV2GApplExt_EVSESetPaymentMethod(method);
+}
+
+void EVSE_ISO15118_StartCharging()
+{
+    bool result = false;
+    stxV2GApplExt_EVSEStartCharging(&result);
+}
+
+void EVSE_ISO15118_SetNFCAuthentication(uint8_t *cardUID, uint8_t size)
+{
+    stxV2GSetNFCDetected(cardUID, size);
+}
+
+char* EVSE_ISO15118_GetEmaidValue()
+{
+    return stxV2GApplExt_EVSEGetEmaidValue();
+}
+
+#if EASYEVSE_EV
+void EV_ISO15118_GetVehicleData(vehicle_data_t *vehicle_data)
+{
+    if (vehicle_data == NULL)
+    {
+        return;
+    }
+
+    double double_variable            = 0.0f;
+    uint32_t unsigned32_variable      = 0;
+    bool result                       = true;
+    evse_charging_protocol_t protocol = EVSE_BasicCharging_J1772;
+    evse_auth_methods_t auth_method = VehicleAuth_None;
+
+    stxV2GApplExt_EVGetCurrent(&double_variable, &result);
+    double_variable             = fabs(double_variable);
+    vehicle_data->chargeCurrent = (float)double_variable;
+
+    stxV2GApplExt_EVGetVoltage(&double_variable, &result);
+    double_variable             = fabs(double_variable);
+    vehicle_data->chargeVoltage = (float)double_variable;
+
+    stxV2GApplExt_EVGetPower(&double_variable, &result);
+    double_variable           = fabs(double_variable);
+    vehicle_data->chargePower = (float)double_variable;
+
+    stxV2GApplExt_EVGetBatteryLevel(&double_variable, &result);
+    double_variable             = fabs(double_variable);
+    vehicle_data->fBatteryLevel = (float)double_variable;
+
+    stxV2GApplExt_EVGetTimeToCharge(&unsigned32_variable, &result);
+    vehicle_data->timeToCharge = unsigned32_variable;
+
+    stxV2GApplExt_EVGetChargingProtocol(&protocol, &result);
+    vehicle_data->charging_protocol = (evse_charging_protocol_t)protocol;
+}
+
+evse_auth_methods_t EV_GetAuthMethod()
+{
+    return stxV2GApplExt_EVGetAuthMethod();
+}
+
+void EV_ISO15118_isCharging(bool *bCharging)
+{
+    bool result = false;
+    if (bCharging != NULL)
+    {
+        stxV2GApplExt_EVGetCharging(bCharging, &result);
+    }
+}
+
+void EV_ISO15118_ChangeChargingDirection()
+{
+    stxV2GApplExt_EVChangeChargingDirection();
+}
+
+void EV_ISO15118_ResetBatteryLevel(battery_levels_t battery_level)
+{
+    stxV2GAppl_SetBatteryLevel(battery_level);
+}
+
+void EV_ISO15118_StopCharging()
+{
+    bool result = false;
+    stxV2GApplExt_EVStopCharging(&result);
+}
+
+void EV_ISO15118_SetProtocol(evse_charging_protocol_t protocol)
+{
+    stxV2GApplExt_EVSetProtocol(protocol);
+}
+
+void EV_ISO15118_StartCharging()
+{
+    bool result = false;
+    stxV2GApplExt_EVStartCharging(&result);
+}
+
+void EV_ISO15118_SetAuthMethod(evse_auth_methods_t auth_method)
+{
+    stxV2GApplExt_EVSetAuthMethod(auth_method);
+}
+
+evse_charging_protocol_t EV_ISO15118_GetProtocol()
+{
+    stxV2GApplExt_EVGetProtocol();
+}
+
+void EV_ISO15118_SetDefault()
+{
+    stxV2GApplExt_EVSetDefaults();
+}
+#endif /*EASYEVSE_EV*/
 
 #endif /* ENABLE_ISO15118 */

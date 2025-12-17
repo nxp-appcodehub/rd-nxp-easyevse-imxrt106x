@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" width="161.219mm" height="95.093mm" version="1.1" viewBox="0 0 457 269.556">
+  <!-- Generator: Adobe Illustrator 29.8.2, SVG Export Plug-In . SVG Version: 2.1.1 Build 3)  -->
+  <rect x=".5" y="47.607" width="264" height="36" fill="#e6e7e8" stroke="#231f20"/>
+  <text transform="translate(423.67 267.607)" font-family="Arial-ItalicMT, Arial" font-size="6" font-style="italic"><tspan x="0" y="0">aaa-063920</tspan></text>
+  <rect x="96.5" y="51.607" width="56" height="24" fill="#e2e3c4" stroke="#231f20"/>
+  <text transform="translate(101.538 62.012)" font-family="ArialMT, Arial" font-size="7"><tspan x="0" y="0">Basic charging</tspan><tspan x="13.421" y="8.4">J1772</tspan></text>
+  <rect x="272.5" y="47.607" width="56" height="47.2" fill="#ffedaf" stroke="#231f20"/>
+  <rect x="272.5" y="123.607" width="120" height="52" fill="#e6e7e8" stroke="#231f20"/>
+  <text transform="translate(281.432 73.208)" font-family="ArialMT, Arial" font-size="7"><tspan x="0" y="0">OCPP client</tspan></text>
+  <rect x="272.5" y="98.807" width="56" height="16.8" fill="#ffedaf" stroke="#231f20"/>
+  <text transform="translate(292.91 110.007)" font-family="ArialMT, Arial" font-size="7"><tspan x="0" y="0">LWS</tspan></text>
+  <rect x="400.5" y="47.607" width="56" height="128" fill="#e6e7e8" stroke="#231f20"/>
+  <text transform="translate(422.272 83.607)" font-family="ArialMT, Arial" font-size="7"><tspan x="0" y="0">GUI</tspan></text>
+  <rect x="336.5" y="47.607" width="56" height="68" fill="#e2e3c4" stroke="#231f20"/>
+  <text transform="translate(343.48 79.607)" font-family="ArialMT, Arial" font-size="7"><tspan x="0" y="0">Edgelock2Go</tspan><tspan x="12.255" y="8.4">agent</tspan></text>
+  <rect x=".5" y="91.607" width="232" height="24" fill="#e6e7e8" stroke="#231f20"/>
+  <rect x="88.5" y="95.607" width="52.8" height="16" fill="#ccc3df" stroke="#231f20"/>
+  <text transform="translate(96.616 106.012)" font-family="ArialMT, Arial" font-size="7"><tspan x="0" y="0">EIM service</tspan></text>
+  <rect x="88.5" y="123.607" width="52.8" height="52" fill="#e2e3c4" stroke="#231f20"/>
+  <text transform="translate(96.614 147.607)" font-family="ArialMT, Arial" font-size="7"><tspan x="0" y="0">NFC reader</tspan><tspan x="8.753" y="8.4">library</tspan></text>
+  <rect x="154.099" y="95.607" width="70.401" height="16" fill="#ccc3df" stroke="#231f20"/>
+  <text transform="translate(163.62 106.012)" font-family="ArialMT, Arial" font-size="7"><tspan x="0" y="0">Metering service</tspan></text>
+  <rect x="154.099" y="123.607" width="70.401" height="32" fill="#e2e3c4" stroke="#231f20"/>
+  <text transform="translate(165.177 142.007)" font-family="ArialMT, Arial" font-size="7"><tspan x="0" y="0">Metering library</tspan></text>
+  <rect x="144.5" y="159.607" width="120" height="16" fill="#e2e3c4" stroke="#231f20"/>
+  <text transform="translate(156.258 170.808)" font-family="ArialMT, Arial" font-size="7"><tspan x="0" y="0">EVSE-SIG-BRD2X middleware</tspan></text>
+  <rect x="276.5" y="137.206" width="112" height="15.201" fill="#ffedaf" stroke="#231f20"/>
+  <text transform="translate(323.939 147.607)" font-family="ArialMT, Arial" font-size="7"><tspan x="0" y="0">LWIP</tspan></text>
+  <rect x="408.5" y="137.206" width="40" height="15.201" fill="#ffedaf" stroke="#231f20"/>
+  <text transform="translate(419.546 147.607)" font-family="ArialMT, Arial" font-size="7"><tspan x="0" y="0">LVGL</tspan></text>
+  <rect x="276.5" y="156.407" width="112" height="15.2" fill="#e2e3c4" stroke="#231f20"/>
+  <text transform="translate(290.489 166.808)" font-family="ArialMT, Arial" font-size="7"><tspan x="0" y="0">ETH/NXP WiFi middleware</tspan></text>
+  <rect x="8.5" y="95.607" width="72" height="16" fill="#ccc3df" stroke="#231f20"/>
+  <text transform="translate(31.857 106.012)" font-family="ArialMT, Arial" font-size="7"><tspan x="0" y="0">Security</tspan></text>
+  <rect x=".5" y="23.607" width="456" height="16" fill="#e6e7e8" stroke="#231f20"/>
+  <text transform="translate(182.197 34.011)" font-family="ArialMT, Arial" font-size="7"><tspan x="0" y="0">EasyEVSE application control</tspan></text>
+  <text transform="translate(129.675 6.007)" font-family="ArialMT, Arial" font-size="7"><tspan x="0" y="0">Simplified software block diagram for EasyEVSE application on </tspan><tspan x="14.998" y="8.4">i.MX RT106x crossover MCU with Wi-Fi 4 enablement</tspan></text>
+  <rect x=".5" y="183.607" width="456" height="24" fill="#e6e7e8" stroke="#231f20"/>
+  <rect x=".5" y="123.607" width="80" height="16" fill="#ffedaf" stroke="#231f20"/>
+  <text transform="translate(28.246 134.012)" font-family="ArialMT, Arial" font-size="7"><tspan x="0" y="0">Mbedtls</tspan></text>
+  <rect x=".5" y="143.607" width="80" height="32" fill="#e2e3c4" stroke="#231f20"/>
+  <text transform="translate(10.077 154.012)" font-family="ArialMT, Arial"><tspan x="0" y="0" font-size="7">Edgelock</tspan><tspan x="28.796" y="-2.1" font-size="6">®</tspan><tspan x="33.217" y="0" xml:space="preserve" font-size="7"> SE050E</tspan><tspan font-size="7"><tspan x="6.495" y="8.4">secure element</tspan></tspan><tspan font-size="7"><tspan x="20.895" y="16.8">library</tspan></tspan></text>
+  <text transform="translate(8.5 57.208)" font-family="ArialMT, Arial" font-size="7"><tspan x="0" y="0">V2G demo</tspan></text>
+  <rect x="184.5" y="51.607" width="72" height="24" fill="#fcd3d0" stroke="#231f20"/>
+  <text transform="translate(205.757 62.012)" font-family="ArialMT, Arial" font-size="7"><tspan x="0" y="0">Sevenstax</tspan><tspan x="-8.562" y="8.4">ISO15118-2/-20</tspan></text>
+  <rect x="158.9" y="67.607" width="36.8" height="12.8" fill="#fcd3d0" stroke="#231f20"/>
+  <rect x=".5" y="259.607" width="8" height="8" fill="#e2e3c4" stroke="#231f20"/>
+  <text transform="translate(164.654 76.412)" font-family="ArialMT, Arial" font-size="7"><tspan x="0" y="0">Lumissil</tspan></text>
+  <polygon points="147.7 76.407 144.501 81.207 150.902 81.207 147.7 76.407"/>
+  <polygon points="147.701 158.807 150.9 154.008 144.5 154.008 147.701 158.807"/>
+  <line x1="147.7" y1="79.607" x2="147.7" y2="155.207" fill="none" stroke="#000" stroke-linecap="square" stroke-width="2"/>
+  <polygon points="248.499 76.407 245.3 81.207 251.7 81.207 248.499 76.407"/>
+  <polygon points="248.5 158.807 251.699 154.008 245.298 154.008 248.5 158.807"/>
+  <line x1="248.499" y1="79.607" x2="248.499" y2="155.207" fill="none" stroke="#000" stroke-linecap="square" stroke-width="2"/>
+  <polygon points="216.5 76.008 213.301 80.808 219.701 80.808 216.5 76.008"/>
+  <polygon points="216.501 98.807 219.7 94.007 213.3 94.007 216.501 98.807"/>
+  <line x1="216.5" y1="79.207" x2="216.5" y2="95.207" fill="none" stroke="#000" stroke-linecap="square" stroke-width="2"/>
+  <polygon points="160.499 144.408 157.3 149.207 163.7 149.207 160.499 144.408"/>
+  <polygon points="160.5 158.807 163.699 154.008 157.298 154.008 160.5 158.807"/>
+  <line x1="160.499" y1="147.607" x2="160.499" y2="155.207" fill="none" stroke="#000" stroke-linecap="square" stroke-width="2"/>
+  <text transform="translate(276.5 133.208)" font-family="ArialMT, Arial" font-size="7"><tspan x="0" y="0">TCP/IP stack</tspan></text>
+  <rect x="8.5" y="187.607" width="440" height="16" fill="#fcd3d0" stroke="#231f20"/>
+  <text transform="translate(211.581 198.012)" font-family="ArialMT, Arial" font-size="7"><tspan x="0" y="0">FreeRTOS</tspan></text>
+  <rect x=".5" y="215.607" width="456" height="36" fill="#e6e7e8" stroke="#231f20"/>
+  <rect x="8.5" y="231.607" width="440" height="16" fill="#d6e9f6" stroke="#231f20"/>
+  <text transform="translate(103.255 242.808)" font-family="ArialMT, Arial" font-size="7"><tspan x="0" y="0">Drivers (SPI, SDIO, UART, GPIO, I2C, ethernet, memory, eLCDIF, SEMC, DMA)</tspan></text>
+  <text transform="translate(11.7 266.007)" font-family="ArialMT, Arial" font-size="7"><tspan x="0" y="0">NXP middleware</tspan></text>
+  <rect x="76.5" y="259.607" width="8" height="8" fill="#d6e9f6" stroke="#231f20"/>
+  <text transform="translate(87.7 266.007)" font-family="ArialMT, Arial" font-size="7"><tspan x="0" y="0">NXP drivers</tspan></text>
+  <rect x="138.1" y="259.607" width="8" height="8" fill="#ffedaf" stroke="#231f20"/>
+  <text transform="translate(149.3 266.007)" font-family="ArialMT, Arial" font-size="7"><tspan x="0" y="0">Open source</tspan></text>
+  <rect x="202.9" y="259.607" width="8" height="8" fill="#fcd3d0" stroke="#231f20"/>
+  <text transform="translate(214.1 266.007)" font-family="ArialMT, Arial" font-size="7"><tspan x="0" y="0">Third party middleware</tspan></text>
+  <text transform="translate(186.676 226.808)" font-family="ArialMT, Arial" font-size="7"><tspan x="0" y="0">Hardware abstraction layer</tspan></text>
+</svg>

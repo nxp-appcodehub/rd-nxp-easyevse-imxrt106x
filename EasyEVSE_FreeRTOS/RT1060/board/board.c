@@ -1,5 +1,6 @@
 /*
- * Copyright 2018-2019,2025 NXP
+ * Copyright 2018-2019, 2025 NXP
+ * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -44,6 +45,10 @@ extern uint32_t __Vectors[];
  ******************************************************************************/
 
 __attribute__((section(".vectorTableRam"), aligned(0x400))) uint32_t g_vectorTable[256] = {0};
+
+static LPSPI_Type *const s_lpspiBases[] = LPSPI_BASE_PTRS;
+
+static uint8_t s_SPI_mode[ARRAY_SIZE(s_lpspiBases)];
 
 /*******************************************************************************
  * Code
@@ -504,7 +509,7 @@ void BOARD_RelocateVectorTableToRam(void)
 
 void BOARD_LPSPI_Init(LPSPI_Type *base, const lpspi_master_config_t *config)
 {
-    uint8_t instance = EVSE_LPSPI_GetInstance(base);
+    uint8_t instance = LPSPI_GetInstance(base);
 
     assert(config != NULL);
     assert(instance != 0);
@@ -522,12 +527,26 @@ void BOARD_LPSPI_Init(LPSPI_Type *base, const lpspi_master_config_t *config)
     CLOCK_SetDiv(kCLOCK_LpspiDiv, LPSPI_CLOCK_SOURCE_DIVIDER);
 
     LPSPI_MasterInit(base, config, LPSPI_CLOCK_FREQ);
+    // Save current SPI configuration
+    s_SPI_mode[instance] = ((config->direction << 2) | (config->cpol << 1) | (config->cpha));
+}
+
+void BOARD_LPSPI_Reinit(LPSPI_Type *base, const lpspi_master_config_t *config)
+{
+    uint8_t instance = LPSPI_GetInstance(base);
+
+    if(s_SPI_mode[instance] != ((config->direction << 2) | (config->cpol << 1) | (config->cpha)))
+    {
+        LPSPI_Deinit(base);
+        LPSPI_MasterInit(base, config, LPSPI_CLOCK_FREQ);
+        s_SPI_mode[instance] = ((config->direction << 2) | (config->cpol << 1) | (config->cpha));
+    }
 }
 
 status_t BOARD_LPSPI_ReserveExchange(LPSPI_Type *base, uint8_t reserve)
 {
     status_t status  = kStatus_Fail;
-    uint8_t instance = EVSE_LPSPI_GetInstance(base);
+    uint8_t instance = LPSPI_GetInstance(base);
 
     if (reserve == true)
     {
@@ -545,7 +564,7 @@ status_t BOARD_LPSPI_Exchange(LPSPI_Type *base, lpspi_transfer_t *transfer, uint
 {
     evse_peripheral_status_t pheripheral_status = EVSE_Peripheral_Success;
     uint8_t error                               = 0;
-    uint8_t instance                            = EVSE_LPSPI_GetInstance(base);
+    uint8_t instance                            = LPSPI_GetInstance(base);
     status_t status                             = kStatus_Fail;
 
     assert(transfer != NULL);
@@ -587,4 +606,6 @@ status_t BOARD_EnableETH()
     GPIO_WritePinOutput(BOARD_ENET_RESET_GPIO, BOARD_ENET_RESET_PIN, 0);
     SDK_DelayAtLeastUs(10000, CLOCK_GetFreq(kCLOCK_CpuClk));
     GPIO_WritePinOutput(BOARD_ENET_RESET_GPIO, BOARD_ENET_RESET_PIN, 1);
+    
+    return kStatus_Success;
 }

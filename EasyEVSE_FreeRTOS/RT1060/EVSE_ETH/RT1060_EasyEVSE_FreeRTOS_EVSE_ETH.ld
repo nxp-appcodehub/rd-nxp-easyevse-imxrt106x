@@ -2,10 +2,11 @@
  * GENERATED FILE - DO NOT EDIT
  * Copyright 2008-2013 Code Red Technologies Ltd,
  * Copyright 2013-2025 NXP
+ * SPDX-License-Identifier: BSD-3-Clause
  * Generated linker script file for MIMXRT1062xxxxB
  * Created from linkscript.ldt by FMCreateLinkLibraries
  * Using Freemarker v2.3.30
- * MCUXpresso IDE v11.9.0 [Build 2144] [2024-01-05] on Apr 23, 2025, 2:40:07 PM
+ * MCUXpresso IDE v25.6 [Build 136] [2025-06-27] on 2 Oct 2025, 17:25:53
  */
 
 INCLUDE "RT1060_EasyEVSE_FreeRTOS_EVSE_ETH_library.ld"
@@ -77,6 +78,36 @@ SECTIONS
         *(EXCLUDE_FILE(*flash_config.o *fsl_flexspi.o *mflash_drv.o *bigmath.o *ecdsa.o *ecmath.o) .text*)
         *(EXCLUDE_FILE(*flash_config.o *mflash_drv.o *bigmath.o *ecdsa.o *ecmath.o) .rodata*)       *(.rodata .rodata.* .constdata .constdata.*)
        . = ALIGN(4);
+            /* C++ constructors etc */
+            . = ALIGN(4);
+            KEEP(*(.init))
+            
+            . = ALIGN(4);
+            __preinit_array_start = .;
+            KEEP (*(.preinit_array))
+            __preinit_array_end = .;
+            
+            . = ALIGN(4);
+            __init_array_start = .;
+            KEEP (*(SORT(.init_array.*)))
+            KEEP (*(.init_array))
+            __init_array_end = .;
+            
+            KEEP(*(.fini));
+            
+            . = ALIGN(4);
+            KEEP (*crtbegin.o(.ctors))
+            KEEP (*(EXCLUDE_FILE (*crtend.o) .ctors))
+            KEEP (*(SORT(.ctors.*)))
+            KEEP (*crtend.o(.ctors))
+            
+            . = ALIGN(4);
+            KEEP (*crtbegin.o(.dtors))
+            KEEP (*(EXCLUDE_FILE (*crtend.o) .dtors))
+            KEEP (*(SORT(.dtors.*)))
+            KEEP (*crtend.o(.dtors))
+            . = ALIGN(4);
+            /* End C++ */
     } > BOARD_FLASH
     /*
      * for exception handling/unwind - some Newlib functions (in common
@@ -338,14 +369,14 @@ SECTIONS
     } > BOARD_SDRAM AT> BOARD_SDRAM
 
     /* Reserve and place Heap within memory map */
-    _HeapSize = 0x2000;
+    _HeapSize = 0x30000;
     .heap (NOLOAD) :  ALIGN(4)
     {
         _pvHeapStart = .;
         . += _HeapSize;
         . = ALIGN(4);
         _pvHeapLimit = .;
-    } > SRAM_DTC
+    } > BOARD_SDRAM AT> BOARD_SDRAM
 
      _StackSize = 0x1000;
      /* Reserve space in memory for Stack */

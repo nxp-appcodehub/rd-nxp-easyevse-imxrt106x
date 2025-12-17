@@ -1,6 +1,6 @@
 /*
  *
- * Copyright 2018,2020 NXP
+ * Copyright 2018, 2020, 2025 NXP
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -19,6 +19,8 @@
 #include "sm_timer.h"
 #include "fsl_gpio.h"
 #include "sci2c_cfg.h"
+
+#include "EVSE_Utils.h"
 
 #if defined(SCI2C)
 #define I2C_BAUDRATE (400u * 1000u) // 400K

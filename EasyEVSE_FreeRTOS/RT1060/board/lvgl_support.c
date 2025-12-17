@@ -1,5 +1,6 @@
 /*
  * Copyright 2021, 2023, 2025 NXP
+ * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -27,6 +28,12 @@
 /*******************************************************************************
  * Definitions
  ******************************************************************************/
+
+#define DEMO_FB_STRIDE(x) ((x * LCD_FB_BYTE_PER_PIXEL + DEMO_FB_ALIGN - 1) & ~(DEMO_FB_ALIGN - 1))
+/* Rotate panel or not. */
+#ifndef DEMO_USE_ROTATE
+#define DEMO_USE_ROTATE 0
+#endif
 
 /* Macros for the touch controller. */
 #define TOUCH_I2C LPI2C1
@@ -108,6 +115,14 @@
 #define DEMO_FB_ALIGN LV_ATTRIBUTE_MEM_ALIGN_SIZE
 #endif
 
+#if DEMO_USE_ROTATE
+#define ROTATED_FB_WIDTH  LCD_HEIGHT
+#define ROTATED_FB_HEIGHT LCD_WIDTH
+#else
+#define ROTATED_FB_WIDTH  LCD_WIDTH
+#define ROTATED_FB_HEIGHT LCD_HEIGHT
+#endif
+
 #define DEMO_FB_SIZE \
     (((LCD_WIDTH * LCD_HEIGHT * LCD_FB_BYTE_PER_PIXEL) + DEMO_FB_ALIGN - 1) & ~(DEMO_FB_ALIGN - 1))
 
@@ -120,7 +135,11 @@ static void DEMO_InitLcdClock(void);
 
 static void DEMO_InitLcdBackLight(void);
 
-static void DEMO_FlushDisplay(lv_disp_drv_t *disp_drv, const lv_area_t *area, lv_color_t *color_p);
+#if LV_VERSION_CHECK (9, 0, 0)
+static void DEMO_FlushDisplay(lv_display_t  *disp_drv, const lv_area_t *area, uint8_t * px_map);
+#else
+static void DEMO_FlushDisplay(lv_display_t  *disp_drv, const lv_area_t *area, lv_color_t *color_p);
+#endif
 
 #if LV_USE_GPU_NXP_PXP
 static void DEMO_CleanInvalidateCache(lv_disp_drv_t *disp_drv);
@@ -128,7 +147,7 @@ static void DEMO_CleanInvalidateCache(lv_disp_drv_t *disp_drv);
 
 static void DEMO_InitTouch(void);
 
-static void DEMO_ReadTouch(lv_indev_drv_t *drv, lv_indev_data_t *data);
+static void DEMO_ReadTouch(lv_indev_t *drv, lv_indev_data_t *data);
 #if (DEMO_PANEL == DEMO_PANEL_RK043FN66HS)
 static void BOARD_PullTouchResetPin(bool pullUp);
 
@@ -181,44 +200,25 @@ void lv_port_pre_init(void)
 
 void lv_port_disp_init(void)
 {
-    static lv_disp_draw_buf_t disp_buf;
-
-    lv_disp_draw_buf_init(&disp_buf, s_frameBuffer[0], s_frameBuffer[1], LCD_WIDTH * LCD_HEIGHT);
+    lv_display_t * disp_drv; /*Descriptor of a display driver*/
 
     /*-------------------------
      * Initialize your display
      * -----------------------*/
     DEMO_InitLcd();
 
-    /*-----------------------------------
-     * Register the display in LittlevGL
-     *----------------------------------*/
-
-    static lv_disp_drv_t disp_drv;      /*Descriptor of a display driver*/
-    lv_disp_drv_init(&disp_drv); /*Basic initialization*/
-
-    /*Set up the functions to access to your display*/
-
-    /*Set the resolution of the display*/
-    disp_drv.hor_res = LCD_WIDTH;
-    disp_drv.ver_res = LCD_HEIGHT;
-
-    /*Used to copy the buffer's content to the display*/
-    disp_drv.flush_cb = DEMO_FlushDisplay;
-
-#if LV_USE_GPU_NXP_PXP
-    disp_drv.clean_dcache_cb = DEMO_CleanInvalidateCache;
+    disp_drv = lv_display_create(ROTATED_FB_WIDTH, ROTATED_FB_HEIGHT);
+#if DEMO_USE_ROTATE
+    lv_display_set_buffers_with_stride(disp_drv, (void *)s_lvglBuffer[0], NULL, DEMO_FB_SIZE, DEMO_FB_STRIDE(ROTATED_FB_WIDTH), LV_DISPLAY_RENDER_MODE_FULL);
+#else
+    lv_display_set_buffers_with_stride(disp_drv, (void *)s_frameBuffer[0], (void *)s_frameBuffer[1], DEMO_FB_SIZE, DEMO_FB_STRIDE(ROTATED_FB_WIDTH), LV_DISPLAY_RENDER_MODE_FULL);
 #endif
 
-    /*Set a display buffer*/
-    disp_drv.draw_buf = &disp_buf;
-
-    /* Partial refresh */
-    disp_drv.full_refresh = 0;
-    disp_drv.direct_mode  = 1;
-
-    /*Finally register the driver*/
-    lv_disp_drv_register(&disp_drv);
+#if DEMO_USE_ROTATE
+    /* s_frameBuffer[1] is first shown in the panel, s_frameBuffer[0] is inactive. */
+    s_inactiveFrameBuffer = (void *)s_frameBuffer[0];
+#endif
+    lv_display_set_flush_cb(disp_drv, DEMO_FlushDisplay);
 }
 
 void LCDIF_IRQHandler(void)
@@ -404,15 +404,16 @@ static void DEMO_CleanInvalidateCache(lv_disp_drv_t *disp_drv)
 }
 #endif
 
-static void DEMO_FlushDisplay(lv_disp_drv_t *disp_drv, const lv_area_t *area, lv_color_t *color_p)
+#if LV_VERSION_CHECK (9, 0, 0)
+static void DEMO_FlushDisplay(lv_display_t  *disp_drv, const lv_area_t *area, uint8_t * px_map)
+#else
+static void DEMO_FlushDisplay(lv_display_t  *disp_drv, const lv_area_t *area, lv_color_t *color_p)
+#endif
 {
     lv_color_t *next_buffer = NULL;
     
-    if(disp_drv->draw_buf->last_area)
-    {
-        DCACHE_CleanInvalidateByRange((uint32_t)color_p, DEMO_FB_SIZE);
-        ELCDIF_SetNextBufferAddr(LCDIF, (uint32_t)color_p);
-    }
+    DCACHE_CleanInvalidateByRange((uint32_t)px_map, DEMO_FB_SIZE);
+    ELCDIF_SetNextBufferAddr(LCDIF, (uint32_t)px_map);
 
 #if !((LV_VERSION_CHECK (8, 3, 10) || LV_VERSION_CHECK (9, 0, 0)))
     if (disp_drv->direct_mode )
@@ -481,8 +482,6 @@ static void DEMO_FlushDisplay(lv_disp_drv_t *disp_drv, const lv_area_t *area, lv
 
 void lv_port_indev_init(void)
 {
-    static lv_indev_drv_t indev_drv;
-
     /*------------------
      * Touchpad
      * -----------------*/
@@ -491,10 +490,9 @@ void lv_port_indev_init(void)
     DEMO_InitTouch();
 
     /*Register a touchpad input device*/
-    lv_indev_drv_init(&indev_drv);
-    indev_drv.type    = LV_INDEV_TYPE_POINTER;
-    indev_drv.read_cb = DEMO_ReadTouch;
-    lv_indev_drv_register(&indev_drv);
+    lv_indev_t * indev = lv_indev_create();
+    lv_indev_set_type(indev, LV_INDEV_TYPE_POINTER);
+    lv_indev_set_read_cb(indev, DEMO_ReadTouch);
 }
 
 #if (DEMO_PANEL == DEMO_PANEL_RK043FN66HS)
@@ -559,7 +557,7 @@ static void DEMO_InitTouch(void)
 }
 
 /* Will be called by the library to read the touchpad */
-static void DEMO_ReadTouch(lv_indev_drv_t *drv, lv_indev_data_t *data)
+static void DEMO_ReadTouch(lv_indev_t  *drv, lv_indev_data_t *data)
 {
     static int touch_x = 0;
     static int touch_y = 0;
@@ -607,7 +605,7 @@ static void DEMO_InitTouch(void)
 }
 
 /* Will be called by the library to read the touchpad */
-static void DEMO_ReadTouch(lv_indev_drv_t *drv, lv_indev_data_t *data)
+static void DEMO_ReadTouch(lv_indev_t *drv, lv_indev_data_t *data)
 {
     touch_event_t touch_event;
     static int touch_x = 0;

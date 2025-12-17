@@ -11,8 +11,8 @@
 
 #if (MIMXRT1060_REVA == 1) || (MIMXRT1060_REVB == 1) || (MIMXRT1064_REVA == 1)
 #include "IS25WP064AJBLE.h"
-#elif (MIMXRT1060_REVC == 0)
-/* TODO */
+#elif (MIMXRT1060_REVC == 1)
+#include "W25Q128JWSIQ.h"
 #endif
 
 extern const uint32_t customLUT[CUSTOM_LUT_LENGTH];

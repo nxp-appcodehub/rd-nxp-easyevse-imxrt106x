@@ -17,6 +17,9 @@
 #include "fsl_component_serial_port_usb.h"
 #include "virtual_com.h"
 #include "fsl_shell.h"
+#if EASYEVSE_EV
+#include "board.h"
+#endif /* EASYEVSE_EV */
 
 #include "EVSE_Shell.h"
 #include "EVSE_ConnectivityConfig.h"
@@ -32,13 +35,14 @@
 
 #if ENABLE_SIGBOARD
 #include "EVSE_Metering.h"
+#include "hal_uart_bridge.h"
 #endif /* ENABLE_SIGBOARD */
 
 #if ENABLE_ISO15118
 #include <ISO15118.h>
-extern void stxV2GSetNFCDetected(uint8_t *cardUID, uint8_t size);
-extern void stxV2GApplExt_EVSESetPaymentMethod(vehicle_auth_methods_t payment_method);
 #endif /* ENABLE_ISO15118 */
+
+#include "EVSE_ChargingProtocol.h"
 
 #define EVSE_SERIAL_MANAGER_RECEIVE_BUFFER_LEN 2048U
 
@@ -47,9 +51,9 @@ extern void stxV2GApplExt_EVSESetPaymentMethod(vehicle_auth_methods_t payment_me
 /* Maximum argv string size */
 #define EVSE_ARGV_STR_MAX 64
 
-#if ENABLE_ISO15118
+#if ENABLE_CHARGING_PROTOCOL
 #define AUTH_CARD_UID "AUTH_FROM_CLI"
-#endif /* ENABLE_ISO15118 */
+#endif /* ENABLE_CHARGING_PROTOCOL */
 
 #define CONTROLLER_ID kSerialManager_UsbControllerEhci0
 
@@ -57,17 +61,96 @@ extern void USB_DeviceClockInit(void);
 
 extern bool deviceIDReady;
 
+static shell_status_t EV_cp_state_handler(shell_handle_t shellHandle, int32_t argc, char **argv);
+static shell_status_t EV_charging_handler(shell_handle_t shellHandle, int32_t argc, char **argv);
+static shell_status_t EV_auth_handler(shell_handle_t shellHandle, int32_t argc, char **argv);
+static shell_status_t EV_protocol_handler(shell_handle_t shellHandle, int32_t argc, char **argv);
+static shell_status_t EV_battery_handler(shell_handle_t shellHandle, int32_t argc, char **argv);
+static shell_status_t EV_direction_handler(shell_handle_t shellHandle, int32_t argc, char **argv);
+static shell_status_t EV_version_handler(shell_handle_t shellHandle, int32_t argc, char **argv);
+
 static shell_status_t EVSE_version_handler(shell_handle_t shellHandle, int32_t argc, char **argv);
 static shell_status_t EVSE_wifi_handler(shell_handle_t shellHandle, int32_t argc, char **argv);
 static shell_status_t EVSE_se05x_handler(shell_handle_t shellHandle, int32_t argc, char **argv);
 static shell_status_t EVSE_auth_handler(shell_handle_t shellHandle, int32_t argc, char **argv);
 static shell_status_t EVSE_payment_handler(shell_handle_t shellHandle, int32_t argc, char **argv);
-static shell_status_t EVSE_cloud_info_handler(shell_handle_t shellHandle, int32_t argc, char **argv);
+static shell_status_t EVSE_ocpp_info_handler(shell_handle_t shellHandle, int32_t argc, char **argv);
 static shell_status_t EVSE_charging_handler(shell_handle_t shellHandle, int32_t argc, char **argv);
 
 /*******************************************************************************
  * Variables
  ******************************************************************************/
+
+#if (EASYEVSE_EV == 1)
+SHELL_COMMAND_DEFINE(version,
+                     "\r\n\"version\": Print SW/HW version of the SIGBOARD\r\n",
+                     EV_version_handler,
+                     0);
+
+SHELL_COMMAND_DEFINE(cp,
+                    "\r\n\"cp\": Connect or disconnect CP line:\r\n"
+                    "                 Usage:\r\n"
+                    "                     cp connect \r\n"
+                    "                     cp disconnect \r\n",
+                    /* if more than the specified number of parameters, the rest of the parameters will be ignored */
+                    EV_cp_state_handler,
+                    SHELL_IGNORE_PARAMETER_COUNT);
+
+SHELL_COMMAND_DEFINE(charge,
+                    "\r\n\"charge\": Start or stop charging session:\r\n"
+                    "                 Usage:\r\n"
+                    "                     charge start \r\n"
+                    "                     charge stop \r\n",
+                    EV_charging_handler,
+                    SHELL_IGNORE_PARAMETER_COUNT);
+
+SHELL_COMMAND_DEFINE(protocol,
+                    "\r\n\"protocol\": Select charging protocol:\r\n"
+                    "                 Usage:\r\n"
+                    "                     protocol J1772 \r\n"
+                    "                     protocol ISO15118-2 \r\n"
+                    "                     protocol ISO15118-20 \r\n",
+                    EV_protocol_handler,
+                    SHELL_IGNORE_PARAMETER_COUNT);
+
+SHELL_COMMAND_DEFINE(battery,
+                    "\r\n\"battery\": Reset battery level:\r\n"
+                    "                 Usage:\r\n"
+                    "                     battery full \r\n"
+                    "                     battery empty \r\n",
+                    /* if more than the specified number of parameters, the rest of the parameters will be ignored */
+                    EV_battery_handler,
+                    SHELL_IGNORE_PARAMETER_COUNT);
+
+#if ENABLE_ISO15118
+SHELL_COMMAND_DEFINE(auth,
+                    "\r\n\"auth\": Select authentication method:\r\n"
+                    "                 Usage:\r\n"
+                    "                     auth EIM \r\n"
+                    "                     auth PnC \r\n",
+                    EV_auth_handler,
+                    SHELL_IGNORE_PARAMETER_COUNT);
+
+SHELL_COMMAND_DEFINE(direction,
+                    "\r\n\"direction\": Change charging direction:\r\n"
+                    "                 Usage:\r\n"
+                    "                     direction change\r\n",
+                    /* if more than the specified number of parameters, the rest of the parameters will be ignored */
+                    EV_direction_handler,
+                    SHELL_IGNORE_PARAMETER_COUNT);
+
+#endif /* ENABLE_ISO15118 */
+shell_command_t* shell_commands_list[] = {SHELL_COMMAND(version),
+                                         SHELL_COMMAND(cp),
+                                         SHELL_COMMAND(charge),
+#if ENABLE_ISO15118
+                                         SHELL_COMMAND(auth),
+                                         SHELL_COMMAND(direction),
+#endif
+                                         SHELL_COMMAND(protocol),
+                                         SHELL_COMMAND(battery)
+                                        }; // list of shell commands that will be registered
+#else
 SHELL_COMMAND_DEFINE(version,
                      "\r\n\"version\": Print SW version of the EVSE and SW/HW version of the SIGBOARD\r\n",
                      EVSE_version_handler,
@@ -90,7 +173,6 @@ SHELL_COMMAND_DEFINE(wifi,
                      "              Print WiFi Network Credentials from flash:\r\n"
                      "                 Usage:\r\n"
                      "                     wifi print\r\n",
-                     /* if more than the specified number of parameters, the rest of the parameters will be ignored */
                      EVSE_wifi_handler,
                      SHELL_IGNORE_PARAMETER_COUNT);
 #endif /* ENABLE_WIFI */
@@ -100,7 +182,6 @@ SHELL_COMMAND_DEFINE(se05x,
                      "\r\n\"se05x\": Erase content of Secure Element:\r\n"
                      "                 Usage:\r\n"
                      "                     se05x erase cloud_certificate/hostname/cpokey\r\n",
-                     /* if more than the specified number of parameters, the rest of the parameters will be ignored */
                      EVSE_se05x_handler,
                      SHELL_IGNORE_PARAMETER_COUNT);
 #endif /* ENABLE_SE */
@@ -110,7 +191,6 @@ SHELL_COMMAND_DEFINE(auth,
                      "\r\n\"auth\": Authenticate the EV without tapping the NFC card:\r\n"
                      "                 Usage:\r\n"
                      "                     auth true\r\n",
-                     /* if more than the specified number of parameters, the rest of the parameters will be ignored */
                      EVSE_auth_handler,
                      SHELL_IGNORE_PARAMETER_COUNT);
 
@@ -119,29 +199,45 @@ SHELL_COMMAND_DEFINE(iso_payment,
                      "                 Usage:\r\n"
                      "                     iso_payment eim - for EIM \r\n"
                      "                     iso_payment pnc - for PNC \r\n",
-                     /* if more than the specified number of parameters, the rest of the parameters will be ignored */
                      EVSE_payment_handler,
                      SHELL_IGNORE_PARAMETER_COUNT);
 
 #endif /* ENABLE_ISO15118 */
 
-SHELL_COMMAND_DEFINE(cloud_info,
-                     "\r\n\"cloud_info\": Print Cloud connection info\r\n"
+SHELL_COMMAND_DEFINE(ocpp_info,
+                     "\r\n\"ocpp_info\": Print OCPP server connection info\r\n"
                      "                 Usage:\r\n"
-                     "                     cloud_info\r\n",
-                     EVSE_cloud_info_handler,
+                     "                     ocpp_info\r\n",
+                     EVSE_ocpp_info_handler,
                      0);
 
 SHELL_COMMAND_DEFINE(charging,
-                     "\r\n\"charging stop\": Stop the charging operation"
-                     "\r\n\"         start\": Start the charging operation\r\n",
+                     "\r\n\"charging\": Starts or stops the charging session\r\n"
+                     "                 Usage:\r\n"
+                     "                     charging start\r\n"
+                     "                     charging stop\r\n",
                      EVSE_charging_handler,
                      SHELL_IGNORE_PARAMETER_COUNT);
+shell_command_t* shell_commands_list[] = {SHELL_COMMAND(version),
+#if ENABLE_WIFI
+                                         SHELL_COMMAND(wifi),
+#endif /* ENABLE_WIFI */
+#if ENABLE_SE
+                                         SHELL_COMMAND(se05x),
+#endif /* ENABLE_SE */
+#if ENABLE_ISO15118
+                                         SHELL_COMMAND(auth),
+                                         SHELL_COMMAND(iso_payment),
+#endif /* ENABLE_ISO15118 */
+                                         SHELL_COMMAND(ocpp_info),
+                                         SHELL_COMMAND(charging),
+                                        };
+#endif /* EASYEVSE_EV */
 
-static uint8_t s_shellHandleBuffer[SHELL_HANDLE_SIZE];
+static uint8_t s_shellHandleBuffer[SHELL_HANDLE_SIZE] __attribute__((aligned(4)));
 static shell_handle_t s_shellHandle = NULL;
 
-static uint8_t s_serialHandleBuffer[SERIAL_MANAGER_HANDLE_SIZE];
+static uint8_t s_serialHandleBuffer[SERIAL_MANAGER_HANDLE_SIZE] __attribute__((aligned(4)));
 static serial_handle_t s_serialHandle = &s_serialHandleBuffer[0];
 
 static uint8_t ucSampleIotHubDeviceId[EVSE_DEVICEID_MAX_BUFFER];
@@ -156,6 +252,8 @@ static EventGroupHandle_t s_shell_event;
 
 static uint8_t evse_argc                                    = 0;
 static char evse_argv[EVSE_ARGC_MAX + 1][EVSE_ARGV_STR_MAX] = {0};
+
+static bool s_authorizedFromCLI = false;
 
 /*******************************************************************************
  * Code
@@ -182,6 +280,410 @@ int EVSE_Shell_Printf(const char *formatString, ...)
     return -1;
 }
 
+#if (EASYEVSE_EV == 1)
+static shell_status_t EV_cp_state_handler(shell_handle_t shellHandle, int32_t argc, char **argv)
+{
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    BaseType_t xResult                  = pdFAIL;
+
+    shell_status_t status = kStatus_SHELL_Success;
+
+    if (argc != 2)
+    {
+        SHELL_Printf(s_shellHandle, COMMAND_ERROR);
+        status = kStatus_SHELL_Error;
+    }
+
+    if (status == kStatus_SHELL_Success)
+    {
+        if ((strcmp(argv[1], "connect") != 0) && (strcmp(argv[1], "disconnect") != 0))
+        {
+            SHELL_Printf(s_shellHandle, COMMAND_ERROR);
+            return kStatus_SHELL_Error;
+        }
+
+        evse_argc = argc;
+        for (uint8_t i = 0; i < argc; i++)
+        {
+            strncpy(evse_argv[i], argv[i], EVSE_ARGV_STR_MAX);
+            evse_argv[i][EVSE_ARGV_STR_MAX - 1] = '\0';
+        }
+    }
+
+    xResult = xEventGroupSetBitsFromISR(s_shell_event, EV_SHELL_CONNECT_DISCONNECT_CP_EVENT, &xHigherPriorityTaskWoken);
+    if (xResult != pdFAIL)
+    {
+        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    }
+    return kStatus_SHELL_Success;
+}
+
+static shell_status_t EV_cp_cmd_do(void)
+{
+    if (strcmp(evse_argv[1], "connect") == 0)
+    {
+        /* Connect CP lines */
+        configPRINTF(("Connected CP"));
+        GPIO_PinWrite(BOARD_CP_TOGGLE_PORT, BOARD_CP_TOGGLE_PIN, 1U);
+    }
+    else if (strcmp(evse_argv[1], "disconnect") == 0)
+    {
+        /* Disconnect CP lines */
+        configPRINTF(("Disconnected CP"));
+        GPIO_PinWrite(BOARD_CP_TOGGLE_PORT, BOARD_CP_TOGGLE_PIN, 0U);
+    }
+}
+
+static shell_status_t EV_charging_handler(shell_handle_t shellHandle, int32_t argc, char **argv)
+{
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    BaseType_t xResult                  = pdFAIL;
+
+    shell_status_t status = kStatus_SHELL_Success;
+
+    if (argc != 2)
+    {
+        SHELL_Printf(s_shellHandle, COMMAND_ERROR);
+        status = kStatus_SHELL_Error;
+    }
+
+    if (status == kStatus_SHELL_Success)
+    {
+        if ((strcmp(argv[1], "start") != 0) && (strcmp(argv[1], "stop") != 0))
+        {
+            SHELL_Printf(s_shellHandle, COMMAND_ERROR);
+            return kStatus_SHELL_Error;
+        }
+
+        evse_argc = argc;
+        for (uint8_t i = 0; i < argc; i++)
+        {
+            strncpy(evse_argv[i], argv[i], EVSE_ARGV_STR_MAX);
+            evse_argv[i][EVSE_ARGV_STR_MAX - 1] = '\0';
+        }
+    }
+
+    xResult = xEventGroupSetBitsFromISR(s_shell_event, EV_SHELL_START_STOP_CHARGING_EVENT, &xHigherPriorityTaskWoken);
+    if (xResult != pdFAIL)
+    {
+        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    }
+    return kStatus_SHELL_Success;
+}
+
+static shell_status_t EV_charge_cmd_do(void)
+{
+    evse_return_status_t status = FAIL;
+
+    if (strcmp(evse_argv[1], "start") == 0)
+    {
+        /* Start charging */
+        status = EV_ChargingProtocol_StartCharging();
+    }
+    else if (strcmp(evse_argv[1], "stop") == 0)
+    {
+        /* Stop charging */
+        status = EV_ChargingProtocol_StopCharging();
+    }
+
+    if(status == SUCCESS)
+    {
+//            SHELL_Printf(s_shellHandle, "charge command sent successfully \r\n");
+    }
+    else if (status == FAIL)
+    {
+        SHELL_Printf(s_shellHandle, "charge command NOT sent \r\n");
+    }
+    else if (status == NOT_IMPLEMENTED)
+    {
+        SHELL_Printf(s_shellHandle, "charge command NOT implemented \r\n");
+    }
+}
+
+#if ENABLE_ISO15118
+static shell_status_t EV_auth_handler(shell_handle_t shellHandle, int32_t argc, char **argv)
+{
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    BaseType_t xResult                  = pdFAIL;
+
+    shell_status_t status = kStatus_SHELL_Success;
+
+    if (argc != 2)
+    {
+        SHELL_Printf(s_shellHandle, COMMAND_ERROR);
+        status = kStatus_SHELL_Error;
+    }
+
+    if (status == kStatus_SHELL_Success)
+    {
+        if ((strcmp(argv[1], "EIM") != 0) && (strcmp(argv[1], "PnC") != 0))
+        {
+            SHELL_Printf(s_shellHandle, COMMAND_ERROR);
+            return kStatus_SHELL_Error;
+        }
+
+        evse_argc = argc;
+        for (uint8_t i = 0; i < argc; i++)
+        {
+            strncpy(evse_argv[i], argv[i], EVSE_ARGV_STR_MAX);
+            evse_argv[i][EVSE_ARGV_STR_MAX - 1] = '\0';
+        }
+    }
+
+    xResult = xEventGroupSetBitsFromISR(s_shell_event, EV_SHELL_CHANGE_AUTH_METHOD_EVENT, &xHigherPriorityTaskWoken);
+    if (xResult != pdFAIL)
+    {
+        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    }
+    return kStatus_SHELL_Success;
+}
+
+static shell_status_t EV_auth_cmd_do(void)
+{
+    if (strcmp(evse_argv[1], "EIM") == 0)
+    {
+        /* Select EIM auth method at runtime */
+        EV_ChargingProtocol_SetAuthMethod(VehicleAuth_EIM);
+        configPRINTF(("Set auth method to EIM"));
+
+    }
+    else if (strcmp(evse_argv[1], "PnC") == 0)
+    {
+        /* Select PnC auth method at runtime */
+        EV_ChargingProtocol_SetAuthMethod(VehicleAuth_PnC);
+        configPRINTF(("Set auth method to PnC"));
+    }
+}
+
+static shell_status_t EV_direction_handler(shell_handle_t shellHandle, int32_t argc, char **argv)
+{
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    BaseType_t xResult                  = pdFAIL;
+
+    shell_status_t status = kStatus_SHELL_Success;
+
+    if (argc != 2)
+    {
+        SHELL_Printf(s_shellHandle, COMMAND_ERROR);
+        status = kStatus_SHELL_Error;
+    }
+
+    if (status == kStatus_SHELL_Success)
+    {
+        if (strcmp(argv[1], "change") != 0)
+        {
+            SHELL_Printf(s_shellHandle, COMMAND_ERROR);
+            return kStatus_SHELL_Error;
+        }
+
+        evse_argc = argc;
+        for (uint8_t i = 0; i < argc; i++)
+        {
+            strncpy(evse_argv[i], argv[i], EVSE_ARGV_STR_MAX);
+            evse_argv[i][EVSE_ARGV_STR_MAX - 1] = '\0';
+        }
+    }
+
+    xResult = xEventGroupSetBitsFromISR(s_shell_event, EV_SHELL_CHANGE_CHARGING_DIRECTION_EVENT, &xHigherPriorityTaskWoken);
+    if (xResult != pdFAIL)
+    {
+        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    }
+    return kStatus_SHELL_Success;
+}
+
+static shell_status_t EV_direction_cmd_do(void)
+{
+    if (strcmp(evse_argv[1], "change") == 0)
+    {
+        evse_charging_protocol_t current_charging_protocol = EV_ChargingProtocol_GetProtocol();
+        if (current_charging_protocol == EVSE_HighLevelCharging_ISO15118_20)
+        {
+            EV_ChargingProtocol_ChangeChargingDirection();
+            configPRINTF(("Charging direction changed"));
+        }
+        else
+        {
+            configPRINTF((warning("Charging direction cannot be changed because ISO15118-20 is not enabled. Charging will be stopped")));
+            EV_ChargingProtocol_StopCharging();
+        }
+    }
+}
+#endif /* ENABLE_ISO15118 */
+
+static shell_status_t EV_protocol_handler(shell_handle_t shellHandle, int32_t argc, char **argv)
+{
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    BaseType_t xResult                  = pdFAIL;
+
+    shell_status_t status = kStatus_SHELL_Success;
+
+    if (argc != 2)
+    {
+        SHELL_Printf(s_shellHandle, COMMAND_ERROR);
+        status = kStatus_SHELL_Error;
+    }
+
+    if (status == kStatus_SHELL_Success)
+    {
+        if ((strcmp(argv[1], "J1772") != 0) && (strcmp(argv[1], "ISO15118-2") != 0) && (strcmp(argv[1], "ISO15118-20") != 0))
+        {
+            SHELL_Printf(s_shellHandle, COMMAND_ERROR);
+            return kStatus_SHELL_Error;
+        }
+
+        evse_argc = argc;
+        for (uint8_t i = 0; i < argc; i++)
+        {
+            strncpy(evse_argv[i], argv[i], EVSE_ARGV_STR_MAX);
+            evse_argv[i][EVSE_ARGV_STR_MAX - 1] = '\0';
+        }
+    }
+
+    xResult = xEventGroupSetBitsFromISR(s_shell_event, EV_SHELL_CHANGE_PROTOCOL_EVENT, &xHigherPriorityTaskWoken);
+    if (xResult != pdFAIL)
+    {
+        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    }
+    return kStatus_SHELL_Success;
+}
+
+static shell_status_t EV_protocol_cmd_do(void)
+{
+    evse_return_status_t status = FAIL;
+
+    if (strcmp(evse_argv[1], "J1772") == 0)
+    {
+        status = EV_ChargingProtocol_SetProtocol(EVSE_BasicCharging_J1772);
+    }
+    else if (strcmp(evse_argv[1], "ISO15118-2") == 0)
+    {
+#if ENABLE_ISO15118
+        status = EV_ChargingProtocol_SetProtocol(EVSE_HighLevelCharging_ISO15118);
+#else
+        SHELL_Printf(s_shellHandle,"ISO15118 not enabled");
+#endif /* ENABLE_ISO15118 */
+    }
+    else
+    {
+#if ENABLE_ISO15118
+        status = EV_ChargingProtocol_SetProtocol(EVSE_HighLevelCharging_ISO15118_20);
+#else
+        SHELL_Printf(s_shellHandle,"ISO15118 not enabled");
+#endif /* ENABLE_ISO15118 */
+    }
+
+    if(status == SUCCESS)
+    {
+//            SHELL_Printf(s_shellHandle, "protocol command sent successfully \r\n");
+    }
+    else if (status == FAIL)
+    {
+        SHELL_Printf(s_shellHandle, "protocol command NOT sent \r\n");
+    }
+    else if (status == NOT_IMPLEMENTED)
+    {
+        SHELL_Printf(s_shellHandle, "protocol command NOT implemented \r\n");
+    }
+}
+
+static shell_status_t EV_battery_handler(shell_handle_t shellHandle, int32_t argc, char **argv)
+{
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    BaseType_t xResult                  = pdFAIL;
+
+    shell_status_t status = kStatus_SHELL_Success;
+
+    if (argc != 2)
+    {
+        SHELL_Printf(s_shellHandle, COMMAND_ERROR);
+        status = kStatus_SHELL_Error;
+    }
+
+    if (status == kStatus_SHELL_Success)
+    {
+        if ((strcmp(argv[1], "full") != 0) && (strcmp(argv[1], "empty") != 0))
+        {
+            SHELL_Printf(s_shellHandle, COMMAND_ERROR);
+            return kStatus_SHELL_Error;
+        }
+
+        evse_argc = argc;
+        for (uint8_t i = 0; i < argc; i++)
+        {
+            strncpy(evse_argv[i], argv[i], EVSE_ARGV_STR_MAX);
+            evse_argv[i][EVSE_ARGV_STR_MAX - 1] = '\0';
+        }
+    }
+
+    xResult = xEventGroupSetBitsFromISR(s_shell_event, EV_SHELL_RESET_BATTERY_LEVEL_EVENT, &xHigherPriorityTaskWoken);
+    if (xResult != pdFAIL)
+    {
+        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    }
+    return kStatus_SHELL_Success;
+}
+
+static shell_status_t EV_battery_cmd_do(void)
+{
+    evse_return_status_t status = FAIL;
+    if (strcmp(evse_argv[1], "full") == 0)
+    {
+        status = EV_ChargingProtocol_ResetBatteryLevel(FULL_BATTERY);
+    }
+    else if (strcmp(evse_argv[1], "empty") == 0)
+    {
+        status = EV_ChargingProtocol_ResetBatteryLevel(EMPTY_BATTERY);
+    }
+
+    if(status == SUCCESS)
+    {
+//            SHELL_Printf(s_shellHandle, "battery command sent successfully \r\n");
+    }
+    else if (status == FAIL)
+    {
+        SHELL_Printf(s_shellHandle, "battery command NOT sent \r\n");
+    }
+    else if (status == NOT_IMPLEMENTED)
+    {
+        SHELL_Printf(s_shellHandle, "battery command NOT implemented \r\n");
+    }
+}
+
+static void EV_version_cmd_do(void)
+{
+#if ENABLE_SIGBOARD
+    uint32_t SIGBRD_HW_version        = 0;
+    uint32_t SIGBRD_SW_version_major  = 0;
+    uint32_t SIGBRD_SW_version_minor  = 0;
+    uint32_t SIGBRD_SW_version_bugfix = 0;
+
+    SIGBRD_GetGetHWVersion(&SIGBRD_HW_version);
+    SIGBRD_GetSWVersion(&SIGBRD_SW_version_major, &SIGBRD_SW_version_minor, &SIGBRD_SW_version_bugfix);
+
+    SHELL_Printf(s_shellHandle, "SIGBOARD HW: v%d\r\n", SIGBRD_HW_version);
+    SHELL_Printf(s_shellHandle, "SIGBOARD SW: v%d.%d.%d\r\n", SIGBRD_SW_version_major,
+                 SIGBRD_SW_version_minor,SIGBRD_SW_version_bugfix);
+#else
+    SHELL_Printf(s_shellHandle, "SIGBOARD HW: - \r\n");
+    SHELL_Printf(s_shellHandle, "SIGBOARD SW: - \r\n");
+#endif /* ENABLE_SIGBOARD */
+}
+
+static shell_status_t EV_version_handler(shell_handle_t shellHandle, int32_t argc, char **argv)
+{
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    BaseType_t xResult                  = pdFAIL;
+
+    xResult = xEventGroupSetBitsFromISR(s_shell_event, EV_SHELL_VERSION_EVENT, &xHigherPriorityTaskWoken);
+    if (xResult != pdFAIL)
+    {
+        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    }
+    return kStatus_SHELL_Success;
+}
+
+#else
 #if ENABLE_WIFI
 static shell_status_t EVSE_wifi_cmd_do(void)
 {
@@ -386,30 +888,30 @@ static shell_status_t EVSE_se05x_handler(shell_handle_t shellHandle, int32_t arg
 
 #endif /* ENABLE_SE */
 
-#if ENABLE_ISO15118
-static shell_status_t EVSE_payment_cmd_do(void)
+#if ENABLE_CHARGING_PROTOCOL
+
+void EVSE_Shell_SetCLIAuth(bool CLI_auth)
 {
-    if (evse_argc != 2)
+    s_authorizedFromCLI = CLI_auth;
+}
+
+bool EVSE_Shell_AllowAuth(bool *auth_result)
+{
+    if(auth_result == NULL)
     {
-        return kStatus_SHELL_Error;
+        return true;
     }
 
-    if (strcmp(evse_argv[1], "eim") == 0)
+    *auth_result = false;
+
+    /* Authorize charging if the user has no card to whitelist or shell is used */
+    if(s_authorizedFromCLI)
     {
-        stxV2GApplExt_EVSESetPaymentMethod(VehicleAuth_EIM);
-    }
-    else if (strcmp(evse_argv[1], "pnc") == 0)
-    {
-        stxV2GApplExt_EVSESetPaymentMethod(VehicleAuth_PnC);
-    }
-    else
-    {
-        return kStatus_SHELL_Error;
+        *auth_result = true;
+        return true;
     }
 
-    SHELL_Printf(s_shellHandle, "Set payment method %s\r\n", evse_argv[1]);
-
-    return kStatus_SHELL_Success;
+    return true;
 }
 
 static shell_status_t EVSE_auth_cmd_do(void)
@@ -421,13 +923,41 @@ static shell_status_t EVSE_auth_cmd_do(void)
 
     if (strcmp(evse_argv[1], "true") == 0)
     {
-        stxV2GSetNFCDetected(AUTH_CARD_UID, sizeof(AUTH_CARD_UID));
+        EVSE_Shell_SetCLIAuth(true);
+        EVSE_ChargingProtocol_SetNFCAuthentication(AUTH_CARD_UID, sizeof(AUTH_CARD_UID));
         SHELL_Printf(s_shellHandle, "Set authenticated from cli\r\n");
     }
     else
     {
         return kStatus_SHELL_Error;
     }
+
+    return kStatus_SHELL_Success;
+}
+#endif /* ENABLE_CHARGING_PROTOCOL */
+
+#if ENABLE_ISO15118
+static shell_status_t EVSE_payment_cmd_do(void)
+{
+    if (evse_argc != 2)
+    {
+        return kStatus_SHELL_Error;
+    }
+
+    if (strcmp(evse_argv[1], "eim") == 0)
+    {
+        EVSE_ChargingProtocol_SetPaymentMethod(VehicleAuth_EIM);
+    }
+    else if (strcmp(evse_argv[1], "pnc") == 0)
+    {
+        EVSE_ChargingProtocol_SetPaymentMethod(VehicleAuth_PnC);
+    }
+    else
+    {
+        return kStatus_SHELL_Error;
+    }
+
+    SHELL_Printf(s_shellHandle, "Set payment method %s\r\n", evse_argv[1]);
 
     return kStatus_SHELL_Success;
 }
@@ -502,83 +1032,24 @@ static shell_status_t EVSE_version_handler(shell_handle_t shellHandle, int32_t a
     return kStatus_SHELL_Success;
 }
 
-static void EVSE_cloud_info_cmd_do(void)
+static void EVSE_ocpp_info_cmd_do(void)
 {
-    SHELL_Printf(s_shellHandle, "Authentication method: ");
-#if (EVSE_SAS_AUTH == 1)
-    SHELL_Printf(s_shellHandle, "Symmetric key authentication [EVSE_SAS_AUTH]\n\r");
-#elif (EVSE_X509_AUTH == 1)
-    SHELL_Printf(s_shellHandle, "Certificate stored in i.MX RT106x Flash [EVSE_X509_AUTH]\n\r");
-#elif (EVSE_X509_SE050_AUTH == 1)
-    SHELL_Printf(s_shellHandle, "Certificate stored securely in SE050 Secure Element [EVSE_X509_SE050_AUTH]\n\r");
+#if ENABLE_OCPP
+	 SHELL_Printf(s_shellHandle, "Ocpp server URL: %s\r\n",EVSE_OCPP_SERVER_URL);
+	 SHELL_Printf(s_shellHandle, "Ocpp server timeout: %d seconds\r\n",EVSE_OCPP_TIMEOUT_S);
+	 SHELL_Printf(s_shellHandle, "Security Profile: %d\r\n", EVSE_OCPP_SECURITY_LEVEL);
+	 SHELL_Printf(s_shellHandle, "Charge point ID: %s\r\n", CHARGE_POINT_ID);
 #else
-    SHELL_Printf(s_shellHandle, "Not selected\n\r");
-#endif
-
-    SHELL_Printf(s_shellHandle, "Device ID: ");
-#if (EVSE_SAS_AUTH == 1)
-    SHELL_Printf(s_shellHandle, "%s\r\n", DEVICE_ID);
-#else
-    if (deviceIDReady != true)
-    {
-        SHELL_Printf(s_shellHandle, "is not ready\n\r");
-    }
-    else
-    {
-#if (EVSE_X509_SE050_AUTH == 1)
-        EVSE_SE050_Open_Session();
-#endif
-        if (EVSE_SE050_Get_DeviceIDFromCertificate((uint8_t *)&ucSampleIotHubDeviceId[0], EVSE_DEVICEID_MAX_BUFFER) ==
-            kStatus_Certificates_Success)
-        {
-            uint8_t index_dec                           = 0;
-            uint8_t index_str                           = 0;
-            char deviceID_str[EVSE_DEVICEID_MAX_BUFFER] = {0};
-
-            while (ucSampleIotHubDeviceId[index_dec])
-            {
-                index_str += sprintf(&deviceID_str[index_str], "%c", ucSampleIotHubDeviceId[index_dec++]);
-            }
-            SHELL_Printf(s_shellHandle, "%s\n\r", deviceID_str);
-        }
-        else
-        {
-            SHELL_Printf(s_shellHandle, "could not be retrieved\n\r");
-        }
-#if (EVSE_X509_SE050_AUTH == 1)
-        EVSE_SE050_Close_Session();
-#endif
-    }
-
-#endif
-
-    SHELL_Printf(s_shellHandle, "Device ID scope: ");
-#if (EVSE_DPS == 1)
-    SHELL_Printf(s_shellHandle, "%s\r\n", ID_SCOPE);
-#else
-    SHELL_Printf(s_shellHandle, "not used\r\n");
-#endif
-
-#if (EVSE_EDGELOCK_AGENT == 1)
-    SHELL_Printf(s_shellHandle, "Edgelock2Go hostname: %s \r\n", EDGELOCK2GO_HOSTNAME);
-    SHELL_Printf(s_shellHandle, "Edgelock2Go port: %d \r\n", EDGELOCK2GO_PORT);
-#else
-    SHELL_Printf(s_shellHandle, "Edgelock2Go not used\r\n");
-#endif
-    SHELL_Printf(s_shellHandle, "DPS enabled: ");
-#if (EVSE_DPS == 1)
-    SHELL_Printf(s_shellHandle, "yes\r\n");
-#else
-    SHELL_Printf(s_shellHandle, "no\r\n");
+	 SHELL_Printf(s_shellHandle, "Ocpp not enabled ");
 #endif
 }
 
-static shell_status_t EVSE_cloud_info_handler(shell_handle_t shellHandle, int32_t argc, char **argv)
+static shell_status_t EVSE_ocpp_info_handler(shell_handle_t shellHandle, int32_t argc, char **argv)
 {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     BaseType_t xResult                  = pdFAIL;
 
-    xResult = xEventGroupSetBitsFromISR(s_shell_event, EVSE_SHELL_CLOUD_INFO_EVENT, &xHigherPriorityTaskWoken);
+    xResult = xEventGroupSetBitsFromISR(s_shell_event, EVSE_SHELL_OCPP_INFO_EVENT, &xHigherPriorityTaskWoken);
     if (xResult != pdFAIL)
     {
         portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
@@ -588,18 +1059,16 @@ static shell_status_t EVSE_cloud_info_handler(shell_handle_t shellHandle, int32_
 
 static void EVSE_charging_cmd_do(void)
 {
-    bool result = false;
-
 #if ENABLE_ISO15118
     if (strcmp(evse_argv[1], "stop") == 0)
     {
         /* Do stop charging */
-        stxV2GApplExt_EVSEStopCharging(&result);
+        EVSE_ChargingProtocol_StopCharging();
     }
     else if (strcmp(evse_argv[1], "start") == 0)
     {
         /* Do start charging */
-        stxV2GApplExt_EVSEStartCharging(&result);
+        EVSE_ChargingProtocol_StartCharging();
     }
 #endif /* ENABLE_ISO15118 */
 }
@@ -638,6 +1107,7 @@ static shell_status_t EVSE_charging_handler(shell_handle_t shellHandle, int32_t 
     }
     return kStatus_SHELL_Success;
 }
+#endif /* EASYEVSE_EV == 1) */
 
 void EVSE_Shell_Task(void *arg)
 {
@@ -646,7 +1116,7 @@ void EVSE_Shell_Task(void *arg)
     configPRINTF(("EVSE shell ready to receive commands"));
 
     SHELL_Printf(s_shellHandle, "Welcome to EasyEVSE! \r\n");
-    SHELL_Printf(s_shellHandle, "EVSE_SHELL>> ");
+    SHELL_Printf(s_shellHandle, SHELL_PROMPT);
 
     while (1)
     {
@@ -655,44 +1125,86 @@ void EVSE_Shell_Task(void *arg)
                                         pdTRUE, pdFALSE,       /* Don't wait for all bits, either bit will do. */
                                         portMAX_DELAY);        /* Wait until event */
 
-        if (shellBits & (EVSE_SHELL_VERSION_EVENT))
+#if (EASYEVSE_EV == 1)
+        if (shellBits & (EV_SHELL_VERSION_EVENT))
+        {
+            EV_version_cmd_do();
+        }
+
+        if (shellBits & (EV_SHELL_CONNECT_DISCONNECT_CP_EVENT))
+        {
+            EV_cp_cmd_do();
+        }
+
+        if (shellBits & (EV_SHELL_START_STOP_CHARGING_EVENT))
+        {
+            EV_charge_cmd_do();
+        }
+
+        if (shellBits & (EV_SHELL_CHANGE_PROTOCOL_EVENT))
+        {
+            EV_protocol_cmd_do();
+        }
+
+        if (shellBits & (EV_SHELL_RESET_BATTERY_LEVEL_EVENT))
+        {
+            EV_battery_cmd_do();
+        }
+
+#if ENABLE_ISO15118
+        if (shellBits & (EV_SHELL_CHANGE_AUTH_METHOD_EVENT))
+        {
+           EV_auth_cmd_do();
+        }
+
+        if (shellBits & (EV_SHELL_CHANGE_CHARGING_DIRECTION_EVENT))
+        {
+           EV_direction_cmd_do();
+        }
+#endif /* ENABLE_ISO15118 */
+
+#else
+        if ((shellBits & EVSE_SHELL_VERSION_EVENT) == EVSE_SHELL_VERSION_EVENT)
         {
             EVSE_version_cmd_do();
         }
 
 #if ENABLE_WIFI
-        if (shellBits & (EVSE_SHELL_WIFI_EVENT))
+        if ((shellBits & EVSE_SHELL_WIFI_EVENT) == EVSE_SHELL_WIFI_EVENT)
         {
             EVSE_wifi_cmd_do();
         }
 #endif /* ENABLE_WIFI */
 
 #if ENABLE_SE
-        if (shellBits & (EVSE_SHELL_SE05X_EVENT))
+        if ((shellBits & EVSE_SHELL_SE05X_EVENT) == EVSE_SHELL_SE05X_EVENT)
         {
             EVSE_se05x_cmd_do();
         }
 #endif /* ENABLE_SE */
 
-#if ENABLE_ISO15118
-        if (shellBits & (EVSE_SHELL_AUTH_EVENT))
+#if ENABLE_CHARGING_PROTOCOL
+        if ((shellBits & EVSE_SHELL_AUTH_EVENT) == EVSE_SHELL_AUTH_EVENT)
         {
             EVSE_auth_cmd_do();
         }
-        else if (shellBits & (EVSE_SHELL_PAYMENT_EVENT))
+#endif /* ENABLE_CHARGING_PROTOCOL */
+#if ENABLE_ISO15118
+        else if ((shellBits & EVSE_SHELL_PAYMENT_EVENT) == EVSE_SHELL_PAYMENT_EVENT)
         {
             EVSE_payment_cmd_do();
         }
 #endif /* ENABLE_ISO15118 */
-        if (shellBits & (EVSE_SHELL_CLOUD_INFO_EVENT))
+        if ((shellBits & EVSE_SHELL_OCPP_INFO_EVENT) == EVSE_SHELL_OCPP_INFO_EVENT)
         {
-            EVSE_cloud_info_cmd_do();
+            EVSE_ocpp_info_cmd_do();
         }
 
-        if (shellBits & (EVSE_SHELL_CHARGING_EVENT))
+        if ((shellBits & EVSE_SHELL_CHARGING_EVENT) == EVSE_SHELL_CHARGING_EVENT)
         {
             EVSE_charging_cmd_do();
         }
+#endif
     }
 
     /* Shouldn't reach here, but to be sure */
@@ -728,20 +1240,12 @@ void EVSE_Shell_Init(void)
     /* Init EVSE Shell */
     s_shellHandle = &s_shellHandleBuffer[0];
 
-    SHELL_Init(s_shellHandle, s_serialHandle, "EVSE_SHELL>> ");
-    SHELL_RegisterCommand(s_shellHandle, SHELL_COMMAND(version));
-#if ENABLE_WIFI
-    SHELL_RegisterCommand(s_shellHandle, SHELL_COMMAND(wifi));
-#endif /* ENABLE_WIFI */
-#if ENABLE_SE
-    SHELL_RegisterCommand(s_shellHandle, SHELL_COMMAND(se05x));
-#endif /* ENABLE_SE */
-#if ENABLE_ISO15118
-    SHELL_RegisterCommand(s_shellHandle, SHELL_COMMAND(auth));
-    SHELL_RegisterCommand(s_shellHandle, SHELL_COMMAND(iso_payment));
-#endif /* ENABLE_ISO15118 */
-    SHELL_RegisterCommand(s_shellHandle, SHELL_COMMAND(cloud_info));
-    SHELL_RegisterCommand(s_shellHandle, SHELL_COMMAND(charging));
+    SHELL_Init(s_shellHandle, s_serialHandle, SHELL_PROMPT);
+
+    for (uint8_t i = 0; i < (sizeof(shell_commands_list) / sizeof(shell_commands_list[0])); i++)
+    {
+        SHELL_RegisterCommand(s_shellHandle, shell_commands_list[i]);
+    }
 
     s_shell_event = xEventGroupCreate();
     if (s_shell_event == NULL)

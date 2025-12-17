@@ -14,13 +14,26 @@
 #include "EVSE_Utils.h"
 #include "EVSE_ChargingProtocol.h"
 
+#if ENABLE_OCPP
+#include "FreeRTOS.h"
+#include "task.h"
+#include "EVSE_Ocpp.h"
+
+#if (ENABLE_CLEV663_NFC == 1)
+#include "EVSE_NFC.h"
+#endif
+
+#endif /* ENABLE_OCPP */
+
 static char *j1772_state_prompt[J1772_LAST_STATE] = {
     [STATE_A] = "Standby",          [STATE_A2] = "Standby,PWM ON",
     [STATE_B] = "Vehicle detected", [STATE_B2] = "Vehicle detected",
-    [STATE_C] = "Ready (charging)", [STATE_C2] = "Ready (No charging)",
-    [STATE_D] = "Ventilation",      [STATE_D2] = "Ventilation(No charging)",
+    [STATE_C] = "Vehicle Ready (no charging)", [STATE_C2] = "Vehicle Ready (charging)",
+    [STATE_D] = "Ventilation (no charging)", [STATE_D2] = "Ventilation (charging)",
     [STATE_E] = "No power",         [STATE_F] = "Error",
 };
+
+bool _NFCDetected = false;
 
 j1772_status_t EVSE_J1772_GetAmpsFromDutyCycle(uint8_t dutyCycle, uint8_t *amps)
 {
@@ -82,13 +95,13 @@ j1772_status_t EVSE_J1772_GetCPValue(uint32_t *cp_value)
 
 j1772_status_t EVSE_J1772_DisablePower()
 {
-    SIGBRD_OpenRelay();
+    //SIGBRD_OpenRelay();
     return J1772_Succes;
 }
 
 j1772_status_t EVSE_J1772_EnablePower()
 {
-    SIGBRD_CloseRelay();
+    //SIGBRD_CloseRelay();
     return J1772_Succes;
 }
 
@@ -349,6 +362,22 @@ void EVSE_J1772_GetVehicleData(vehicle_data_t *vehicle_data)
     vehicle_data->elapsedTime = j1772_simulation.evse_data.uElapseTime / 1000;
 }
 
+void j1772SetNFCDetected(uint8_t *cardUID, uint8_t size)
+{
+	if (cardUID != NULL)
+	{
+		_NFCDetected = true;
+#if ENABLE_OCPP
+		EVSE_OCPP_SetEvent(EV_AUTH_NEEDED_EVENT);
+#endif
+	}
+}
+
+void EVSE_J1772_SetNFCAuthentication(uint8_t *cardUID, uint8_t size)
+{
+	j1772SetNFCDetected(cardUID, size);
+}
+
 void EVSE_J1772_Init()
 {
     j1772_simulation.max_voltage = 230;
@@ -372,6 +401,11 @@ void EVSE_J1772_Init()
 #else
     j1772_simulation.current_pwm = PWM100_MAX_VALUE;
     SIGBRD_SetPWMDutyInPerMilli(j1772_simulation.current_pwm);
+#if (ENABLE_OCPP == 1)
+#if (ENABLE_CLEV663_NFC == 1)
+    EVSE_NFC_RegisterCallbackFunction(&j1772SetNFCDetected);
+#endif /* (ENABLE_CLEV663_NFC == 1) */
+#endif /* (ENABLE_OCPP == 1) */
 #endif /* EASYEVSE_EV */
 }
 
@@ -585,6 +619,10 @@ static void EVSE_J1772_SetState(j1772_state_t new_state)
             }
             j1772_simulation.isCharging      = false;
             j1772_simulation.ready_to_charge = true;
+
+#if ENABLE_OCPP
+            EVSE_OCPP_SetEvent(EV_DISCONNECTED_EVENT);
+#endif
         }
         break;
         case STATE_B:
@@ -599,6 +637,9 @@ static void EVSE_J1772_SetState(j1772_state_t new_state)
             {
                 EVSE_J1772_DisablePower();
             }
+#if ENABLE_OCPP
+            EVSE_OCPP_SetEvent(EV_CONNECTED_EVENT);
+#endif
         }
         break;
         case STATE_C:
@@ -612,6 +653,9 @@ static void EVSE_J1772_SetState(j1772_state_t new_state)
             EVSE_J1772_EnablePower();
             j1772_simulation.ulLastCalcTime = 0;
             j1772_simulation.isCharging     = true;
+#if ENABLE_OCPP
+            EVSE_OCPP_SetEvent(EVSE_CHARGING_STARTED_EVENT);
+#endif
             break;
             break;
     }
@@ -669,9 +713,17 @@ static void EVSE_J1772_Loop_EVSE()
             {
                 if ((j1772_simulation.current_pwm == PWM100_MAX_VALUE) && (j1772_simulation.ready_to_charge == true))
                 {
-                    configPRINTF(("AC Basic Charging state transition from B1 to B2"));
-                    new_usPWMDutyCyclePerMil = new_usPwmDutyCycle * 10;
-                    EVSE_J1772_SetState(STATE_B2);
+#if ((ENABLE_OCPP == 1) && (ENABLE_CLEV663_NFC == 1))
+                    EVSE_NFC_setNFCActivationStatus(true);
+                    bool ocpp_auth_result = false;
+                    if((EVSE_OCPP_GetAuthResponse(0, &ocpp_auth_result) == true) &&
+                        (ocpp_auth_result == true))
+#endif /* ENABLE_OCPP */
+                    {
+                        configPRINTF(("AC Basic Charging state transition from B1 to B2"));
+                        new_usPWMDutyCyclePerMil = new_usPwmDutyCycle * 10;
+                        EVSE_J1772_SetState(STATE_B2);
+                    }
                 }
             }
         }
@@ -693,6 +745,11 @@ static void EVSE_J1772_Loop_EVSE()
             {
                 configPRINTF(("AC Basic Charging state transition from B2 to C2/D2"));
                 EVSE_J1772_SetState(new_state + 1);
+            }
+            else if (new_state == STATE_F)
+            {
+            	configPRINTF(("AC Basic Charging state transition to fault"));
+            	EVSE_J1772_SetState(STATE_F);
             }
         }
         break;
@@ -718,6 +775,11 @@ static void EVSE_J1772_Loop_EVSE()
             {
                 configPRINTF(("AC Basic Charging state transition from C1/D1 to A1"));
                 EVSE_J1772_SetState(STATE_A);
+            }
+            else if (new_state == STATE_F)
+            {
+            	configPRINTF(("AC Basic Charging state transition to fault"));
+            	EVSE_J1772_SetState(STATE_F);
             }
         }
         break;
@@ -766,6 +828,11 @@ static void EVSE_J1772_Loop_EVSE()
                     EVSE_J1772_SetState(j1772_simulation.current_state - 1);
                 }
             }
+            else if (new_state == STATE_F)
+            {
+            	configPRINTF(("AC Basic Charging state transition to fault"));
+            	EVSE_J1772_SetState(STATE_F);
+            }
         }
         break;
         case STATE_E:
@@ -803,4 +870,40 @@ void EVSE_J1772_Loop(bool *stopCharging)
     }
 }
 
+#if EASYEVSE_EV
+void EV_J1772_GetVehicleData(vehicle_data_t *vehicle_data)
+{
+    // TODO
+}
+
+void EV_J1772_isCharging(bool* bCharging)
+{
+    // TODO
+}
+
+void EV_J1772_ResetBatteryLevel(battery_levels_t battery_level)
+{
+    if(battery_level == EMPTY_BATTERY)
+    {
+        j1772_simulation.ev_data.currentCapacity = BATTERY_CAPACITY * BATTERY_STARTING_LEVEL / 100;
+        j1772_simulation.ev_data.bBatteryFull = false;
+    }
+    else if (battery_level == FULL_BATTERY)
+    {
+        j1772_simulation.ev_data.currentCapacity = BATTERY_CAPACITY * BATTERY_DESIRED_LEVEL / 100;
+        j1772_simulation.ev_data.bBatteryFull = true;
+    }
+}
+
+void EV_J1772_StopCharging()
+{
+    // TODO
+}
+
+void EV_J1772_StartCharging()
+{
+    // TODO
+}
+
+#endif /* EASYEVSE_EV */
 #endif /* ENABLE_J1772 */

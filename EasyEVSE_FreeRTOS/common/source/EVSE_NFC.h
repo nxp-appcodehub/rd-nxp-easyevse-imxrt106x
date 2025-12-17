@@ -18,6 +18,29 @@
 
 #define CARD_NOT_PRESENT "N/A"
 
+// CARD security
+#define CARD_NOT_SECURED "Card not secured"
+#define CARD_ACCEPTED    "Card Accepted"
+
+// CARD TYPE
+#define CARD_MIFARE_DUOX        "MIFARE DUOX"
+#define CARD_DESFIRE_LIGTH       "MIFARE DESFire Light"
+#define CARD_DESFIRE_EV3         "MIFARE DESFire EV3"
+#define CARD_DESFIRE_EV1        "MIFARE DESFire EV1"
+#define CARD_MIFARE_ULTRALIGHT  "MIFARE Ultralight"
+#define CARD_GENERIC            "Generic card"
+#define CARD_COPY               "Card is a copy"
+
+// Card rejection messages
+#define EMPTY_CARD  "Card rejected - Empty card"
+#define READ_FAIL   "Card rejected - Reading data failed"
+#define SIGN_FAIL   "Card rejected - Challenge sign failed"
+#define CHALLENGE_VERIFY_FAIL "Card rejected - Challenge verify failed"
+#define PARSE_FAIL  "Card rejected - Certificate parse failed"
+#define CERT_VERIFY_FAIL "Card rejected - Certificate verify failed"
+
+#define LPCD_CONFIGURE_INTERVAL 200
+
 /*! @brief NFC retrieved data structure. */
 typedef struct _nfc_data_info
 {
@@ -25,7 +48,15 @@ typedef struct _nfc_data_info
     char CardTek[2];  /* A, B, F, V*/
     char CardType[4]; /* 1 , 2, 3, P2P */
     uint8_t SizeUID;
+    char *ExactCardType;
+    char *isSecured;
 } nfc_data_info_t;
+
+typedef struct _nfc_whitelist_info
+{
+    char UID[CARD_MAX_SIZE_UID];
+    char *ExactType;
+} nfc_whitelist_info_t;
 
 typedef enum
 {
@@ -69,5 +100,27 @@ void EVSE_NFC_Init(void);
  * @brief Retrieves Vehicle ID from NFC data.
  */
 const char *EVSE_NFC_Get_VehicleID();
+
+/*
+ * @brief Retrieves card type from NFC data.
+ */
+const char *EVSE_NFC_Get_CardType();
+
+/*
+ * @brief Checks if the card is secure
+ */
+const char *EVSE_NFC_Get_CardSecurityStatus();
+
+/*
+ * @brief Returns if NFC read should be activated
+ */
+bool EVSE_NFC_getNFCActivationStatus();
+
+/*
+ * @brief Activated NFC read
+ */
+void EVSE_NFC_setNFCActivationStatus(bool activateNFC);
+
+bool EVSE_NFC_isWhitelisted(bool *auth_result);
 
 #endif /* EVSE_NFC_H */

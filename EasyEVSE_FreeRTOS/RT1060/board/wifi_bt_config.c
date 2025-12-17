@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022,2025 NXP
+ * Copyright 2021-2022, 2025 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -31,12 +31,16 @@
 
 void BOARD_WIFI_BT_Enable(bool enable)
 {
+#ifdef SDIO_ENABLED
 	BOARD_SDCardPowerControl(enable);
+#endif
     vTaskDelay(pdMS_TO_TICKS(100));
 }
 
 void BOARD_WIFI_BT_Config(void *card, sdio_int_t cardInt)
 {
+#ifdef SDIO_ENABLED
     BOARD_SDIO_Config(card, NULL, BOARD_SDMMC_SDIO_HOST_IRQ_PRIORITY, cardInt);
+#endif
     BOARD_WIFI_BT_Enable(false);
 }

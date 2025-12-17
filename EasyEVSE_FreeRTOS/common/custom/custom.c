@@ -36,12 +36,8 @@
  **********************/
 
 static const char *s_screenNames[LAST_SCREEN + 1] = {[Screen_Main]          = "MAIN SCREEN",
-                                                     [Screen_NetworkDebug]  = "DEBUG NETWORK",
-                                                     [Screen_CarSimulation] = "CAR CHARGING",
-                                                     [Screen_EVSE]          = "EVSE",
-                                                     [Screen_Meter]         = "METER",
-                                                     [Screen_NFC]           = "NFC",
-                                                     [Screen_ISODebug]      = "DEBUG ISO15118",
+                                                     [Screen_Linking]       = "LINKING SCREEN",
+                                                     [Screen_Charging]      = "CHARGING SCREEN",
                                                      [LAST_SCREEN]          = "INVALID SCREEN"};
 
 static uint8_t previous_image_v2g[CHARGING_IMAGES_NUMBER] = {2, 3, 4, 1};
@@ -51,19 +47,21 @@ static uint8_t previous_image_g2v[CHARGING_IMAGES_NUMBER] = {4, 1, 2, 3};
 static const char SIGBOARD_connection[] = "ETH connection";
 #elif (BOARD_SIGBOARD_ARDUINO_HEADER == 1)
 static const char SIGBOARD_connection[] = "Arduino header";
-#else
+#elif (BOARD_SIGBOARD_ARDUINO_HEADER == 0)
 static const char SIGBOARD_connection[] = "Camera interface";
-#endif
+#endif /* BOARD_SIGBOARD_ETH */
 
 /**********************
  *  STATIC VARIABLES
  **********************/
 
 static const char *sp_vehicle_id         = NULL;
+static const char *sp_card_type          = NULL;
+static const char *sp_card_security      = NULL;
 static const meter_data_t *sp_meter_data = NULL;
 
 static const char *sp_lastNetworkMessage           = NULL;
-static const char *sp_lastCloudMessage             = NULL;
+static const char *sp_lastOCPPMessage             = NULL;
 static const evse_data_t *sp_lastEvseData          = NULL;
 static const vehicle_data_t *sp_lastVehicleData    = NULL;
 static evse_iso15118_state_t sp_lastISO15118Status = EVSE_ISO15118_NotEnable;
@@ -83,7 +81,46 @@ int Screen_digital_clock_hour_value;
 int Screen_digital_clock_min_value;
 int Screen_digital_clock_sec_value;
 
-lv_timer_t *charging_animation_timer;
+static bool UI_isScreenDeleted(evse_screens_t screen)
+{
+    if(screen == Screen_Main)
+    {
+        return guider_ui.Main_Screen_del;
+    }
+    else if(screen == Screen_Linking)
+    {
+        return guider_ui.Linking_Screen_del;
+    }
+    else if(screen == Screen_Charging)
+    {
+        return guider_ui.Charging_Screen_del;
+    }
+
+    return true;
+}
+
+ /**
+ * @brief           Calculate the digital clock by the 24-hours mode
+ * @param obj       pointer to the values for hour/minute/seconds
+ */
+static void clock_count_24(int * hour, int * minute, int * seconds)
+{
+    (*seconds)++;
+
+    if(*seconds == 60) {
+        *seconds = 0;
+        (*minute)++;
+    }
+
+    if(*minute == 60) {
+        *minute = 0;
+        (*hour)++;
+    }
+
+    if(*hour == 24) {
+        *hour = 0;
+    }
+}
 
 static void ClockTimer_Set(int Screen_digital_clock_hour_value, int Screen_digital_clock_min_value)
 {
@@ -91,33 +128,17 @@ static void ClockTimer_Set(int Screen_digital_clock_hour_value, int Screen_digit
 
     snprintf(clockHMformat, sizeof(clockHMformat), "%d:%02d", Screen_digital_clock_hour_value,
              Screen_digital_clock_min_value);
-    if (guider_ui.Main_Screen_clock)
+    if ((ui_getCurentScreen() == Screen_Main) && guider_ui.Main_Screen_clock)
     {
         lv_label_set_text(guider_ui.Main_Screen_clock, clockHMformat);
     }
-    if (guider_ui.Debug_Conn_Screen_clock)
+    if ((ui_getCurentScreen() == Screen_Charging) && guider_ui.Charging_Screen_clock)
     {
-        lv_label_set_text(guider_ui.Debug_Conn_Screen_clock, clockHMformat);
+        lv_label_set_text(guider_ui.Charging_Screen_clock, clockHMformat);
     }
-    if (guider_ui.Car_Screen_clock)
+    if ((ui_getCurentScreen() == Screen_Linking) && guider_ui.Linking_Screen_clock)
     {
-        lv_label_set_text(guider_ui.Car_Screen_clock, clockHMformat);
-    }
-    if (guider_ui.EVSE_Screen_clock)
-    {
-        lv_label_set_text(guider_ui.EVSE_Screen_clock, clockHMformat);
-    }
-    if (guider_ui.Meter_Screen_clock)
-    {
-        lv_label_set_text(guider_ui.Meter_Screen_clock, clockHMformat);
-    }
-    if (guider_ui.NFC_Screen_clock)
-    {
-        lv_label_set_text(guider_ui.NFC_Screen_clock, clockHMformat);
-    }
-    if (guider_ui.Debug_ISO_Screen_clock)
-    {
-        lv_label_set_text(guider_ui.Debug_ISO_Screen_clock, clockHMformat);
+        lv_label_set_text(guider_ui.Linking_Screen_clock, clockHMformat);
     }
 }
 
@@ -127,21 +148,25 @@ static void ClockTimer_callback(lv_timer_t *timer)
     ClockTimer_Set(Screen_digital_clock_hour_value, Screen_digital_clock_min_value);
 }
 
-static void ChargingAnimationTimer_callback(lv_timer_t *timer)
+/*
+ * @brief Sets the address of inactive screen to NULL so it can be reused by active screen
+ */
+static void UI_clearScreenReference(const evse_screens_t screen)
 {
-    if (EVSE_ChargingProtocol_ChargingDirection() == EVSE_G2V)
+    if(screen == Screen_Main)
     {
-        GridtoVehicle_animation();
+        guider_ui.Main_Screen = NULL;
     }
-    else if (EVSE_ChargingProtocol_ChargingDirection() == EVSE_V2G)
+    else if(screen == Screen_Charging)
     {
-        VehicletoGrid_animation();
+        guider_ui.Charging_Screen = NULL;
     }
-    else if (EVSE_ChargingProtocol_ChargingDirection() == EVSE_NoChargingDirection)
+    else if(screen == Screen_Linking)
     {
-        CleanCharging_animation();
+        guider_ui.Linking_Screen = NULL;
     }
 }
+
 /**
  * Associate a type from evse_screens_t structure to each screen
  * @param screenObj lv_obj_t that points to a screen
@@ -150,36 +175,17 @@ static evse_screens_t ScreenObjToScreenType(lv_obj_t *screenObj)
 {
     evse_screens_t screenType;
 
-    lv_timer_pause(charging_animation_timer);
-
     if (screenObj == guider_ui.Main_Screen)
     {
         screenType = Screen_Main;
     }
-    else if (screenObj == guider_ui.Debug_Conn_Screen)
+    else if (screenObj == guider_ui.Charging_Screen)
     {
-        screenType = Screen_NetworkDebug;
+        screenType = Screen_Charging;
     }
-    else if (screenObj == guider_ui.Car_Screen)
+    else if (screenObj == guider_ui.Linking_Screen)
     {
-        screenType = Screen_CarSimulation;
-        lv_timer_resume(charging_animation_timer);
-    }
-    else if (screenObj == guider_ui.EVSE_Screen)
-    {
-        screenType = Screen_EVSE;
-    }
-    else if (screenObj == guider_ui.Meter_Screen)
-    {
-        screenType = Screen_Meter;
-    }
-    else if (screenObj == guider_ui.NFC_Screen)
-    {
-        screenType = Screen_NFC;
-    }
-    else if (screenObj == guider_ui.Debug_ISO_Screen)
-    {
-        screenType = Screen_ISODebug;
+        screenType = Screen_Linking;
     }
     else
     {
@@ -193,19 +199,12 @@ void custom_init(lv_ui *ui)
 {
     /* Add your code here */
     lv_timer_t *timer        = lv_timer_create(ClockTimer_callback, 1000, NULL);
-    charging_animation_timer = lv_timer_create(ChargingAnimationTimer_callback, 500, NULL);
-    lv_timer_pause(charging_animation_timer);
 }
 
 void update_meter_data()
 {
     configPRINTF(("Request meter data button pressed"));
     EVSE_Set_MeterEvent(METER_READ);
-}
-
-void read_NFC_UID()
-{
-    /* TODO */
 }
 
 void EVSE_Pause_Resume(void)
@@ -231,167 +230,15 @@ evse_screens_t ui_getCurentScreen(void)
     return current_screen;
 }
 
-static void updateChargingSettings(evse_charging_protocol_t protocol)
-{
-    char requestedEnergy_string[MAX_UINT32_NUMBERS] = {0};
-    char deliveredEnergy_string[MAX_UINT32_NUMBERS] = {0};
-
-    if (protocol == EVSE_BasicCharging_J1772)
-    {
-        lv_obj_add_flag(guider_ui.Car_Screen_requested_energy_value, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(guider_ui.Car_Screen_delivered_energy_value, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(guider_ui.Car_Screen_requested_energy_prompt, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(guider_ui.Car_Screen_delivered_energy_prompt, LV_OBJ_FLAG_HIDDEN);
-        const char *label_text = lv_label_get_text(guider_ui.Car_Screen_requested_energy_prompt);
-
-        if (strcmp(label_text, "Requested\nEnergy [W]") != 0)
-        {
-            lv_label_set_text(guider_ui.Car_Screen_requested_energy_prompt, "Requested\nEnergy [W]");
-            lv_label_set_text(guider_ui.Car_Screen_delivered_energy_prompt, "Delivered\nEnergy [W]");
-            lv_label_set_text(guider_ui.Car_Screen_time_to_charge_prompt, "Time to Charge");
-        }
-    }
-    else if ((protocol == EVSE_HighLevelCharging_ISO15118) || (protocol == EVSE_HighLevelCharging_ISO15118_20))
-    {
-        if (lv_obj_has_flag_any(guider_ui.Car_Screen_requested_energy_value, LV_OBJ_FLAG_HIDDEN))
-        {
-            /* If one is hidded, assume all are hidden */
-            lv_obj_clear_flag(guider_ui.Car_Screen_requested_energy_value, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_clear_flag(guider_ui.Car_Screen_delivered_energy_value, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_clear_flag(guider_ui.Car_Screen_requested_energy_prompt, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_clear_flag(guider_ui.Car_Screen_delivered_energy_prompt, LV_OBJ_FLAG_HIDDEN);
-        }
-
-        memset(requestedEnergy_string, '\0', sizeof(requestedEnergy_string));
-        snprintf(requestedEnergy_string, sizeof(requestedEnergy_string), "%d", sp_lastVehicleData->requestedEnergy);
-        lv_label_set_text(guider_ui.Car_Screen_requested_energy_value, requestedEnergy_string);
-        memset(deliveredEnergy_string, '\0', sizeof(deliveredEnergy_string));
-        snprintf(deliveredEnergy_string, sizeof(deliveredEnergy_string), "%d", sp_lastVehicleData->deliveredEnergyHLC);
-        lv_label_set_text(guider_ui.Car_Screen_delivered_energy_value, deliveredEnergy_string);
-
-        const charging_directions_t charge_direction = EVSE_ChargingProtocol_ChargingDirection();
-        const char *label_text                       = lv_label_get_text(guider_ui.Car_Screen_requested_energy_prompt);
-
-        if (charge_direction == EVSE_G2V)
-        {
-            if (strcmp(label_text, "Requested\nEnergy [W]") != 0)
-            {
-                lv_label_set_text(guider_ui.Car_Screen_requested_energy_prompt, "Requested\nEnergy [W]");
-                lv_label_set_text(guider_ui.Car_Screen_delivered_energy_prompt, "Delivered\nEnergy [W]");
-                lv_label_set_text(guider_ui.Car_Screen_time_to_charge_prompt, "Time to Charge");
-            }
-        }
-        else if (charge_direction == EVSE_V2G)
-        {
-            if (strcmp(label_text, "Requested\nEnergy [W]") == 0)
-            {
-                lv_label_set_text(guider_ui.Car_Screen_requested_energy_prompt, "Offered\nEnergy [W]");
-                lv_label_set_text(guider_ui.Car_Screen_delivered_energy_prompt, "Received\nEnergy [W]");
-                lv_label_set_text(guider_ui.Car_Screen_time_to_charge_prompt, "Time to Discharge");
-            }
-        }
-    }
-}
-
-static lv_obj_t *getImagebyIndexV2G(uint8_t index)
-{
-    switch (index)
-    {
-        case 1:
-            return guider_ui.Car_Screen_v2g_img_1;
-            break;
-        case 2:
-            return guider_ui.Car_Screen_v2g_img_2;
-            break;
-        case 3:
-            return guider_ui.Car_Screen_v2g_img_3;
-            break;
-        case 4:
-            return guider_ui.Car_Screen_v2g_img_4;
-            break;
-        default:
-            break;
-    }
-}
-
-static lv_obj_t *getImagebyIndexG2V(uint8_t index)
-{
-    switch (index)
-    {
-        case 1:
-            return guider_ui.Car_Screen_g2v_img_1;
-            break;
-        case 2:
-            return guider_ui.Car_Screen_g2v_img_2;
-            break;
-        case 3:
-            return guider_ui.Car_Screen_g2v_img_3;
-            break;
-        case 4:
-            return guider_ui.Car_Screen_g2v_img_4;
-            break;
-        default:
-            break;
-    }
-}
-
-void CleanCharging_animation()
-{
-    for (int i = 1; i <= CHARGING_IMAGES_NUMBER; i++)
-    {
-        lv_obj_t *img = getImagebyIndexG2V(i);
-        if (lv_obj_has_flag(img, LV_OBJ_FLAG_HIDDEN) == false)
-        {
-            lv_obj_add_flag(img, LV_OBJ_FLAG_HIDDEN);
-        }
-
-        img = getImagebyIndexV2G(i);
-        if (lv_obj_has_flag(img, LV_OBJ_FLAG_HIDDEN) == false)
-        {
-            lv_obj_add_flag(img, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
-}
-
-void GridtoVehicle_animation(void)
-{
-    static uint8_t i = 1;
-
-    CleanCharging_animation();
-
-    if (i <= CHARGING_IMAGES_NUMBER)
-    {
-        lv_obj_t *img = getImagebyIndexG2V(i);
-        lv_obj_clear_flag(img, LV_OBJ_FLAG_HIDDEN);
-        i++;
-    }
-    else if (i == CHARGING_IMAGES_NUMBER + 1)
-    {
-        i = 1;
-    }
-}
-
-void VehicletoGrid_animation(void)
-{
-    static uint8_t i = CHARGING_IMAGES_NUMBER;
-
-    CleanCharging_animation();
-
-    if (i > 0)
-    {
-        lv_obj_t *img = getImagebyIndexV2G(i);
-        lv_obj_clear_flag(img, LV_OBJ_FLAG_HIDDEN);
-        i--;
-    }
-    else if (i == 0)
-    {
-        i = CHARGING_IMAGES_NUMBER;
-    }
-}
-
+#if 0
 static void UI_Update_PauseResumeBtn()
 {
-    if (guider_ui.Car_Screen_stop_resume_btn_label == NULL || guider_ui.Car_Screen_stop_resume_btn == NULL)
+    if (UI_isScreenDeleted(Screen_Charging) && (ui_getCurentScreen() != Screen_Charging))
+    {
+        return;
+    }
+
+    if (guider_ui.Charging_Screen_btn_stop_label == NULL || guider_ui.Charging_Screen_btn_stop == NULL)
     {
         return;
     }
@@ -400,308 +247,23 @@ static void UI_Update_PauseResumeBtn()
 
     if (charging_state == EVSE_ChargingStarted) // if charging session started for the first time
     {
-        lv_obj_clear_flag(guider_ui.Car_Screen_stop_resume_btn, LV_OBJ_FLAG_HIDDEN);
-        lv_label_set_text(guider_ui.Car_Screen_stop_resume_btn_label, PAUSE_TEXT);
+        lv_obj_clear_flag(guider_ui.Charging_Screen_btn_stop, LV_OBJ_FLAG_HIDDEN);
+        lv_label_set_text(guider_ui.Charging_Screen_btn_stop_label, PAUSE_TEXT);
     }
     else if (charging_state == EVSE_ChargingPaused)
     {
-        lv_label_set_text(guider_ui.Car_Screen_stop_resume_btn_label, RESUME_TEXT);
+        lv_label_set_text(guider_ui.Charging_Screen_btn_stop_label, RESUME_TEXT);
     }
     else if (charging_state == EVSE_ChargingResumed)
     {
-        lv_label_set_text(guider_ui.Car_Screen_stop_resume_btn_label, PAUSE_TEXT);
+        lv_label_set_text(guider_ui.Charging_Screen_btn_stop_label, PAUSE_TEXT);
     }
     else if (charging_state == EVSE_ChargingNone)
     {
-        lv_obj_add_flag(guider_ui.Car_Screen_stop_resume_btn, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(guider_ui.Charging_Screen_btn_stop, LV_OBJ_FLAG_HIDDEN);
     }
 }
-
-void UI_Update_Car_VehicleID(const char *vehicleID)
-{
-    if (vehicleID == NULL)
-    {
-        return;
-    }
-    else if (guider_ui.Car_Screen && guider_ui.Car_Screen_vehicle_id_value)
-    {
-        lv_label_set_text(guider_ui.Car_Screen_vehicle_id_value, vehicleID);
-    }
-}
-
-/**
- * Update vehicle ID in NFC Screen
- */
-void UI_Update_NFC_VehicleID(const char *vehicleID)
-{
-    sp_vehicle_id = vehicleID;
-
-    if (sp_vehicle_id == NULL)
-    {
-        return;
-    }
-
-    if (guider_ui.NFC_Screen_card_UID_value != NULL)
-    {
-        /* Update card UID prompt on NFC Screen*/
-        lv_label_set_text(guider_ui.NFC_Screen_card_UID_value, sp_vehicle_id);
-    }
-}
-
-/**
- * Update cloud status message in Debug Screen
- */
-void UI_Update_Debug_CloudMessage(const char *CloudMessage)
-{
-    if (CloudMessage == NULL)
-    {
-        return;
-    }
-    sp_lastCloudMessage = CloudMessage;
-
-    if ((sp_lastCloudMessage != NULL) && (guider_ui.Debug_Conn_Screen_cloud_status_value))
-    {
-        /* Update Cloud Status prompt on Debug Screen*/
-        lv_label_set_text(guider_ui.Debug_Conn_Screen_cloud_status_value, sp_lastCloudMessage);
-    }
-}
-
-/**
- * Update network message in Debug Screen
- */
-void UI_Update_Debug_NetworkMessage(const char *NetworkMessage)
-{
-    if (NetworkMessage == NULL)
-    {
-        return;
-    }
-
-    sp_lastNetworkMessage = NetworkMessage;
-
-    if ((sp_lastNetworkMessage != NULL) && (guider_ui.Debug_Conn_Screen_network_status_value))
-    {
-        /* Update Network Status prompt on Debug Screen*/
-        lv_label_set_text(guider_ui.Debug_Conn_Screen_network_status_value, sp_lastNetworkMessage);
-    }
-}
-
-/**
- * Update telemetry counter in Debug Screen
- */
-void UI_Update_Debug_TelemetryCnt(uint32_t telemetryCnt)
-{
-    s_lastTelemetryCnt = telemetryCnt;
-
-    if (guider_ui.Debug_Conn_Screen_telemetry_value)
-    {
-        const char *current_telemetry_cnt_str      = lv_label_get_text(guider_ui.Debug_Conn_Screen_telemetry_value);
-        char telemetry_cnt_str[MAX_UINT32_NUMBERS] = {0};
-        snprintf(telemetry_cnt_str, sizeof(telemetry_cnt_str), "%d", s_lastTelemetryCnt);
-
-        if ((current_telemetry_cnt_str == NULL) || (strcmp(telemetry_cnt_str, current_telemetry_cnt_str) != 0))
-        {
-            /* Update telemetry counter if new data was sent */
-            lv_label_set_text(guider_ui.Debug_Conn_Screen_telemetry_value, telemetry_cnt_str);
-        }
-    }
-}
-
-/**
- * Update data in Debug Screen
- */
-void UI_Update_Debug_Values(const char *NetworkMessage, const char *CloudMessage, uint32_t telemetryCnt)
-{
-    UI_Update_Debug_NetworkMessage(NetworkMessage);
-    UI_Update_Debug_CloudMessage(CloudMessage);
-    UI_Update_Debug_TelemetryCnt(telemetryCnt);
-}
-
-/**
- * Update data in Car Simulation Screen
- */
-void UI_Update_Car_Values(const vehicle_data_t *vehicle_data)
-{
-    if (guider_ui.Car_Screen == NULL)
-    {
-        return;
-    }
-
-    if (vehicle_data == NULL)
-    {
-        return;
-    }
-
-    UI_Update_PauseResumeBtn();
-
-    sp_lastVehicleData                    = vehicle_data;
-    char data_string[MAX_PROTOCOL_LENGTH] = {0};
-
-    if (EVSE_ChargingProtocol_isCharging())
-    {
-        lv_label_set_text(guider_ui.Car_Screen_time_to_charge_value,
-                          convertSecToFormat(sp_lastVehicleData->timeToCharge, HH_MM_SS));
-    }
-    else
-    {
-        lv_label_set_text(guider_ui.Car_Screen_time_to_charge_value, convertSecToFormat(NOT_CHARGING, HH_MM));
-    }
-
-    lv_label_set_text(guider_ui.Car_Screen_elapsed_time_value,
-                      convertSecToFormat(sp_lastVehicleData->elapsedTime, HH_MM_SS));
-
-    updateChargingSettings(sp_lastVehicleData->charging_protocol);
-    UI_Update_Car_VehicleID(sp_lastVehicleData->vehicleID);
-
-    if ((sp_lastVehicleData->charging_protocol == EVSE_HighLevelCharging_ISO15118) ||
-        (sp_lastVehicleData->charging_protocol == EVSE_HighLevelCharging_ISO15118_20))
-    {
-        snprintf(data_string, sizeof(data_string), "%s - %s", EVSE_ChargingProtocol_GetProtocolString(),
-                 EVSE_ISO15118_GetVehicleAuthMethodString());
-        lv_label_set_text(guider_ui.Car_Screen_protocol_value, data_string);
-    }
-    else
-    {
-        lv_label_set_text(guider_ui.Car_Screen_protocol_value, EVSE_ChargingProtocol_GetProtocolString());
-    }
-
-    snprintf(data_string, sizeof(data_string), "%.2f", sp_lastVehicleData->chargeCurrent);
-    lv_label_set_text(guider_ui.Car_Screen_charge_current_value, data_string);
-}
-
-/**
- * Update data in EVSE Screen
- *
- * @param meter structure that includes all EVSE parameters
- */
-void UI_Update_EVSE_Values(const evse_data_t *evse_data)
-{
-    char my_string[20];
-
-    if (guider_ui.EVSE_Screen == NULL)
-    {
-        return;
-    }
-
-    if (evse_data == NULL)
-    {
-        lv_led_set_color(guider_ui.EVSE_Screen_charge_state_led, lv_color_hex(RED_LED));
-        return;
-    }
-
-    sp_lastEvseData = evse_data;
-
-    /* convert current charge cost float to string to display in LVGL prompt */
-    memset(my_string, '\0', sizeof(my_string));
-    snprintf(my_string, sizeof(my_string), "%.2f", sp_lastEvseData->EVSE_ChargeCost);
-    lv_label_set_text(guider_ui.EVSE_Screen_charge_cost_value, my_string);
-
-    memset(my_string, '\0', sizeof(my_string));
-    snprintf(my_string, sizeof(my_string), "%d", sp_lastEvseData->EVSE_Rating);
-    lv_label_set_text(guider_ui.EVSE_Screen_power_rate_value, my_string);
-
-    memset(my_string, '\0', sizeof(my_string));
-    snprintf(my_string, sizeof(my_string), "%d", sp_lastEvseData->EVSE_Temperature);
-    lv_label_set_text(guider_ui.EVSE_Screen_temperature_value, my_string);
-
-    memset(my_string, '\0', sizeof(my_string));
-    snprintf(my_string, sizeof(my_string), "%d", sp_lastEvseData->EVSE_GridPowerLimit);
-    lv_label_set_text(guider_ui.EVSE_Screen_grid_limit_value, my_string);
-
-    lv_label_set_text(guider_ui.EVSE_Screen_EVSE_ID_value, sp_lastEvseData->EVSE_Id);
-
-    if (sp_lastEvseData->EVSE_IsCharging == true)
-    {
-        lv_led_set_color(guider_ui.EVSE_Screen_charge_state_led, lv_color_hex(GREEN_LED));
-    }
-    else
-    {
-        lv_led_set_color(guider_ui.EVSE_Screen_charge_state_led, lv_color_hex(RED_LED));
-    }
-
-    snprintf(my_string, sizeof(my_string), "HW v%d\nSW v%d.%d.%d", sp_lastEvseData->SIGBRD_HW_version,
-             sp_lastEvseData->SIGBRD_SW_version_major, sp_lastEvseData->SIGBRD_SW_version_minor,
-             sp_lastEvseData->SIGBRD_SW_version_bugfix);
-    lv_label_set_text(guider_ui.EVSE_Screen_sigboard_versions_value, my_string);
-}
-
-/**
- * Update data in Meter Screen
- *
- * @param meter structure that includes all EVSE parameters
- */
-void UI_Update_Meter_Values(const meter_data_t *meter)
-{
-    char my_string[20];
-
-    sp_meter_data = meter;
-
-    if (sp_meter_data == NULL)
-    {
-        return;
-    }
-
-    if (guider_ui.Meter_Screen == NULL)
-    {
-        return;
-    }
-
-    /* convert current float to string to display in LVGL prompt */
-    memset(my_string, '\0', sizeof(my_string));
-    snprintf(my_string, sizeof(my_string), "%.2f", sp_meter_data->irms);
-    lv_label_set_text(guider_ui.Meter_Screen_I_RMS_value, my_string);
-
-    /* convert voltage float to string to display in LVGL prompt */
-    memset(my_string, '\0', sizeof(my_string));
-    snprintf(my_string, sizeof(my_string), "%.2f", sp_meter_data->vrms);
-    lv_label_set_text(guider_ui.Meter_Screen_V_RMS_value, my_string);
-
-    /* convert Power float to string to display in LVGL prompt */
-    memset(my_string, '\0', sizeof(my_string));
-    snprintf(my_string, sizeof(my_string), "%.4f", sp_meter_data->wh / 1000);
-    lv_label_set_text(guider_ui.Meter_Screen_kWh_value, my_string);
-
-    memset(my_string, '\0', sizeof(my_string));
-    snprintf(my_string, sizeof(my_string), "%.2f", sp_meter_data->wh);
-    lv_label_set_text(guider_ui.Meter_Screen_active_value, my_string);
-
-    /* convert reactive value float to string to display in LVGL prompt */
-    memset(my_string, '\0', sizeof(my_string));
-    snprintf(my_string, sizeof(my_string), "%.2f", sp_meter_data->Q);
-    lv_label_set_text(guider_ui.Meter_Screen_reactive_value, my_string);
-
-    /* convert apparent value float to string to display in LVGL prompt */
-    memset(my_string, '\0', sizeof(my_string));
-    snprintf(my_string, sizeof(my_string), "%.2f", sp_meter_data->S);
-    lv_label_set_text(guider_ui.Meter_Screen_aparent_value, my_string);
-
-    /* Print state */
-    lv_label_set_text(guider_ui.Meter_Screen_mode_value, sp_meter_data->EVSE_ChargeState);
-}
-
-/**
- * Update data in Main Screen
- *
- * @param meter structure that includes all EVSE parameters
- */
-void UI_Update_Main_Values(const char *header)
-{
-    if (header == NULL)
-    {
-        return;
-    }
-
-    if (guider_ui.Main_Screen_SSID_prompt == NULL)
-    {
-        return;
-    }
-
-    const char *current_header_text = lv_label_get_text(guider_ui.Main_Screen_SSID_prompt);
-
-    if ((current_header_text == NULL) || (strcmp(current_header_text, header)))
-    {
-        lv_label_set_text(guider_ui.Main_Screen_SSID_prompt, header);
-    }
-}
+#endif
 
 void ui_ChangeScreen(lv_obj_t *new_screen)
 {
@@ -709,8 +271,13 @@ void ui_ChangeScreen(lv_obj_t *new_screen)
     current_screen                        = ScreenObjToScreenType(new_screen);
     char data_string[MAX_EVSE_SW_VERSION] = {0};
 
+    if((old_screen != current_screen) && (UI_isScreenDeleted(old_screen)))
+    {
+        UI_clearScreenReference(old_screen);
+    }
     ClockTimer_Set(Screen_digital_clock_hour_value, Screen_digital_clock_min_value);
 
+    UI_Update_NFC_Activation_Status();
     /* If we get this function called the screens are already created */
     if (current_screen == Screen_Main)
     {
@@ -730,130 +297,25 @@ void ui_ChangeScreen(lv_obj_t *new_screen)
         snprintf(data_string, sizeof(data_string), "EVSE SW v%d.%d.%d", FIRMWARE_VERSION_MAJOR, FIRMWARE_VERSION_MINOR,
                  FIRMWARE_VERSION_HOTFIX);
         lv_label_set_text(guider_ui.Main_Screen_EVSE_software_version, data_string);
+        EVSE_UI_SetEvent(EVSE_UI_NetworkStatus);
+        EVSE_UI_SetEvent(EVSE_UI_OcppStatus);
+        EVSE_UI_SetEvent(EVSE_UI_TelemetryData);
     }
-    if (current_screen == Screen_Meter)
+    if (current_screen == Screen_Linking)
     {
-        UI_Update_Meter_Values(sp_meter_data);
+        UI_Update_ISO15118Status(sp_lastISO15118Status);
+        UI_Update_Metering_Values(sp_meter_data);
+        EVSE_UI_SetEvent(EVSE_UI_NFC);
     }
-    else if (current_screen == Screen_EVSE)
+    else if (current_screen == Screen_Charging)
     {
-        sp_lastEvseData = EVSE_Meter_GetEVSEData();
+        UI_Update_Vehicle_Values(sp_lastVehicleData);
+        UI_Update_Metering_Values (sp_meter_data);
         UI_Update_EVSE_Values(sp_lastEvseData);
-    }
-    else if (current_screen == Screen_NFC)
-    {
-        UI_Update_NFC_VehicleID(sp_vehicle_id);
-    }
-    else if (current_screen == Screen_CarSimulation)
-    {
-        UI_Update_Car_Values(sp_lastVehicleData);
-    }
-    else if (current_screen == Screen_NetworkDebug)
-    {
-        UI_Update_Debug_Values(sp_lastNetworkMessage, sp_lastCloudMessage, s_lastTelemetryCnt);
-    }
-    else if (current_screen == Screen_ISODebug)
-    {
-        UI_Update_ISO15118_Debug_Values(sp_lastISO15118Status, sp_lastV2GStatus, s_lastPowerReqCnt);
     }
 
     configPRINTF(
         ("Changed screen from %s. New screen is %s", s_screenNames[old_screen], s_screenNames[current_screen]));
-}
-
-void UI_Update_EVSE_Uptime()
-{
-    if (guider_ui.EVSE_Screen && guider_ui.EVSE_Screen_up_time_value)
-    {
-        lv_label_set_text(guider_ui.EVSE_Screen_up_time_value,
-                          convertSecToFormat(EVSE_GetSecondsSinceBoot(), HH_MM_SS));
-    }
-}
-
-void UI_Update_ISO15118_Debug_Values(const evse_iso15118_state_t ISO15118_status,
-                                     const V2G_status_t V2G_status,
-                                     const uint32_t Telemetry_cntr)
-{
-    if (guider_ui.Debug_ISO_Screen == NULL)
-    {
-        return;
-    }
-    UI_Update_Debug_ISO15118Status(ISO15118_status);
-    UI_Update_Debug_V2GStatus(V2G_status);
-    UI_Update_ISO15118_Debug_PwrReqCntr(Telemetry_cntr);
-    lv_label_set_text(guider_ui.Debug_ISO_Screen_SIGBOARD_connection_value, SIGBOARD_connection);
-}
-
-void UI_Update_ISO15118_Debug_PwrReqCntr(const uint32_t power_req_cntr)
-{
-    s_lastPowerReqCnt = power_req_cntr;
-    if (guider_ui.Debug_ISO_Screen_power_request_cntr_value != NULL)
-    {
-        const char *current_power_req_cntr_str = lv_label_get_text(guider_ui.Debug_ISO_Screen_power_request_cntr_value);
-        if (current_power_req_cntr_str == NULL)
-        {
-            return;
-        }
-        char power_req_cnt_str[MAX_UINT32_NUMBERS] = {0};
-        snprintf(power_req_cnt_str, sizeof(power_req_cnt_str), "%d", s_lastPowerReqCnt);
-        if (strcmp(power_req_cnt_str, current_power_req_cntr_str) != 0)
-        {
-            lv_label_set_text(guider_ui.Debug_ISO_Screen_power_request_cntr_value, power_req_cnt_str);
-        }
-    }
-}
-
-void UI_Update_Debug_ISO15118Status(const evse_iso15118_state_t status)
-{
-    if (status >= EVSE_ISO15118_LAST)
-    {
-        return;
-    }
-
-    if (guider_ui.Debug_ISO_Screen_ISO15118_status_value != NULL)
-    {
-        const char *iso15118_state_string   = EVSE_ISO15118_GetStringFromState(status);
-        const char *current_ISO15118_status = lv_label_get_text(guider_ui.Debug_ISO_Screen_ISO15118_status_value);
-
-        if (iso15118_state_string == NULL)
-        {
-            return;
-        }
-
-        if ((current_ISO15118_status == NULL) || (strcmp(current_ISO15118_status, iso15118_state_string) != 0))
-        {
-            lv_label_set_text(guider_ui.Debug_ISO_Screen_ISO15118_status_value, iso15118_state_string);
-        }
-    }
-
-    if ((status != EVSE_ISO15118_NotEnable) && (guider_ui.Debug_ISO_Screen_V2G_demo_prompt != NULL) &&
-        (lv_obj_has_flag(guider_ui.Debug_ISO_Screen_V2G_demo_prompt, LV_OBJ_FLAG_HIDDEN)))
-    {
-        /* Assume all have the flag */
-        lv_obj_clear_flag(guider_ui.Debug_ISO_Screen_V2G_demo_value, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_clear_flag(guider_ui.Debug_ISO_Screen_power_request_cntr_value, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_clear_flag(guider_ui.Debug_ISO_Screen_V2G_demo_prompt, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_clear_flag(guider_ui.Debug_ISO_Screen_power_request_cntr_prompt, LV_OBJ_FLAG_HIDDEN);
-    }
-
-    sp_lastISO15118Status = status;
-}
-
-void UI_Update_Debug_V2GStatus(const V2G_status_t status)
-{
-    if (status >= LAST_V2G_STATUS)
-    {
-        return;
-    }
-    sp_lastV2GStatus = status;
-    if (guider_ui.Debug_ISO_Screen_V2G_demo_value != NULL)
-    {
-        const char *current_V2G_status = lv_label_get_text(guider_ui.Debug_ISO_Screen_V2G_demo_value);
-        if ((current_V2G_status == NULL) || strcmp(current_V2G_status, V2G_status_list[status]))
-        {
-            lv_label_set_text(guider_ui.Debug_ISO_Screen_V2G_demo_value, V2G_status_list[status]);
-        }
-    }
 }
 
 void UI_Update_Localtime(void)
@@ -865,4 +327,612 @@ void UI_Update_Localtime(void)
     Screen_digital_clock_min_value  = local_time->tm_min;
     Screen_digital_clock_sec_value  = local_time->tm_sec;
     ClockTimer_Set(Screen_digital_clock_hour_value, Screen_digital_clock_min_value);
+}
+
+void UI_Update_PwrReqCntr(const uint32_t power_req_cntr)
+{
+    s_lastPowerReqCnt = power_req_cntr;
+    evse_screens_t current_screen = ui_getCurentScreen();
+
+    if(current_screen == Screen_Main)
+    {
+        if(guider_ui.Main_Screen == NULL)
+        {
+            return;
+        }
+    }
+    else if(current_screen == Screen_Linking)
+    {
+        if(guider_ui.Linking_Screen == NULL)
+        {
+            return;
+        }
+    }
+    else if(current_screen == Screen_Charging)
+    {
+        if(guider_ui.Charging_Screen == NULL)
+        {
+            return;
+        }
+
+        if (guider_ui.Charging_Screen_power_request_cntr_value != NULL)
+        {
+            const char *current_power_req_cntr_str = lv_label_get_text(guider_ui.Charging_Screen_power_request_cntr_value);
+            if (current_power_req_cntr_str == NULL)
+            {
+                return;
+            }
+            char power_req_cnt_str[MAX_UINT32_NUMBERS] = {0};
+            snprintf(power_req_cnt_str, sizeof(power_req_cnt_str), "%d", s_lastPowerReqCnt);
+            if (strcmp(power_req_cnt_str, current_power_req_cntr_str) != 0)
+            {
+                lv_label_set_text(guider_ui.Charging_Screen_power_request_cntr_value, power_req_cnt_str);
+            }
+        }
+    }
+}
+
+void UI_Update_ISO15118Status(const evse_iso15118_state_t status)
+{
+    if (status >= EVSE_ISO15118_LAST)
+    {
+        return;
+    }
+
+    sp_lastISO15118Status = status;
+    evse_screens_t current_screen = ui_getCurentScreen();
+
+    if(current_screen == Screen_Main)
+    {
+        if(guider_ui.Main_Screen == NULL)
+        {
+            return;
+        }
+    }
+    else if(current_screen == Screen_Linking)
+    {
+        if(guider_ui.Linking_Screen == NULL)
+        {
+            return;
+        }
+
+        if (guider_ui.Linking_Screen_ISO15118_status_value != NULL)
+        {
+            const char *iso15118_state_string   = EVSE_ISO15118_GetStringFromState(status);
+            const char *current_ISO15118_status = lv_label_get_text(guider_ui.Linking_Screen_ISO15118_status_value);
+
+            if (iso15118_state_string == NULL)
+            {
+                return;
+            }
+
+            if ((current_ISO15118_status == NULL) || (strcmp(current_ISO15118_status, iso15118_state_string) != 0))
+            {
+                lv_label_set_text(guider_ui.Linking_Screen_ISO15118_status_value, iso15118_state_string);
+            }
+        }
+    }
+    else if(current_screen == Screen_Charging)
+    {
+        if(guider_ui.Charging_Screen == NULL)
+        {
+            return;
+        }
+    }
+}
+
+void UI_Update_Metering_Values(const meter_data_t *meter_data)
+{
+    if (meter_data == NULL)
+    {
+        return;
+    }
+
+    sp_meter_data = meter_data;
+
+    evse_screens_t current_screen = ui_getCurentScreen();
+
+    if(current_screen == Screen_Main)
+    {
+        if(guider_ui.Main_Screen == NULL)
+        {
+            return;
+        }
+    }
+    else if(current_screen == Screen_Linking)
+    {
+        if(guider_ui.Linking_Screen == NULL)
+        {
+            return;
+        }
+
+        lv_label_set_text(guider_ui.Linking_Screen_mode_value, sp_meter_data->EVSE_ChargeState);
+
+        EVSE_UI_SetEvent(EVSE_UI_ISO15118_Stack_Status);
+
+        if(guider_ui.Linking_Screen_cont_linked == NULL)
+        {
+            return;
+        }
+
+        lv_label_set_text(guider_ui.Linking_Screen_SIGBOARD_connection_value, SIGBOARD_connection);
+        EVSE_UI_SetEvent(EVSE_UI_NFC);
+    }
+    else if(current_screen == Screen_Charging)
+    {
+        if(guider_ui.Charging_Screen == NULL)
+        {
+            return;
+        }
+
+        char my_string[20];
+
+        /* convert Power float to string to display in LVGL prompt */
+        memset(my_string, '\0', sizeof(my_string));
+        snprintf(my_string, sizeof(my_string), "%.4f", sp_meter_data->wh / 1000);
+        lv_label_set_text(guider_ui.Charging_Screen_kWh_value, my_string);
+
+        /* convert current float to string to display in LVGL prompt */
+        memset(my_string, '\0', sizeof(my_string));
+        snprintf(my_string, sizeof(my_string), "%.2f", sp_meter_data->irms);
+        lv_label_set_text(guider_ui.Charging_Screen_current_value, my_string);
+
+        /* convert voltage float to string to display in LVGL prompt */
+        memset(my_string, '\0', sizeof(my_string));
+        snprintf(my_string, sizeof(my_string), "%.2f", sp_meter_data->vrms);
+        lv_label_set_text(guider_ui.Charging_Screen_voltage_value, my_string);
+
+        lv_label_set_text(guider_ui.Charging_Screen_mode_value, sp_meter_data->EVSE_ChargeState);
+    }
+}
+
+void UI_Update_Vehicle_Values(const vehicle_data_t *vehicle_data)
+{
+    if (vehicle_data == NULL)
+    {
+        return;
+    }
+
+    sp_lastVehicleData = vehicle_data;
+
+    evse_screens_t current_screen = ui_getCurentScreen();
+
+    if(current_screen == Screen_Main)
+    {
+        if(guider_ui.Main_Screen == NULL)
+        {
+            return;
+        }
+    }
+    else if(current_screen == Screen_Linking)
+    {
+        if(guider_ui.Linking_Screen == NULL)
+        {
+            return;
+        }
+    }
+    else if(current_screen == Screen_Charging)
+    {
+        if(guider_ui.Charging_Screen == NULL)
+        {
+            return;
+        }
+
+        char data_string[MAX_PROTOCOL_LENGTH] = {0};
+        char my_string[20];
+
+#if 0
+        UI_Update_PauseResumeBtn();
+#endif
+
+        lv_label_set_text(guider_ui.Charging_Screen_elapsed_time_value,
+                          convertSecToFormat(sp_lastVehicleData->elapsedTime, HH_MM_SS));
+
+        UI_Update_NFC_ID(sp_lastVehicleData->vehicleID);
+
+        if(guider_ui.Charging_Screen_cont_details == NULL)
+        {
+            return;
+        }
+
+        if (EVSE_ChargingProtocol_isCharging())
+        {
+            lv_label_set_text(guider_ui.Charging_Screen_time_to_charge_value,
+                              convertSecToFormat(sp_lastVehicleData->timeToCharge, HH_MM_SS));
+        }
+        else
+        {
+            lv_label_set_text(guider_ui.Charging_Screen_time_to_charge_value, convertSecToFormat(NOT_CHARGING, HH_MM));
+        }
+
+        if ((sp_lastVehicleData->charging_protocol == EVSE_HighLevelCharging_ISO15118) ||
+            (sp_lastVehicleData->charging_protocol == EVSE_HighLevelCharging_ISO15118_20))
+        {
+            snprintf(data_string, sizeof(data_string), "%s - %s", EVSE_ChargingProtocol_GetProtocolString(),
+                     EVSE_ISO15118_GetVehicleAuthMethodString());
+            lv_label_set_text(guider_ui.Charging_Screen_protocol_value, data_string);
+
+            lv_bar_set_value(guider_ui.Charging_Screen_bar_charging, sp_lastVehicleData->energyDeliveryStatus, LV_ANIM_OFF);
+            snprintf(data_string, sizeof(data_string), "%d", sp_lastVehicleData->energyDeliveryStatus);
+            lv_obj_remove_flag(guider_ui.Charging_Screen_bar_charging, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_remove_flag(guider_ui.Charging_Screen_battery_level, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_remove_flag(guider_ui.Charging_Screen_label_percent, LV_OBJ_FLAG_HIDDEN);
+            lv_label_set_text(guider_ui.Charging_Screen_battery_level, data_string);
+        }
+        else
+        {
+            lv_obj_add_flag(guider_ui.Charging_Screen_bar_charging, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(guider_ui.Charging_Screen_battery_level, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(guider_ui.Charging_Screen_label_percent, LV_OBJ_FLAG_HIDDEN);
+            lv_label_set_text(guider_ui.Charging_Screen_protocol_value, EVSE_ChargingProtocol_GetProtocolString());
+        }
+
+        UI_Update_PwrReqCntr(s_lastPowerReqCnt);
+    }
+}
+
+void UI_Update_EVSE_Values(const evse_data_t *evse_data)
+{
+    if (evse_data == NULL)
+    {
+        return;
+    }
+
+    sp_lastEvseData = evse_data;
+
+    evse_screens_t current_screen = ui_getCurentScreen();
+
+    if(current_screen == Screen_Main)
+    {
+        if(guider_ui.Main_Screen == NULL)
+        {
+            return;
+        }
+    }
+    else if(current_screen == Screen_Linking)
+    {
+        if(guider_ui.Linking_Screen == NULL)
+        {
+            return;
+        }
+    }
+    else if(current_screen == Screen_Charging)
+    {
+        if(guider_ui.Charging_Screen == NULL)
+        {
+            return;
+        }
+
+        char *direction_string = EVSE_ChargingProtocol_GetStringFromDirection(evse_data->EVSE_ChargingDirection);
+        lv_label_set_text(guider_ui.Charging_Screen_charging_direction_value, direction_string);
+        if(evse_data->EVSE_ChargingDirection == EVSE_G2V)
+        {
+            lv_label_set_text(guider_ui.Charging_Screen_label_charged1, "Charging Time (G2V)");
+        }
+        else if(evse_data->EVSE_ChargingDirection == EVSE_V2G)
+        {
+            lv_label_set_text(guider_ui.Charging_Screen_label_charged1, "Discharging Time (V2G)");
+        }
+        if(sp_lastEvseData->EVSE_Id != NULL)
+        {
+            lv_label_set_text(guider_ui.Charging_Screen_EVSE_ID_value, sp_lastEvseData->EVSE_Id);
+        }
+    }
+}
+
+void UI_Update_NFC_ID(const char *vehicleID)
+{
+    if(vehicleID == NULL)
+    {
+        return;
+    }
+
+    sp_vehicle_id = vehicleID;
+    evse_screens_t current_screen = ui_getCurentScreen();
+
+    if(current_screen == Screen_Main)
+    {
+        if(guider_ui.Main_Screen == NULL)
+        {
+            return;
+        }
+    }
+    else if(current_screen == Screen_Linking)
+    {
+        if(guider_ui.Linking_Screen == NULL)
+        {
+            return;
+        }
+
+        const char *label_text = lv_label_get_text(guider_ui.Linking_Screen_card_UID_value);
+
+        if (guider_ui.Linking_Screen_card_UID_value != NULL)
+        {
+            if(memcmp(label_text, sp_vehicle_id, strlen(sp_vehicle_id)) != 0)
+            {
+                lv_label_set_text(guider_ui.Linking_Screen_card_UID_value, sp_vehicle_id);
+            }
+        }
+    }
+    else if(current_screen == Screen_Charging)
+    {
+        if(guider_ui.Charging_Screen == NULL)
+        {
+            return;
+        }
+
+        const char *label_text = lv_label_get_text(guider_ui.Charging_Screen_vehicle_id_value);
+
+        if (guider_ui.Charging_Screen_vehicle_id_value != NULL)
+        {
+            if(memcmp(label_text, sp_vehicle_id, strlen(sp_vehicle_id)) != 0)
+            {
+                lv_label_set_text(guider_ui.Charging_Screen_vehicle_id_value, sp_vehicle_id);
+            }
+        }
+    }
+}
+
+void UI_Update_NFC_Card_Type(const char *cardType)
+{
+    if(cardType == NULL)
+    {
+        return;
+    }
+
+    sp_card_type = cardType;
+    evse_screens_t current_screen = ui_getCurentScreen();
+
+    if(current_screen == Screen_Main)
+    {
+        if(guider_ui.Main_Screen == NULL)
+        {
+            return;
+        }
+    }
+    else if(current_screen == Screen_Linking)
+    {
+        if(guider_ui.Linking_Screen == NULL)
+        {
+            return;
+        }
+
+        char *label_text = lv_label_get_text(guider_ui.Linking_Screen_card_type_value);
+        if (guider_ui.Linking_Screen_card_type_value != NULL)
+        {
+            if(memcmp(label_text, sp_card_type, strlen(sp_card_type)) != 0)
+            {
+                lv_label_set_text(guider_ui.Linking_Screen_card_type_value, sp_card_type);
+            }
+        }
+    }
+    else if(current_screen == Screen_Charging)
+    {
+        if(guider_ui.Charging_Screen == NULL)
+        {
+            return;
+        }
+    }
+}
+
+void UI_Update_NFC_Card_Security(const char *cardSecurityStatus)
+{
+    if(cardSecurityStatus == NULL)
+    {
+        return;
+    }
+
+    sp_card_security = cardSecurityStatus;
+    evse_screens_t current_screen = ui_getCurentScreen();
+
+    if(current_screen == Screen_Main)
+    {
+        if(guider_ui.Main_Screen == NULL)
+        {
+            return;
+        }
+    }
+    else if(current_screen == Screen_Linking)
+    {
+        if(guider_ui.Linking_Screen == NULL)
+        {
+            return;
+        }
+
+        char *label_text = lv_label_get_text(guider_ui.Linking_Screen_card_security_value);
+        if (guider_ui.Linking_Screen_card_security_value != NULL)
+        {
+            if(memcmp(label_text, sp_card_security, strlen(sp_card_security)) != 0)
+            {
+                lv_label_set_text(guider_ui.Linking_Screen_card_security_value, sp_card_security);
+            }
+        }
+    }
+    else if(current_screen == Screen_Charging)
+    {
+        if(guider_ui.Charging_Screen == NULL)
+        {
+            return;
+        }
+    }
+}
+
+void UI_Update_NFC_Values(const char *vehicleID, const char *cardType, const char *cardSecurityStatus)
+{
+    UI_Update_NFC_ID(vehicleID);
+    UI_Update_NFC_Card_Type(cardType);
+    UI_Update_NFC_Card_Security(cardSecurityStatus);
+}
+
+void UI_Update_Connectivity_OCPP_Status(const char *OCPPMessage)
+{
+    if (OCPPMessage == NULL)
+    {
+       return;
+    }
+
+    sp_lastOCPPMessage = OCPPMessage;
+    evse_screens_t current_screen = ui_getCurentScreen();
+
+    if(current_screen == Screen_Main)
+    {
+        if(guider_ui.Main_Screen == NULL)
+        {
+            return;
+        }
+
+        if (guider_ui.Main_Screen_OCPP_status_value)
+        {
+            /* Update OCPP Status prompt on Main Screen*/
+            lv_label_set_text(guider_ui.Main_Screen_OCPP_status_value, sp_lastOCPPMessage);
+        }
+    }
+    else if(current_screen == Screen_Linking)
+    {
+        if(guider_ui.Linking_Screen == NULL)
+        {
+            return;
+        }
+    }
+    else if(current_screen == Screen_Charging)
+    {
+        if(guider_ui.Charging_Screen == NULL)
+        {
+            return;
+        }
+    }
+}
+
+void UI_Update_Connectivity_Telemetry_Cntr(uint32_t telemetryCnt)
+{
+    s_lastTelemetryCnt = telemetryCnt;
+    evse_screens_t current_screen = ui_getCurentScreen();
+
+    if(current_screen == Screen_Main)
+    {
+        if(guider_ui.Main_Screen == NULL)
+        {
+            return;
+        }
+
+        if (guider_ui.Main_Screen_telemetry_value)
+        {
+            const char *current_telemetry_cnt_str      = lv_label_get_text(guider_ui.Main_Screen_telemetry_value);
+            char telemetry_cnt_str[MAX_UINT32_NUMBERS] = {0};
+            snprintf(telemetry_cnt_str, sizeof(telemetry_cnt_str), "%d", s_lastTelemetryCnt);
+
+            if ((current_telemetry_cnt_str == NULL) || (strcmp(telemetry_cnt_str, current_telemetry_cnt_str) != 0))
+            {
+                /* Update telemetry counter if new data was sent */
+                lv_label_set_text(guider_ui.Main_Screen_telemetry_value, telemetry_cnt_str);
+            }
+        }
+    }
+    else if(current_screen == Screen_Linking)
+    {
+        if(guider_ui.Linking_Screen == NULL)
+        {
+            return;
+        }
+    }
+    else if(current_screen == Screen_Charging)
+    {
+        if(guider_ui.Charging_Screen == NULL)
+        {
+            return;
+        }
+    }
+}
+
+void UI_Update_Connectivity_SSID(const char *SSID)
+{
+    if (SSID == NULL)
+    {
+       return;
+    }
+
+    evse_screens_t current_screen = ui_getCurentScreen();
+
+    if(current_screen == Screen_Main)
+    {
+        if(guider_ui.Main_Screen == NULL)
+        {
+            return;
+        }
+
+        if (guider_ui.Main_Screen_SSID_prompt != NULL)
+        {
+            const char *current_SSID = lv_label_get_text(guider_ui.Main_Screen_SSID_prompt);
+
+            if ((current_SSID == NULL) || (strcmp(current_SSID, SSID)))
+            {
+                lv_label_set_text(guider_ui.Main_Screen_SSID_prompt, SSID);
+            }
+        }
+    }
+    else if(current_screen == Screen_Linking)
+    {
+        if(guider_ui.Linking_Screen == NULL)
+        {
+            return;
+        }
+    }
+    else if(current_screen == Screen_Charging)
+    {
+        if(guider_ui.Charging_Screen == NULL)
+        {
+            return;
+        }
+    }
+}
+
+void UI_Update_Connectivity_Values(const char *OCPPMessage, uint32_t telemetryCnt, const char *SSID)
+{
+    UI_Update_Connectivity_OCPP_Status(OCPPMessage);
+    UI_Update_Connectivity_Telemetry_Cntr(telemetryCnt);
+    UI_Update_Connectivity_SSID(SSID);
+}
+
+void UI_Update_NFC_Activation_Status(void)
+{
+    evse_screens_t current_screen = ui_getCurentScreen();
+    if(current_screen == Screen_Main)
+    {
+#if ENABLE_CLEV663_NFC
+        if(EVSE_NFC_getNFCActivationStatus())
+        {
+            lv_obj_set_style_text_color(guider_ui.Main_Screen_NFC_activation_status, lv_color_hex(0x34c181), LV_PART_MAIN|LV_STATE_DEFAULT);
+        }
+        else
+        {
+            lv_obj_set_style_text_color(guider_ui.Main_Screen_NFC_activation_status, lv_color_hex(0xc51f1f), LV_PART_MAIN|LV_STATE_DEFAULT);
+        }
+#endif
+    }
+    else if(current_screen == Screen_Linking)
+    {
+#if ENABLE_CLEV663_NFC
+        if(EVSE_NFC_getNFCActivationStatus())
+        {
+            lv_obj_set_style_text_color(guider_ui.Linking_Screen_NFC_activation_status, lv_color_hex(0x34c181), LV_PART_MAIN|LV_STATE_DEFAULT);
+        }
+        else
+        {
+            lv_obj_set_style_text_color(guider_ui.Linking_Screen_NFC_activation_status, lv_color_hex(0xc51f1f), LV_PART_MAIN|LV_STATE_DEFAULT);
+        }
+#endif
+    }
+    else if(current_screen == Screen_Charging)
+    {
+#if ENABLE_CLEV663_NFC
+        if(EVSE_NFC_getNFCActivationStatus())
+        {
+            lv_obj_set_style_text_color(guider_ui.Charging_Screen_NFC_activation_status, lv_color_hex(0x34c181), LV_PART_MAIN|LV_STATE_DEFAULT);
+        }
+        else
+        {
+            lv_obj_set_style_text_color(guider_ui.Charging_Screen_NFC_activation_status, lv_color_hex(0xc51f1f), LV_PART_MAIN|LV_STATE_DEFAULT);
+        }
+#endif
+    }
 }
