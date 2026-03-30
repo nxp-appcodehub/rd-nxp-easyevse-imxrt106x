@@ -4,7 +4,7 @@
  * This file is based on \src\include\lwip\opt.h
  ******************************************************************************
  * Copyright (c) 2013-2016, Freescale Semiconductor, Inc.
- * Copyright 2016-2018, 2022, 2025 NXP
+ * Copyright 2016-2018, 2022-2026 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -38,6 +38,10 @@
  * LWIP_SOCKET==1: Enable Socket API (require to use sockets.c)
  */
 #define LWIP_SOCKET 1
+
+#if OCPP_LIB_BUILD
+#define LWIP_COMPAT_SOCKETS       2
+#endif
 
 /**
  * LWIP_SO_RCVTIMEO==1: Enable receive timeout for sockets/netconns and

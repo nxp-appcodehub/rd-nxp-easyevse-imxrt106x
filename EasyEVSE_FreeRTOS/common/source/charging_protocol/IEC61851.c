@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 NXP
+ * Copyright 2024-2026 NXP
  * NXP Proprietary. This software is owned or controlled by NXP and may only be used strictly in
  * accordance with the applicable license terms. By expressly accepting such terms or by downloading, installing,
  * activating and/or otherwise using the software, you are agreeing that you have read, and that you agree to comply
@@ -9,7 +9,11 @@
 
 #include <stdio.h>
 #include "IEC61851.h"
+#if (SIGBRD == EM_HPGP)
+#include "comm_command_proc_host.h"
+#elif ((SIGBRD == HPGP) || (SIGBRD == SIGBRD2X))
 #include "hal_uart_bridge.h"
+#endif
 #include "FreeRTOSConfig.h"
 #include "EVSE_Utils.h"
 #include "EVSE_ChargingProtocol.h"
@@ -35,7 +39,7 @@ static char *j1772_state_prompt[J1772_LAST_STATE] = {
 
 bool _NFCDetected = false;
 
-j1772_status_t EVSE_J1772_GetAmpsFromDutyCycle(uint8_t dutyCycle, uint8_t *amps)
+j1772_status_t EVSE_J1772_GetAmpsFromDutyCycle(float dutyCycle, float *amps)
 {
     j1772_status_t status = J1772_Succes;
 
@@ -64,11 +68,11 @@ j1772_status_t EVSE_J1772_GetAmpsFromDutyCycle(uint8_t dutyCycle, uint8_t *amps)
     }
     else if (dutyCycle < 85)
     {
-        *amps = (uint8_t)dutyCycle * 0.6;
+        *amps = dutyCycle * 0.6;
     }
     else if (dutyCycle < 97)
     {
-        *amps = (uint8_t)(dutyCycle - 64) * 2.5;
+        *amps = (dutyCycle - 64) * 2.5;
     }
     else if (dutyCycle == 100)
     {
@@ -86,7 +90,7 @@ j1772_status_t EVSE_J1772_GetCPValue(uint32_t *cp_value)
     if (cp_value != NULL)
     {
         *cp_value = 0;
-        SIGBRD_GetADCVal(cp_value, 1);
+        SIGBRD_GetADCVal(cp_value);
         *cp_value = *cp_value * 16;
     }
 
@@ -105,12 +109,12 @@ j1772_status_t EVSE_J1772_EnablePower()
     return J1772_Succes;
 }
 
-j1772_status_t EVSE_J1772_SetCPFromPWM(uint8_t pwm)
+j1772_status_t EVSE_J1772_SetCPFromPWM(float pwm)
 {
-    SIGBRD_SetPWMDutyInPercent(pwm);
+    SIGBRD_SetPWMDutyInMilli((uint16_t)(pwm * 10));
     return J1772_Succes;
 }
-
+#if EASYEVSE_EV
 j1772_status_t EVSE_J1772_SetCPResistor(j1772_state_t eEvState)
 {
     j1772_status_t eRet = J1772_Succes;
@@ -139,8 +143,9 @@ j1772_status_t EVSE_J1772_SetCPResistor(j1772_state_t eEvState)
 
     return eRet;
 }
+#endif
 
-j1772_status_t EVSE_J1772_GetDutyCycleFromAmps(uint8_t amps, uint8_t *dutyCycle)
+j1772_status_t EVSE_J1772_GetDutyCycleFromAmps(float amps, float *dutyCycle)
 {
     j1772_status_t status = J1772_Succes;
 
@@ -155,11 +160,11 @@ j1772_status_t EVSE_J1772_GetDutyCycleFromAmps(uint8_t amps, uint8_t *dutyCycle)
     }
     else if ((amps >= 6) && (amps < 51))
     {
-        *dutyCycle = (uint8_t)amps / 0.6;
+        *dutyCycle = amps / 0.6;
     }
     else if ((amps >= 51) && (amps <= 81))
     {
-        *dutyCycle = (uint8_t)((amps / 2.5) + 64);
+        *dutyCycle = (amps / 2.5) + 64;
     }
     else
     {
@@ -170,10 +175,10 @@ j1772_status_t EVSE_J1772_GetDutyCycleFromAmps(uint8_t amps, uint8_t *dutyCycle)
     return status;
 }
 
-j1772_status_t EVSE_J1772_SetCPFromState(j1772_state_t j1772_state, uint16_t amps)
+j1772_status_t EVSE_J1772_SetCPFromState(j1772_state_t j1772_state, float amps)
 {
     j1772_status_t status = J1772_Succes;
-    uint8_t pwm           = 0;
+    float pwm           = 0;
 
     if (j1772_state == STATE_A)
     {
@@ -278,8 +283,8 @@ typedef struct _j1772_simulation_ev
 
 typedef struct _j1772_simulation
 {
-    uint32_t max_current;
-    uint32_t max_voltage;
+    float max_current;
+    float max_voltage;
     uint32_t ulLastCalcTime;
     union
     {
@@ -287,7 +292,7 @@ typedef struct _j1772_simulation
         j1772_simulation_ev_t ev_data;
     };
     j1772_state_t current_state;
-    uint16_t current_pwm;
+    uint16_t current_pwm_mil;
     bool isCharging;
     bool ready_to_charge;
 
@@ -399,8 +404,8 @@ void EVSE_J1772_Init()
     j1772_simulation.ev_data.desiredBatteryLevel = BATTERY_DESIRED_LEVEL;
     j1772_simulation.ev_data.bBatteryFull        = false;
 #else
-    j1772_simulation.current_pwm = PWM100_MAX_VALUE;
-    SIGBRD_SetPWMDutyInPerMilli(j1772_simulation.current_pwm);
+    j1772_simulation.current_pwm_mil = PWM100_MAX_VALUE;
+    SIGBRD_SetPWMDutyInMilli(j1772_simulation.current_pwm_mil);
 #if (ENABLE_OCPP == 1)
 #if (ENABLE_CLEV663_NFC == 1)
     EVSE_NFC_RegisterCallbackFunction(&j1772SetNFCDetected);
@@ -465,9 +470,9 @@ static void EVSE_J1772_SetState(j1772_state_t new_state)
 
 static void EVSE_J1772_Loop_EV()
 {
-    uint8_t amps = 0;
-    SIGBRD_GetPWMDutyInPerMilli(&j1772_simulation.current_pwm);
-    EVSE_J1772_GetAmpsFromDutyCycle(j1772_simulation.current_pwm / 10, &amps);
+    float amps = 0;
+    SIGBRD_GetPWMDutyInMilli(&j1772_simulation.current_pwm_mil);
+    EVSE_J1772_GetAmpsFromDutyCycle(((float)j1772_simulation.current_pwm_mil) / 10, &amps);
     amps = MIN(amps, j1772_simulation.max_current);
 
     switch (j1772_simulation.current_state)
@@ -475,7 +480,7 @@ static void EVSE_J1772_Loop_EV()
         case STATE_A:
         {
             /* Can't detect real STATE_A. We will check 0 PWM for STATE A */
-            if (j1772_simulation.current_pwm != 0)
+            if (j1772_simulation.current_pwm_mil != 0)
             {
                 configPRINTF(("AC Basic Charging state transition from A1 to B1"));
                 EVSE_J1772_SetState(STATE_B);
@@ -489,12 +494,12 @@ static void EVSE_J1772_Loop_EV()
         break;
         case STATE_B:
         {
-            if (j1772_simulation.current_pwm == 0)
+            if (j1772_simulation.current_pwm_mil == 0)
             {
                 configPRINTF(("AC Basic Charging state transition from B1 to A1"));
                 EVSE_J1772_SetState(STATE_A);
             }
-            else if ((j1772_simulation.current_pwm != 0) && (amps != 0))
+            else if ((j1772_simulation.current_pwm_mil != 0) && (amps != 0))
             {
                 configPRINTF(("AC Basic Charging state transition from B1 to B2"));
                 EVSE_J1772_SetState(STATE_B2);
@@ -503,13 +508,13 @@ static void EVSE_J1772_Loop_EV()
         break;
         case STATE_B2:
         {
-            if ((j1772_simulation.current_pwm != 0) && (amps != 0) && (j1772_simulation.ready_to_charge == true) &&
+            if ((j1772_simulation.current_pwm_mil != 0) && (amps != 0) && (j1772_simulation.ready_to_charge == true) &&
                 (j1772_simulation.ev_data.bBatteryFull == false))
             {
                 configPRINTF(("AC Basic Charging state transition from B2 to C2/D2"));
                 EVSE_J1772_SetState(STATE_C2);
             }
-            else if (j1772_simulation.current_pwm == PWM100_MAX_VALUE)
+            else if (j1772_simulation.current_pwm_mil == PWM100_MAX_VALUE)
             {
                 configPRINTF(("AC Basic Charging state transition from B2 to B1"));
                 EVSE_J1772_SetState(STATE_B);
@@ -528,12 +533,12 @@ static void EVSE_J1772_Loop_EV()
                 configPRINTF(("AC Basic Charging state transition from C1/D1 to B1"));
                 EVSE_J1772_SetState(STATE_B);
             }
-            else if ((j1772_simulation.current_pwm != 0) && (amps != 0))
+            else if ((j1772_simulation.current_pwm_mil != 0) && (amps != 0))
             {
                 configPRINTF(("AC Basic Charging state transition from C1/D1 to C2/D2"));
                 EVSE_J1772_SetState(j1772_simulation.current_state + 1);
             }
-            else if (j1772_simulation.current_pwm == 0)
+            else if (j1772_simulation.current_pwm_mil == 0)
             {
                 configPRINTF(("AC Basic Charging state transition from C1/D1 to A1"));
                 EVSE_J1772_SetState(STATE_A);
@@ -552,12 +557,12 @@ static void EVSE_J1772_Loop_EV()
             {
                 j1772_simulation.ulLastCalcTime = EVSE_GetMsSinceBoot();
             }
-            else if (j1772_simulation.current_pwm == PWM100_MAX_VALUE)
+            else if (j1772_simulation.current_pwm_mil == PWM100_MAX_VALUE)
             {
                 configPRINTF(("AC Basic Charging state transition from C2/D2 to C1/D1"));
                 EVSE_J1772_SetState(j1772_simulation.current_state - 1);
             }
-            else if (j1772_simulation.current_pwm == 0)
+            else if (j1772_simulation.current_pwm_mil == 0)
             {
                 configPRINTF(("AC Basic Charging state transition from C2/D2 to A2"));
                 EVSE_J1772_SetState(STATE_A2);
@@ -665,10 +670,10 @@ static void EVSE_J1772_SetState(j1772_state_t new_state)
 
 static void EVSE_J1772_Loop_EVSE()
 {
-    uint16_t new_usPWMDutyCyclePerMil = j1772_simulation.current_pwm;
-    uint8_t new_usPwmDutyCycle        = 0;
+    uint16_t new_usPWMDutyCyclePerMil = j1772_simulation.current_pwm_mil;
+    float new_usPwmDutyCycle        = 0;
     j1772_state_t new_state           = EVSE_J1772_GetState();
-    EVSE_J1772_GetDutyCycleFromAmps((uint8_t)j1772_simulation.max_current, &new_usPwmDutyCycle);
+    EVSE_J1772_GetDutyCycleFromAmps(j1772_simulation.max_current, &new_usPwmDutyCycle);
 
     switch (j1772_simulation.current_state)
     {
@@ -686,7 +691,7 @@ static void EVSE_J1772_Loop_EVSE()
         {
             if (new_state == STATE_A)
             {
-                if (j1772_simulation.current_pwm < PWM100_MIN_VALUE)
+                if (j1772_simulation.current_pwm_mil < PWM100_MIN_VALUE)
                 {
                     EVSE_J1772_SetState(STATE_A);
                     new_usPWMDutyCyclePerMil = PWM100_MAX_VALUE;
@@ -711,7 +716,7 @@ static void EVSE_J1772_Loop_EVSE()
             }
             else if (new_state == STATE_B)
             {
-                if ((j1772_simulation.current_pwm == PWM100_MAX_VALUE) && (j1772_simulation.ready_to_charge == true))
+                if ((j1772_simulation.current_pwm_mil == PWM100_MAX_VALUE) && (j1772_simulation.ready_to_charge == true))
                 {
 #if ((ENABLE_OCPP == 1) && (ENABLE_CLEV663_NFC == 1))
                     EVSE_NFC_setNFCActivationStatus(true);
@@ -721,7 +726,7 @@ static void EVSE_J1772_Loop_EVSE()
 #endif /* ENABLE_OCPP */
                     {
                         configPRINTF(("AC Basic Charging state transition from B1 to B2"));
-                        new_usPWMDutyCyclePerMil = new_usPwmDutyCycle * 10;
+                        new_usPWMDutyCyclePerMil = (uint16_t)(new_usPwmDutyCycle * 10);
                         EVSE_J1772_SetState(STATE_B2);
                     }
                 }
@@ -764,10 +769,10 @@ static void EVSE_J1772_Loop_EVSE()
             }
             else if ((new_state == STATE_C) || (new_state == STATE_D))
             {
-                if ((j1772_simulation.ready_to_charge == true) && (j1772_simulation.current_pwm == PWM100_MAX_VALUE))
+                if ((j1772_simulation.ready_to_charge == true) && (j1772_simulation.current_pwm_mil == PWM100_MAX_VALUE))
                 {
                     configPRINTF(("AC Basic Charging state transition from C1/D1 to C2/D2"));
-                    new_usPWMDutyCyclePerMil = new_usPwmDutyCycle * 10;
+                    new_usPWMDutyCyclePerMil = (uint16_t)(new_usPwmDutyCycle * 10);
                     EVSE_J1772_SetState(new_state + 1);
                 }
             }
@@ -791,15 +796,15 @@ static void EVSE_J1772_Loop_EVSE()
                 j1772_simulation.ulLastCalcTime = EVSE_GetMsSinceBoot();
             }
 
-            new_usPWMDutyCyclePerMil = new_usPwmDutyCycle * 10;
+            new_usPWMDutyCyclePerMil = (uint16_t)(new_usPwmDutyCycle * 10);
             uint32_t time_lapse      = EVSE_GetMsSinceBoot() - j1772_simulation.ulLastCalcTime;
 
             if ((time_lapse >= BC_MEASURE_INTERVAL_MS) || (new_state == STATE_B) || (new_state == STATE_A))
             {
                 j1772_simulation.evse_data.uElapseTime += time_lapse;
                 j1772_simulation.ulLastCalcTime = EVSE_GetMsSinceBoot();
-                SIGBRD_GetMeterVoltage(&j1772_simulation.evse_data.fMeasuredVoltage);
-                SIGBRD_GetMeterCurrent(&j1772_simulation.evse_data.fMeasuredCurrent);
+                SIGBRD_GetMeterVoltage(&j1772_simulation.evse_data.fMeasuredVoltage, NULL, NULL);
+                SIGBRD_GetMeterCurrent(&j1772_simulation.evse_data.fMeasuredCurrent, NULL, NULL);
                 j1772_simulation.evse_data.fMeasuredCurrent =
                     MIN(j1772_simulation.evse_data.fMeasuredCurrent, j1772_simulation.max_current);
                 j1772_simulation.evse_data.fMeasuredVoltage =
@@ -847,10 +852,10 @@ static void EVSE_J1772_Loop_EVSE()
         break;
     }
 
-    if (new_usPWMDutyCyclePerMil != j1772_simulation.current_pwm)
+    if (new_usPWMDutyCyclePerMil != j1772_simulation.current_pwm_mil)
     {
-        SIGBRD_SetPWMDutyInPerMilli(new_usPWMDutyCyclePerMil);
-        j1772_simulation.current_pwm = new_usPWMDutyCyclePerMil;
+        SIGBRD_SetPWMDutyInMilli(new_usPWMDutyCyclePerMil);
+        j1772_simulation.current_pwm_mil = new_usPWMDutyCyclePerMil;
     }
 }
 

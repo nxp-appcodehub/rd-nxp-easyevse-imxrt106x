@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2024 NXP
+ * Copyright 2021-2024, 2026 NXP
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -132,7 +132,7 @@ bool iot_agent_keystore_psa_get_endpoint_info(
 
 
 bool iot_agent_keystore_psa_handle_request(pb_istream_t *istream,
-	pb_ostream_t *ostream, const pb_field_t* message_type, void *context)
+	pb_ostream_t *ostream, const pb_msgdesc_t* message_type, void *context)
 {
     IOT_AGENT_UNUSED(context);
     bool result = true;

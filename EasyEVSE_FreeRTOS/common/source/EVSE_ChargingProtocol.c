@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 NXP
+ * Copyright 2024-2026 NXP
  * NXP Proprietary. This software is owned or controlled by NXP and may only be used strictly in
  * accordance with the applicable license terms. By expressly accepting such terms or by downloading, installing,
  * activating and/or otherwise using the software, you are agreeing that you have read, and that you agree to comply
@@ -9,7 +9,11 @@
 
 #include "EVSE_config.h"
 
+#if (SIGBRD == EM_HPGP)
+#include "comm_command_proc_host.h"
+#elif ((SIGBRD == HPGP) || (SIGBRD == SIGBRD2X))
 #include "hal_uart_bridge.h"
+#endif
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -141,7 +145,7 @@ static void EVSE_WaitSigboardReady_Blocking()
         uint32_t swversion_minor = INVALID_SIGBOARD_SW_VERSION;
         uint32_t swversion_hot_fix = INVALID_SIGBOARD_SW_VERSION;
 
-        SIGBRD_GetGetHWVersion(&hwversion);
+        SIGBRD_GetHWVersion(&hwversion);
 
         if (hwversion != INVALID_SIGBOARD_HW_VERSION)
         {

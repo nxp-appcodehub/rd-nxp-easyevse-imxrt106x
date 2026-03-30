@@ -6,7 +6,7 @@
  * Generated linker script file for MIMXRT1062xxxxB
  * Created from linkscript.ldt by FMCreateLinkLibraries
  * Using Freemarker v2.3.30
- * MCUXpresso IDE v24.12 [Build 148] [2025-01-10] on Dec 9, 2025, 8:44:02 PM
+ * MCUXpresso IDE v25.6 [Build 136] [2025-06-27] on 2 Oct 2025, 17:24:32
  */
 
 INCLUDE "RT1060_EasyEVSE_FreeRTOS_EVSE_library.ld"
@@ -369,14 +369,14 @@ SECTIONS
     } > BOARD_SDRAM AT> BOARD_SDRAM
 
     /* Reserve and place Heap within memory map */
-    _HeapSize = 0x30000;
+    _HeapSize = 0x40000;
     .heap (NOLOAD) :  ALIGN(4)
     {
         _pvHeapStart = .;
         . += _HeapSize;
         . = ALIGN(4);
         _pvHeapLimit = .;
-    } > BOARD_SDRAM
+    } > BOARD_SDRAM AT> BOARD_SDRAM
 
      _StackSize = 0x1000;
      /* Reserve space in memory for Stack */

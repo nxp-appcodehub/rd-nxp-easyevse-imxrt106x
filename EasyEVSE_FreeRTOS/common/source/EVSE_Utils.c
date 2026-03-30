@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 NXP
+ * Copyright 2023-2026 NXP
  * NXP Proprietary. This software is owned or controlled by NXP and may only be used strictly in
  * accordance with the applicable license terms. By expressly accepting such terms or by downloading, installing,
  * activating and/or otherwise using the software, you are agreeing that you have read, and that you agree to comply
@@ -10,6 +10,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+
+#if (EASYEVSE_EV == 1)
+#include <time.h>
+#include <stdint.h>
+#endif
 
 #include "board.h"
 #include "pin_mux.h"
@@ -34,6 +39,15 @@ static SemaphoreHandle_t s_lpi2cMutex[LPI2C_INSTANCES];
 static SemaphoreHandle_t s_lpspiMutex[LPSPI_INSTANCES];
 static SemaphoreHandle_t s_lpuartMutex[LPUART_INSTANCES];
 
+#if (EASYEVSE_EV == 1)
+#define SECONDS_IN_DAY 86400
+#define SECONDS_IN_HOUR 3600
+#define SECONDS_IN_MINUTE 60
+/* Timestamp set to 1 January 2026 */
+static time_t ev_timestamp = 1767225600UL;
+static const int days_in_month[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+#endif
+
 uint32_t EVSE_GetMsSinceBoot()
 {
     uint32_t offsetTick = 0;
@@ -47,7 +61,8 @@ uint32_t EVSE_GetMsSinceBoot()
     {
         offsetTick = xTaskGetTickCount();
     }
-    return offsetTick / configTICK_RATE_HZ * 1000;
+
+    return offsetTick * (1000 / configTICK_RATE_HZ);
 }
 
 uint32_t EVSE_GetSecondsSinceBoot()
@@ -362,3 +377,166 @@ uint32_t EVSE_Random()
     TRNG_GetRandomData(TRNG, &output, sizeof(uint32_t));
     return output;
 }
+
+
+#if (EASYEVSE_EV == 1)
+
+/* Check if year is a leap year */
+static int is_leap_year(int year)
+{
+    return (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
+}
+
+/* Calculate days since epoch (1970-01-01) */
+static int64_t days_since_epoch(int year, int month, int day)
+{
+    int64_t days = 0;
+    int i;
+
+    /* Add days for complete years */
+    for (i = 1970; i < year; i++) {
+        days += is_leap_year(i) ? 366 : 365;
+    }
+
+    /* Add days for complete months in current year */
+    for (i = 0; i < month - 1; i++) {
+        days += days_in_month[i];
+        /* Add leap day if February and leap year */
+        if (i == 1 && is_leap_year(year)) {
+            days++;
+        }
+    }
+
+    /* Add remaining days */
+    days += day - 1;
+
+    return days;
+}
+
+int rfc3339_to_utc_timestamp(const char *rfc3339_str, time_t *timestamp)
+{
+    int year = 0;
+    int month = 0;
+    int day = 0;
+    int hour = 0;
+    int min = 0;
+    int sec = 0;
+    int millisec = 0;
+    char tz_char;
+    int tz_hour = 0, tz_min = 0;
+    int64_t days, seconds;
+
+    if (!rfc3339_str || !timestamp) {
+        return -1;
+    }
+
+    /* Parse the date/time components */
+    int parsed = sscanf(rfc3339_str, "%d-%d-%dT%d:%d:%d",
+                        &year, &month, &day, &hour, &min, &sec);
+
+    if (parsed != 6) {
+        return -1;
+    }
+
+    /* Validate ranges */
+    if (year < 1970 || month < 1 || month > 12 || day < 1 || day > 31 ||
+        hour < 0 || hour > 23 || min < 0 || min > 59 || sec < 0 || sec > 60) {
+        return -1;
+    }
+
+    /* Calculate timestamp */
+    days = days_since_epoch(year, month, day);
+    seconds = days * 86400LL + hour * 3600LL + min * 60LL + sec;
+
+    *timestamp = (time_t)seconds;
+
+    return 0;
+}
+
+int utc_timestamp_to_rfc3339(time_t timestamp, char* rfc3339_buff, size_t len)
+{
+	// Start from Unix epoch
+	int year = 1970;
+    int month = 0;
+    int day = 0;
+    int hours = 0;
+    int minutes = 0;
+    int seconds = 0;
+
+    if (!rfc3339_buff)
+    {
+    	return -1;
+    }
+
+	unsigned long _day = timestamp / SECONDS_IN_DAY;
+	unsigned long seconds_remaining = timestamp % SECONDS_IN_DAY;
+
+	// Calculate year
+	while (1) {
+		unsigned int days_in_year = 365;
+		if (is_leap_year(year))
+		{
+			days_in_year = 366;
+		}
+
+		if (_day >= days_in_year)
+		{
+			_day -= days_in_year;
+			year++;
+		} else {
+			break;
+		}
+	}
+
+	// Calculate month
+	unsigned int _month = 0;
+	while (_day > days_in_month[_month]) {
+		_day -= days_in_month[_month];
+		if ((month == 1) && (is_leap_year(year)))
+		{
+			_day -= 1;
+		}
+		_month++;
+	}
+	_month++;
+	_day = _day + 1;
+
+	day = _day;
+	month = _month;
+	hours = seconds_remaining / SECONDS_IN_HOUR;
+	seconds_remaining %= SECONDS_IN_HOUR;
+	minutes = seconds_remaining / SECONDS_IN_MINUTE;
+	seconds = seconds_remaining % SECONDS_IN_MINUTE;
+
+	int n = snprintf(rfc3339_buff, len,
+					"%04d-%02d-%02dT%02d:%02d:%02dZ",
+					year,
+					month,
+					day,
+					hours,
+					minutes,
+					seconds);
+
+	// Safety check: ensure snprintf didn't overflow
+	if (n < 0 || n >= len) {
+		configPRINTF(("to_rfc3339: formatting error or overflow, n return code is %d", n));
+		return -1;
+	}
+
+	return 0;
+}
+
+void EV_SetTimestamp(time_t new_timestamp)
+{
+	if (new_timestamp > 0)
+	{
+		ev_timestamp = new_timestamp;
+	}
+}
+
+time_t EV_GetTimestamp(void)
+{
+	return ev_timestamp;
+}
+
+#endif /* (EASYEVSE_EV == 1) */

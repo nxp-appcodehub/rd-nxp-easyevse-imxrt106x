@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 NXP
+ * Copyright 2024-2026 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -11,8 +11,8 @@ extern "C" {
 #include "task_config.h"
 
 #define FIRMWARE_VERSION_MAJOR  5U
-#define FIRMWARE_VERSION_MINOR  0U
-#define FIRMWARE_VERSION_HOTFIX 8U
+#define FIRMWARE_VERSION_MINOR  1U
+#define FIRMWARE_VERSION_HOTFIX 2U
 
 /* ENABLE_ISO15118 contains also the J1772 basic charging */
 #ifndef ENABLE_ISO15118
@@ -47,7 +47,12 @@ extern "C" {
 #endif /* BOARD_NFC_ARDUINO_HEADER */
 
 #ifndef BOARD_SIGBOARD_ARDUINO_HEADER
+#if ENABLE_ETH
+#define BOARD_SIGBOARD_ARDUINO_HEADER 1
+#endif /* ENABLE_ETH */
+#if ENABLE_WIFI
 #define BOARD_SIGBOARD_ARDUINO_HEADER 0
+#endif /* ENABLE_WIFI */
 #endif /* BOARD_SIGBOARD_ARDUINO_HEADER */
 
 #if BOARD_SIGBOARD_ETH
@@ -80,6 +85,10 @@ extern "C" {
 #define ENABLE_LCD 1
 #endif
 
+#define SIGBRD2X    0
+#define HPGP        1
+#define EM_HPGP     2
+
 #ifndef PKCS11_SUPPORTED
 #define PKCS11_SUPPORTED 1
 #endif
@@ -88,6 +97,10 @@ extern "C" {
 #undef PKCS11_SUPPORTED
 #define PKCS11_SUPPORTED 0
 #endif /* (ENABLE_SE == 0)*/
+
+#if (ENABLE_SE == 1) && (ENABLE_OCPP == 1)
+#define ENABLE_OCPP_HSM_SUPPORT 1
+#endif
 
 #define RED_TEXT(x)    "\033[31;1m" x "\033[0m"
 #define GREEN_TEXT(x)  "\033[32;1m" x "\033[0m"

@@ -1,7 +1,7 @@
 /*
  *
  *
- * Copyright 2023-2025 NXP
+ * Copyright 2023-2026 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -300,33 +300,6 @@ static COMMAND_UART_CODE parse_reply(char *message_buffer, uint32_t *value_retur
         case VERSION:
             strcpy(SigbrdRawState.version, value);
             break;
-#if ((EASYEVSE == 1) && (ENABLE_METER == 1))
-        case METER_ALL:
-        case METER_CURRENT:
-        case METER_VOLTAGE:
-        case METER_POWER:
-        case METER_STATE:
-        {
-            meter_data_t parsed_meter_data = {0};
-            uint32_t found_fields          = 0;
-
-            EVSE_Meter_ParseMeterReply(message_buffer, strlen(message_buffer) - 1, &parsed_meter_data, &found_fields);
-            EVSE_Meter_SetMeterData(&parsed_meter_data, found_fields);
-            if (found_fields & (1 << METER_FIELD_IRMS))
-            {
-                SigbrdRawState.current = parsed_meter_data.irms;
-            }
-            if (found_fields & (1 << METER_FIELD_VRMS))
-            {
-                SigbrdRawState.voltage = parsed_meter_data.vrms;
-            }
-            if (found_fields & (1 << METER_FIELD_WH))
-            {
-                SigbrdRawState.power = parsed_meter_data.wh;
-            }
-        }
-        break;
-#endif /* EASYEVSE */
     }
 
     switch (cmd)
@@ -486,7 +459,7 @@ static void Init_SigBrd_Uart(void)
     EnableIRQ(SIGBRD_LPUART_IRQn);
 }
 
-#if (ENABLE_SIGBOARD == 1)
+#if (ENABLE_SIGBOARD && ((SIGBRD == SIGBRD2X) || (SIGBRD == HPGP)))
 void SIGBRD_LPUART_IRQHandler(void)
 {
     volatile uint32_t uart_status;
@@ -546,92 +519,10 @@ void SIGBRD_LPUART_IRQHandler(void)
     }
     SDK_ISR_EXIT_BARRIER;
 }
-#endif /* (ENABLE_SIGBOARD == 0) */
+#endif /* ENABLE_SIGBOARD && ((SIGBRD == SIGBRD2X) || (SIGBRD == HPGP)) */
 
-void SIGBRD_GetPPState(uint16_t *pp_state)
+void SIGBRD_GetADCVal(uint32_t *adcValPtr)
 {
-    if (SIGBRD_EVSE_UARTCommsProcess(PP_STATE, 0, NULL))
-        return;
-
-    if (pp_state != NULL)
-    {
-        *pp_state = SigbrdRawState.PPState;
-    }
-}
-
-void SIGBRD_GetCPState(uint16_t *cp_state)
-{
-    if (SIGBRD_EVSE_UARTCommsProcess(CP_STATE, 0, NULL))
-        return;
-
-    if (cp_state != NULL)
-    {
-        *cp_state = SigbrdRawState.CPState;
-    }
-}
-
-void SIGBRD_GetGFCIState(uint16_t *gfci_state)
-{
-    if (SIGBRD_EVSE_UARTCommsProcess(GFCI_STATE, 0, NULL))
-        return;
-
-    if (gfci_state != NULL)
-    {
-        *gfci_state = (uint16_t)SigbrdRawState.GFCIState;
-    }
-}
-
-void SIGBRD_CloseRelay(void)
-{
-    uint32_t value;
-    SIGBRD_EVSE_UARTCommsProcess(CLOSE_RELAY, 0, &value);
-}
-
-void SIGBRD_OpenRelay(void)
-{
-    uint32_t value;
-    SIGBRD_EVSE_UARTCommsProcess(OPEN_RELAY, 0, &value);
-}
-
-/*
- * Public meter accessor functions.
- */
-void SIGBRD_GetMeterCurrent(double *current)
-{
-    if (SIGBRD_EVSE_UARTCommsProcess(METER_CURRENT, 0, NULL))
-        return;
-
-    if (current != NULL)
-    {
-        *current = SigbrdRawState.current;
-    }
-}
-
-void SIGBRD_GetMeterVoltage(double *voltage)
-{
-    if (SIGBRD_EVSE_UARTCommsProcess(METER_VOLTAGE, 0, NULL))
-        return;
-
-    if (voltage != NULL)
-    {
-        *voltage = SigbrdRawState.voltage;
-    }
-}
-
-void SIGBRD_GetMeterPower(double *power)
-{
-    if (SIGBRD_EVSE_UARTCommsProcess(METER_POWER, 0, NULL))
-        return;
-
-    if (power != NULL)
-    {
-        *power = SigbrdRawState.power;
-    }
-}
-
-void SIGBRD_GetADCVal(uint32_t *adcValPtr, uint32_t ulSize)
-{
-    adc_sample_size = ulSize;
     if (SIGBRD_EVSE_UARTCommsProcess(ADC_CP_VALUE, 0, adcValPtr))
         return;
 
@@ -656,14 +547,14 @@ void SIGBRD_GetADCVal(uint32_t *adcValPtr, uint32_t ulSize)
 
 void SIGBRD_SetPWMDutyInPercent(uint16_t dutyCycle)
 {
-    SIGBRD_SetPWMDutyInPerMilli(dutyCycle * 10);
+    SIGBRD_SetPWMDutyInMilli(dutyCycle * 10);
 }
 
-void SIGBRD_SetPWMDutyInPerMilli(uint16_t dutyCycle)
+void SIGBRD_SetPWMDutyInMilli(uint16_t dutyCycle)
 {
     static uint16_t set_dutyVal_last = 0;
 
-    DBGPRINT_ERROR(("SIGBRD_SetPWMDutyInPerMilli %d", dutyCycle));
+    DBGPRINT_ERROR(("SIGBRD_SetPWMDutyInMilli %d", dutyCycle));
     if (dutyCycle == set_dutyVal_last)
     {
         return;
@@ -821,11 +712,11 @@ void SIGBRD_GetPWMDutyInPercent(uint16_t *dutyVal)
         return;
     }
 
-    SIGBRD_GetPWMDutyInPerMilli(&dutyVal_Milli);
+    SIGBRD_GetPWMDutyInMilli(&dutyVal_Milli);
     *dutyVal = dutyVal_Milli / 10;
 }
 
-void SIGBRD_GetPWMDutyInPerMilli(uint16_t *dutyVal)
+void SIGBRD_GetPWMDutyInMilli(uint16_t *dutyVal)
 {
     static uint8_t get_dutyVal_count = 0;
 
@@ -905,7 +796,7 @@ void SIGBRD_GetSWVersion(uint32_t *sw_version_major, uint32_t *sw_version_minor,
     }
 }
 
-void SIGBRD_GetGetHWVersion(uint32_t *hw_version)
+void SIGBRD_GetHWVersion(uint32_t *hw_version)
 {
     if (hw_version == NULL)
         return;
@@ -1107,7 +998,6 @@ void SIGBRD_SetChargingProtocol_TickDelayMs(uint32_t delay)
 
 void SIGBRD_UART_BridgeEntry(void)
 {
-
     if (s_init == true)
     {
         return;

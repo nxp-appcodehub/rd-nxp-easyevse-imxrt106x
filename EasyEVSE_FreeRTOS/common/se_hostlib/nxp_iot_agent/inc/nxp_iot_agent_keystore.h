@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021,2024 NXP
+ * Copyright 2018-2021, 2024, 2026 NXP
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -28,10 +28,6 @@
  * @{
  */
 
-
-typedef struct pb_istream_s pb_istream_t;
-typedef struct pb_ostream_s pb_ostream_t;
-typedef struct pb_field_s pb_field_t;
 
 
 typedef iot_agent_status_t(*iot_agent_keystore_destroyer_t)(

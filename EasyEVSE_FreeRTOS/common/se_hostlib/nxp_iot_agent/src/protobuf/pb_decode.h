@@ -1,30 +1,3 @@
-/*
- * Copyright (c) 2011 Petteri Aimonen <jpa at nanopb.mail.kapsi.fi>
- * 
- * This software is provided 'as-is', without any express or 
- * implied warranty. In no event will the authors be held liable 
- * for any damages arising from the use of this software.
- * 
- * Permission is granted to anyone to use this software for any 
- * purpose, including commercial applications, and to alter it and 
- * redistribute it freely, subject to the following restrictions:
- * 
- * 1. The origin of this software must not be misrepresented; you 
- *    must not claim that you wrote the original software. If you use 
- *    this software in a product, an acknowledgment in the product 
- *    documentation would be appreciated but is not required.
- * 
- * 2. Altered source versions must be plainly marked as such, and 
- *    must not be misrepresented as being the original software.
- * 
- * 3. This notice may not be removed or altered from any source 
- *    distribution.
- */
-
-/*
- * Modifications copyright (C) 2021 NXP
- */
-
 /* pb_decode.h: Functions to decode protocol buffers. Depends on pb_decode.c.
  * The main function is pb_decode. You also need an input stream, and the
  * field descriptions created by nanopb_generator.py.
@@ -42,7 +15,7 @@ extern "C" {
 /* Structure for defining custom input streams. You will need to provide
  * a callback function to read the bytes from your storage, which can be
  * for example a file or a network socket.
- *
+ * 
  * The callback must conform to these rules:
  *
  * 1) Return false on IO errors. This will cause decoding to abort.
@@ -64,18 +37,35 @@ struct pb_istream_s
     bool (*callback)(pb_istream_t *stream, pb_byte_t *buf, size_t count);
 #endif
 
-    void *state; /* Free field for use by callback implementation */
-    size_t bytes_left;
+    /* state is a free field for use of the callback function defined above.
+     * Note that when pb_istream_from_buffer() is used, it reserves this field
+     * for its own use.
+     */
+    void *state;
 
+    /* Maximum number of bytes left in this stream. Callback can report
+     * EOF before this limit is reached. Setting a limit is recommended
+     * when decoding directly from file or network streams to avoid
+     * denial-of-service by excessively long messages.
+     */
+    size_t bytes_left;
+    
 #ifndef PB_NO_ERRMSG
+    /* Pointer to constant (ROM) string when decoding function returns error */
     const char *errmsg;
 #endif
 };
 
+#ifndef PB_NO_ERRMSG
+#define PB_ISTREAM_EMPTY {0,0,0,0}
+#else
+#define PB_ISTREAM_EMPTY {0,0,0}
+#endif
+
 /***************************
  * Main decoding functions *
  ***************************/
-
+ 
 /* Decode a single protocol buffers message from input stream into a C structure.
  * Returns true on success, false on any failure.
  * The actual struct pointed to by dest must match the description in fields.
@@ -86,52 +76,53 @@ struct pb_istream_s
  *    MyMessage msg = {};
  *    uint8_t buffer[64];
  *    pb_istream_t stream;
- *
+ *    
  *    // ... read some data into buffer ...
  *
  *    stream = pb_istream_from_buffer(buffer, count);
  *    pb_decode(&stream, MyMessage_fields, &msg);
  */
-bool pb_decode(pb_istream_t *stream, const pb_field_t fields[], void *dest_struct);
+bool pb_decode(pb_istream_t *stream, const pb_msgdesc_t *fields, void *dest_struct);
 
-/* Same as pb_decode, except does not initialize the destination structure
- * to default values. This is slightly faster if you need no default values
- * and just do memset(struct, 0, sizeof(struct)) yourself.
+/* Extended version of pb_decode, with several options to control
+ * the decoding process:
  *
- * This can also be used for 'merging' two messages, i.e. update only the
- * fields that exist in the new message.
+ * PB_DECODE_NOINIT:         Do not initialize the fields to default values.
+ *                           This is slightly faster if you do not need the default
+ *                           values and instead initialize the structure to 0 using
+ *                           e.g. memset(). This can also be used for merging two
+ *                           messages, i.e. combine already existing data with new
+ *                           values.
  *
- * Note: If this function returns with an error, it will not release any
- * dynamically allocated fields. You will need to call pb_release() yourself.
+ * PB_DECODE_DELIMITED:      Input message starts with the message size as varint.
+ *                           Corresponds to parseDelimitedFrom() in Google's
+ *                           protobuf API.
+ *
+ * PB_DECODE_NULLTERMINATED: Stop reading when field tag is read as 0. This allows
+ *                           reading null terminated messages.
+ *                           NOTE: Until nanopb-0.4.0, pb_decode() also allows
+ *                           null-termination. This behaviour is not supported in
+ *                           most other protobuf implementations, so PB_DECODE_DELIMITED
+ *                           is a better option for compatibility.
+ *
+ * Multiple flags can be combined with bitwise or (| operator)
  */
-bool pb_decode_noinit(pb_istream_t *stream, const pb_field_t fields[], void *dest_struct);
+#define PB_DECODE_NOINIT          0x01U
+#define PB_DECODE_DELIMITED       0x02U
+#define PB_DECODE_NULLTERMINATED  0x04U
+bool pb_decode_ex(pb_istream_t *stream, const pb_msgdesc_t *fields, void *dest_struct, unsigned int flags);
 
-/* Same as pb_decode, except expects the stream to start with the message size
- * encoded as varint. Corresponds to parseDelimitedFrom() in Google's
- * protobuf API.
- */
-bool pb_decode_delimited(pb_istream_t *stream, const pb_field_t fields[], void *dest_struct);
+/* Defines for backwards compatibility with code written before nanopb-0.4.0 */
+#define pb_decode_noinit(s,f,d) pb_decode_ex(s,f,d, PB_DECODE_NOINIT)
+#define pb_decode_delimited(s,f,d) pb_decode_ex(s,f,d, PB_DECODE_DELIMITED)
+#define pb_decode_delimited_noinit(s,f,d) pb_decode_ex(s,f,d, PB_DECODE_DELIMITED | PB_DECODE_NOINIT)
+#define pb_decode_nullterminated(s,f,d) pb_decode_ex(s,f,d, PB_DECODE_NULLTERMINATED)
 
-/* Same as pb_decode_delimited, except that it does not initialize the destination structure.
- * See pb_decode_noinit
- */
-bool pb_decode_delimited_noinit(pb_istream_t *stream, const pb_field_t fields[], void *dest_struct);
-
-/* Same as pb_decode, except allows the message to be terminated with a null byte.
- * NOTE: Until nanopb-0.4.0, pb_decode() also allows null-termination. This behaviour
- * is not supported in most other protobuf implementations, so pb_decode_delimited()
- * is a better option for compatibility.
- */
-bool pb_decode_nullterminated(pb_istream_t *stream, const pb_field_t fields[], void *dest_struct);
-
-#ifdef PB_ENABLE_MALLOC
 /* Release any allocated pointer fields. If you use dynamic allocation, you should
  * call this for any successfully decoded message when you are done with it. If
  * pb_decode() returns with an error, the message is already released.
  */
-void pb_release(const pb_field_t fields[], void *dest_struct);
-#endif
-
+void pb_release(const pb_msgdesc_t *fields, void *dest_struct);
 
 /**************************************
  * Functions for manipulating streams *
@@ -139,10 +130,13 @@ void pb_release(const pb_field_t fields[], void *dest_struct);
 
 /* Create an input stream for reading from a memory buffer.
  *
+ * msglen should be the actual length of the message, not the full size of
+ * allocated buffer.
+ *
  * Alternatively, you can use a custom stream that reads directly from e.g.
  * a file or a network socket.
  */
-pb_istream_t pb_istream_from_buffer(const pb_byte_t *buf, size_t bufsize);
+pb_istream_t pb_istream_from_buffer(const pb_byte_t *buf, size_t msglen);
 
 /* Function to read from a pb_istream_t. You can use this if you need to
  * read some custom header data, or to read data in field callbacks.
@@ -192,6 +186,11 @@ bool pb_decode_fixed32(pb_istream_t *stream, void *dest);
 /* Decode a fixed64, sfixed64 or double value. You need to pass a pointer to
  * a 8-byte wide C variable. */
 bool pb_decode_fixed64(pb_istream_t *stream, void *dest);
+#endif
+
+#ifdef PB_CONVERT_DOUBLE_FLOAT
+/* Decode a double value into float variable. */
+bool pb_decode_double_as_float(pb_istream_t *stream, float *dest);
 #endif
 
 /* Make a limited-length substream for reading a PB_WT_STRING field. */

@@ -1,5 +1,5 @@
 /*
-* Copyright 2018-2022,2024 NXP
+* Copyright 2018-2022, 2024, 2026 NXP
 *
 * SPDX-License-Identifier: Apache-2.0
 *
@@ -85,7 +85,7 @@ bool handle_request_payload(pb_istream_t *stream, const pb_field_t *field, void 
 
 	pb_ostream_t ostream = pb_ostream_from_response_buffer(response_buffer);
 
-	const pb_field_t* message_type = decode_unionmessage_type(stream, nxp_iot_RequestPayload_fields);
+	const pb_msgdesc_t* message_type = decode_unionmessage_type(stream, nxp_iot_RequestPayload_fields);
 
 #if NXP_IOT_AGENT_REQUEST_CRL_FROM_EDGELOCK_2GO
 	// SEMS Lite will not do CRL verification
@@ -204,7 +204,7 @@ bool handle_request_payload(pb_istream_t *stream, const pb_field_t *field, void 
 	return true;
 }
 
-bool handle_requests(pb_istream_t *stream, const pb_field_t *field, void **arg)
+bool handle_requests(pb_istream_t *stream, const pb_field_t  *field, void **arg)
 {
 	AX_UNUSED_ARG(field);
 	handle_request_payload_args_t* handle_args = (handle_request_payload_args_t*)(*arg);

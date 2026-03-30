@@ -369,7 +369,7 @@ SECTIONS
     } > BOARD_SDRAM AT> BOARD_SDRAM
 
     /* Reserve and place Heap within memory map */
-    _HeapSize = 0x30000;
+    _HeapSize = 0x40000;
     .heap (NOLOAD) :  ALIGN(4)
     {
         _pvHeapStart = .;

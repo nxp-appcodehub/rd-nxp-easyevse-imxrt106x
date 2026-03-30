@@ -1,5 +1,5 @@
 /* 
- * Copyright 2018-2024 NXP
+ * Copyright 2018-2024, 2026 NXP
  * 
  * SPDX-License-Identifier: Apache-2.0
  * 
@@ -209,9 +209,9 @@ typedef struct iot_agent_datastore_plain_handle_write_data_t {
 } iot_agent_datastore_plain_handle_write_data_t;
 
 
-bool iot_agent_datastore_plain_handle_write_data(pb_istream_t *stream, const pb_field_t *field, void **arg)
+bool iot_agent_datastore_plain_handle_write_data(pb_istream_t *stream, const pb_field_t *msg_desc, void **arg)
 {
-	AX_UNUSED_ARG(field);
+	AX_UNUSED_ARG(msg_desc);
 	iot_agent_datastore_plain_handle_write_data_t* context = (iot_agent_datastore_plain_handle_write_data_t*)(*arg);
 	iot_agent_datastore_plain_context_t* datastore_context = context->datastore_context;
 	nxp_iot_DatastoreRequest* request = context->request;
@@ -269,7 +269,7 @@ bool iot_agent_datastore_plain_handle_write_data(pb_istream_t *stream, const pb_
 
 
 bool iot_agent_datastore_plain_handle_request(pb_istream_t *istream,
-	pb_ostream_t *ostream, const pb_field_t* message_type, void *context)
+	pb_ostream_t *ostream, const pb_msgdesc_t* message_type, void *context)
 {
 	iot_agent_datastore_plain_context_t* datastore_context = (iot_agent_datastore_plain_context_t*)context;
 	iot_agent_status_t agent_status = IOT_AGENT_SUCCESS;

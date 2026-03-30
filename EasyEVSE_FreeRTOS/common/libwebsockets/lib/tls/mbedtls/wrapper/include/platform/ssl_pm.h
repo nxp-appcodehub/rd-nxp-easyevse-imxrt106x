@@ -25,6 +25,15 @@
 
 #define LOCAL_ATRR
 
+struct pkey_pm
+{
+    mbedtls_pk_context *pkey;
+
+    mbedtls_pk_context *ex_pkey;
+
+    void *rngctx;
+};
+
 int ssl_pm_new(SSL *ssl);
 void ssl_pm_free(SSL *ssl);
 

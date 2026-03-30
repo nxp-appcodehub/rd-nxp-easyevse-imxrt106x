@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 NXP
+ * Copyright 2023-2026 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -16,7 +16,7 @@
 #define SIGBRD_RING_BUFFER_SIZE     64
 #define SIGBRD_RING_BUFFER_NUMBERS  4
 
-#define CP_READ_TIMEOUT 20U
+#define CP_READ_TIMEOUT 5U
 
 /*#define HAL_UART_BRIDGE_DEBUG   1
 
@@ -117,29 +117,18 @@ struct sigbrd_state_t
 
 void SIGBRD_GetSWVersion(uint32_t *sw_version_major, uint32_t *sw_version_minor, uint32_t *sw_version_hotfix);
 
-void SIGBRD_GetGetHWVersion(uint32_t *hw_version);
+void SIGBRD_GetHWVersion(uint32_t *hw_version);
 
 void SIGBRD_SetPWMDutyInPercent(uint16_t dutyCycle);
-void SIGBRD_SetPWMDutyInPerMilli(uint16_t dutyCycle);
+void SIGBRD_SetPWMDutyInMilli(uint16_t dutyCycle);
 
 void SIGBRD_GetPWMDutyInPercent(uint16_t *dutyVal);
-void SIGBRD_GetPWMDutyInPerMilli(uint16_t *dutyVal);
+void SIGBRD_GetPWMDutyInMilli(uint16_t *dutyVal);
 
 void SIGBRD_SetCPResistorValue(kCPResistor gpioNumber, kCPResistorState gpioState);
 void SIGBRD_GetCPResistorValue(kCPResistor gpioNumber, kCPResistorState *gpioState);
 
-void SIGBRD_GetPPState(uint16_t *pp_state);
-void SIGBRD_GetCPState(uint16_t *cp_state);
-void SIGBRD_GetGFCIState(uint16_t *gfci_state);
-
-void SIGBRD_CloseRelay(void);
-void SIGBRD_OpenRelay(void);
-
-void SIGBRD_GetADCVal(uint32_t *adcValPtr, uint32_t ulSize);
-
-void SIGBRD_GetMeterCurrent(double *current);
-void SIGBRD_GetMeterVoltage(double *voltage);
-void SIGBRD_GetMeterPower(double *power);
+void SIGBRD_GetADCVal(uint32_t *adcValPtr);
 
 int SIGBRD_EVSE_UARTCommsProcess(char command_code, uint16_t value_transmitted, uint32_t *value_returned);
 int SIGBRD_EV_UARTCommsProcess(char command_code, uint16_t value_transmitted, uint32_t *value_returned);

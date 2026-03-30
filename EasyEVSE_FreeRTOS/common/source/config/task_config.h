@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 NXP
+ * Copyright 2023-2026 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -11,7 +11,7 @@ extern "C" {
 /* Task priorities. */
 
 /* Logging task configuration */
-#define LOGGING_TASK_PRIORITY   (tskIDLE_PRIORITY + 1 )
+#define LOGGING_TASK_PRIORITY   (tskIDLE_PRIORITY + 1)
 #define LOGGING_TASK_STACK_SIZE 512
 #define LOGGING_QUEUE_LENGTH    256
 
@@ -50,9 +50,8 @@ extern "C" {
 #define APP_SHELL_PRIORITY   (tskIDLE_PRIORITY + 1)
 #define APP_SHELL_STACK_SIZE (512 * 4)
 
-#define configDEFAULT_STD_THREAD_PRIORITY 2 //7 //(TCPIP_THREAD_PRIO - 1)
-/* Set stack size to 1792 words, so 7 kB */
-#define configDEFAULT_STD_THREAD_STACK_SIZE 1792U
+#define configDEFAULT_STD_THREAD_PRIORITY 2
+#define configDEFAULT_STD_THREAD_STACK_SIZE (2816U)
 
 #ifdef __cplusplus
 }

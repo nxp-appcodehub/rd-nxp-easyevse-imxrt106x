@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 NXP
+ * Copyright 2023-2026 NXP
  * NXP Proprietary. This software is owned or controlled by NXP and may only be used strictly in
  * accordance with the applicable license terms. By expressly accepting such terms or by downloading, installing,
  * activating and/or otherwise using the software, you are agreeing that you have read, and that you agree to
@@ -126,7 +126,7 @@ static void ClockTimer_Set(int Screen_digital_clock_hour_value, int Screen_digit
 {
     uint8_t clockHMformat[MAX_CLOCK_HMFORMAT] = {0};
 
-    snprintf(clockHMformat, sizeof(clockHMformat), "%d:%02d", Screen_digital_clock_hour_value,
+    (void)snprintf(clockHMformat, sizeof(clockHMformat), "%d:%02d", Screen_digital_clock_hour_value,
              Screen_digital_clock_min_value);
     if ((ui_getCurentScreen() == Screen_Main) && guider_ui.Main_Screen_clock)
     {
@@ -294,7 +294,7 @@ void ui_ChangeScreen(lv_obj_t *new_screen)
         {
             lv_label_set_text(guider_ui.Main_Screen_type_of_connection_label, "None");
         }
-        snprintf(data_string, sizeof(data_string), "EVSE SW v%d.%d.%d", FIRMWARE_VERSION_MAJOR, FIRMWARE_VERSION_MINOR,
+        (void)snprintf(data_string, sizeof(data_string), "EVSE SW v%d.%d.%d", FIRMWARE_VERSION_MAJOR, FIRMWARE_VERSION_MINOR,
                  FIRMWARE_VERSION_HOTFIX);
         lv_label_set_text(guider_ui.Main_Screen_EVSE_software_version, data_string);
         EVSE_UI_SetEvent(EVSE_UI_NetworkStatus);
@@ -363,7 +363,7 @@ void UI_Update_PwrReqCntr(const uint32_t power_req_cntr)
                 return;
             }
             char power_req_cnt_str[MAX_UINT32_NUMBERS] = {0};
-            snprintf(power_req_cnt_str, sizeof(power_req_cnt_str), "%d", s_lastPowerReqCnt);
+            (void)snprintf(power_req_cnt_str, sizeof(power_req_cnt_str), "%d", s_lastPowerReqCnt);
             if (strcmp(power_req_cnt_str, current_power_req_cntr_str) != 0)
             {
                 lv_label_set_text(guider_ui.Charging_Screen_power_request_cntr_value, power_req_cnt_str);
@@ -469,17 +469,23 @@ void UI_Update_Metering_Values(const meter_data_t *meter_data)
 
         /* convert Power float to string to display in LVGL prompt */
         memset(my_string, '\0', sizeof(my_string));
-        snprintf(my_string, sizeof(my_string), "%.4f", sp_meter_data->wh / 1000);
+#if (SIGBRD == EM_HPGP)
+        (void)snprintf(my_string, sizeof(my_string), "%.2f", (float)sp_meter_data->energy_wht / 1000.0f);
+#endif
         lv_label_set_text(guider_ui.Charging_Screen_kWh_value, my_string);
 
         /* convert current float to string to display in LVGL prompt */
         memset(my_string, '\0', sizeof(my_string));
-        snprintf(my_string, sizeof(my_string), "%.2f", sp_meter_data->irms);
+#if (SIGBRD == EM_HPGP)
+        (void)snprintf(my_string, sizeof(my_string), "%.2f", sp_meter_data->currentPh1);
+#endif
         lv_label_set_text(guider_ui.Charging_Screen_current_value, my_string);
 
         /* convert voltage float to string to display in LVGL prompt */
         memset(my_string, '\0', sizeof(my_string));
-        snprintf(my_string, sizeof(my_string), "%.2f", sp_meter_data->vrms);
+#if (SIGBRD == EM_HPGP)
+        (void)snprintf(my_string, sizeof(my_string), "%.2f", sp_meter_data->voltagePh1);
+#endif
         lv_label_set_text(guider_ui.Charging_Screen_voltage_value, my_string);
 
         lv_label_set_text(guider_ui.Charging_Screen_mode_value, sp_meter_data->EVSE_ChargeState);
@@ -548,12 +554,12 @@ void UI_Update_Vehicle_Values(const vehicle_data_t *vehicle_data)
         if ((sp_lastVehicleData->charging_protocol == EVSE_HighLevelCharging_ISO15118) ||
             (sp_lastVehicleData->charging_protocol == EVSE_HighLevelCharging_ISO15118_20))
         {
-            snprintf(data_string, sizeof(data_string), "%s - %s", EVSE_ChargingProtocol_GetProtocolString(),
+            (void)snprintf(data_string, sizeof(data_string), "%s - %s", EVSE_ChargingProtocol_GetProtocolString(),
                      EVSE_ISO15118_GetVehicleAuthMethodString());
             lv_label_set_text(guider_ui.Charging_Screen_protocol_value, data_string);
 
             lv_bar_set_value(guider_ui.Charging_Screen_bar_charging, sp_lastVehicleData->energyDeliveryStatus, LV_ANIM_OFF);
-            snprintf(data_string, sizeof(data_string), "%d", sp_lastVehicleData->energyDeliveryStatus);
+            (void)snprintf(data_string, sizeof(data_string), "%d", sp_lastVehicleData->energyDeliveryStatus);
             lv_obj_remove_flag(guider_ui.Charging_Screen_bar_charging, LV_OBJ_FLAG_HIDDEN);
             lv_obj_remove_flag(guider_ui.Charging_Screen_battery_level, LV_OBJ_FLAG_HIDDEN);
             lv_obj_remove_flag(guider_ui.Charging_Screen_label_percent, LV_OBJ_FLAG_HIDDEN);
@@ -603,7 +609,7 @@ void UI_Update_EVSE_Values(const evse_data_t *evse_data)
             return;
         }
 
-        char *direction_string = EVSE_ChargingProtocol_GetStringFromDirection(evse_data->EVSE_ChargingDirection);
+        const char *direction_string = EVSE_ChargingProtocol_GetStringFromDirection(evse_data->EVSE_ChargingDirection);
         lv_label_set_text(guider_ui.Charging_Screen_charging_direction_value, direction_string);
         if(evse_data->EVSE_ChargingDirection == EVSE_G2V)
         {
@@ -819,7 +825,7 @@ void UI_Update_Connectivity_Telemetry_Cntr(uint32_t telemetryCnt)
         {
             const char *current_telemetry_cnt_str      = lv_label_get_text(guider_ui.Main_Screen_telemetry_value);
             char telemetry_cnt_str[MAX_UINT32_NUMBERS] = {0};
-            snprintf(telemetry_cnt_str, sizeof(telemetry_cnt_str), "%d", s_lastTelemetryCnt);
+            (void)snprintf(telemetry_cnt_str, sizeof(telemetry_cnt_str), "%d", s_lastTelemetryCnt);
 
             if ((current_telemetry_cnt_str == NULL) || (strcmp(telemetry_cnt_str, current_telemetry_cnt_str) != 0))
             {

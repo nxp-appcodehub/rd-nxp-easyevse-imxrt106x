@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 NXP
+ * Copyright 2024-2026 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -83,3 +83,10 @@
 #endif
 #endif /* ENABLE_SE == 0 */
 
+#if ((BUILD_EVSE || BUILD_EVSE_ETH) && ((SIGBRD == HPGP) || (SIGBRD == SIGBRD2X)))
+#error "Only EVSE-EMETER is supported on EVSE side"
+#endif
+
+#if ((BUILD_EV || BUILD_EV_UI) && (SIGBRD == EM_HPGP))
+#error "EVSE-EMETER is not supported on EV side"
+#endif

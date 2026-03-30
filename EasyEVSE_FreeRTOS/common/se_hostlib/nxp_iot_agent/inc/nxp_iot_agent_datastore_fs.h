@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2024 NXP
+ * Copyright 2018-2024, 2026 NXP
  *
  * SPDX-License-Identifier: Apache-2.0
  * 
@@ -97,9 +97,9 @@ bool iot_agent_datastore_fs_get_endpoint_info(
 	void *context, void* endpoint_information);
 
 bool iot_agent_datastore_fs_handle_request(pb_istream_t *istream,
-	pb_ostream_t *ostream, const pb_field_t* message_type, void *context);
+	pb_ostream_t *ostream, const pb_msgdesc_t* message_type, void *context);
 
-bool iot_agent_datastore_fs_handle_write_data(pb_istream_t *stream, const pb_field_t *field, void **arg);
+bool iot_agent_datastore_fs_handle_write_data(pb_istream_t *stream, const pb_field_t *message_type, void **arg);
 
 extern const iot_agent_datastore_interface_t iot_agent_datastore_fs_interface;
 

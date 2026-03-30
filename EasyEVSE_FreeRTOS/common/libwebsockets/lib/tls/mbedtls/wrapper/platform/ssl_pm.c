@@ -59,15 +59,6 @@ struct x509_pm
     mbedtls_x509_crt *ex_crt;
 };
 
-struct pkey_pm
-{
-    mbedtls_pk_context *pkey;
-
-    mbedtls_pk_context *ex_pkey;
-
-    void *rngctx;
-};
-
 unsigned int max_content_len;
 
 

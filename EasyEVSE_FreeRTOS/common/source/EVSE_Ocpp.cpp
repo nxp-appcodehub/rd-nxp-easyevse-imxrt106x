@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 NXP
+ * Copyright 2025-2026 NXP
  * NXP Proprietary. This software is owned or controlled by NXP and may only be used strictly in
  * accordance with the applicable license terms. By expressly accepting such terms or by downloading, installing,
  * activating and/or otherwise using the software, you are agreeing that you have read, and that you agree to comply
@@ -7,19 +7,17 @@
  * may not retain, install, activate or otherwise use the software.
  */
 
-
-
-
 #include <filesystem>
 #include <cinttypes>
 
+
 #include "EVSE_Ocpp.h"
 
-#include "charge_point.hpp"
+#include <ocpp/v2/charge_point.hpp>
 #include <ocpp/common/cistring.hpp>
 #include <ocpp/v2/connectivity_manager.hpp>
 #include "composed_device_model.hpp"
-#include "types.hpp"
+#include <ocpp/v2/types.hpp>
 #include "conversions.hpp"
 #include "transaction_handler.hpp"
 
@@ -35,7 +33,6 @@ extern "C" {
 #include "semphr.h"
 
 #include "task_config.h"
-
 #include "EVSE_ChargingProtocol.h"
 #include "EVSE_Metering.h"
 #include "EVSE_UI.h"
@@ -48,13 +45,21 @@ extern "C" {
 #endif
 
 #if ENABLE_OCPP
-
-#define EVSE_DELAY_OCPP_START 500
-#define EVSE_ID 1
-#define EVSE_CONNECTOR_ID 1
-#define EVSE_OCPP_AUTH_TIMEOUT_S 3    // 3 seconds
+#define EVSE_DELAY_OCPP_START    500
+#define EVSE_ID                  1
+#define EVSE_CONNECTOR_ID        1
+#define EVSE_OCPP_AUTH_TIMEOUT_S 3
 #define EVSE_OCPP_SESSION_ID_MAX 40
 #define EVSE_OCPP_MAX_RECONNECTS 15
+
+#define EVSE_OCPP_RETRY_BACKOFF_RANDOM_RANGE          2
+#define EVSE_OCPP_RETRY_BACKOFF_REPEAT_TIMES          102
+#define EVSE_OCPP_RETRY_BACKOFF_WAIT_MINIMUM          51
+#define EVSE_OCPP_NETWORK_PROFILE_CONNECTION_ATTEMPTS 5
+#define EVSE_OCPP_WEBSOCKET_PING_INTERVAL             100
+#define EVSE_OCPP_WEBSOCKET_PONG_TIMEOUT              5
+
+#define EVSE_OCPP_UUID_STRING_LENGTH 37  // 36 characters + null terminator
 
 using namespace ocpp::v2;
 using namespace module;
@@ -88,11 +93,19 @@ static int32_t ev_connection_timeout = 0U;
 static std::vector<std::string> ocppDisplayMessagesStr;
 static ocpp::v2::NetworkConnectionProfile ocppConnectionProfile;
 static int32_t ocppHeartbeatInterval = 0U;
-static uint32_t prng_state = 1;
 
 static uint8_t ocpp_reconnection_attempts = 0U;
 
+/* Make sure that the ciphers are enabled in the mbedtls version used. */
+static const char* EVSE_OCPP_TLS_CIPHERS_12 =
+    "TLS-ECDHE-ECDSA-WITH-AES-128-GCM-SHA256:"
+    "TLS-ECDHE-ECDSA-WITH-AES-256-GCM-SHA384:"
+    "TLS-RSA-WITH-AES-128-GCM-SHA256:"
+    "TLS-RSA-WITH-AES-256-GCM-SHA384";
 
+static const char* EVSE_OCPP_TLS_CIPHERS_13 = "";
+
+static const char* EVSE_OCPP_PING_PAYLOAD = "payload";
 
 namespace OCPPConfigCheck{
     /* Helper: Check if two strings are equal at compile time */
@@ -103,6 +116,11 @@ namespace OCPPConfigCheck{
 
 static_assert(!OCPPConfigCheck::strings_equal(EVSE_OCPP_SERVER_URL, "paste your ocpp server address here"), "Please configure EVSE_OCPP_SERVER_URL");
 static_assert(!OCPPConfigCheck::strings_equal(CHARGE_POINT_ID, "paste your charge point id here"), "Please configure CHARGE_POINT_ID");
+
+#if ((EVSE_OCPP_SECURITY_LEVEL == 1) || (EVSE_OCPP_SECURITY_LEVEL == 2))
+static_assert(!OCPPConfigCheck::strings_equal(CHARGE_POINT_AUTH_PASSWORD, ""), "Please configure CHARGE_POINT_AUTH_PASSWORD (is empty)");
+static_assert(!OCPPConfigCheck::strings_equal(CHARGE_POINT_AUTH_PASSWORD, "paste your http auth password here"), "Please configure CHARGE_POINT_AUTH_PASSWORD");
+#endif
 
 /**
  * Set state and advertise change state.
@@ -122,43 +140,13 @@ static void prvEVSE_OCPP_SetConnectionState(ocppConnectionState_t ocppConnection
 #endif /* ENABLE_LCD */
 }
 
-static uint32_t simple_random(void) {
-    // Linear congruential generator
-    prng_state = (prng_state * 1103515245 + 12345) & 0x7fffffff;
-    return prng_state;
-}
-
-static void generate_session_id(char* buffer, size_t buffer_size)
-{
-	uint32_t tick = xTaskGetTickCount();
-
-    uint32_t random1, random2;
-
-    //taskENTER_CRITICAL();
-    // Seed with tick count for better randomness
-    prng_state ^= tick;
-    random1 = simple_random();
-    random2 = simple_random();
-    //taskEXIT_CRITICAL();
-
-    snprintf(buffer, buffer_size, "%08" PRIX32 "-%04" PRIX32 "-%04" PRIX32 "-%04" PRIX32 "-%08" PRIX32 "%04" PRIX32,
-    		random1,
-			(random2 >> 16) & 0xFFFF,
-			random2 & 0xFFFF,
-			(tick >> 16) & 0xFFFF,
-			tick,
-			(random1 >> 16) & 0xFFFF);
-
-    configPRINTF(("session_id is %s", buffer));
-}
-
 static void prvEVSE_OCPP_InitCurrentPowerData(void)
 {
 	ocppCurrentPowerData.timestamp = ocpp::DateTime().to_rfc3339();
 	ocppCurrentPowerData.energy_Wh_import.total = 0.0f;
-	ocppCurrentPowerData.energy_Wh_import.L1 = 0.0f;
-	ocppCurrentPowerData.energy_Wh_import.L2 = 0.0f;
-	ocppCurrentPowerData.energy_Wh_import.L3 = 0.0f;
+	// ocppCurrentPowerData.energy_Wh_import.L1 = 0.0f;
+	// ocppCurrentPowerData.energy_Wh_import.L2 = 0.0f;
+	// ocppCurrentPowerData.energy_Wh_import.L3 = 0.0f;
 	ocppCurrentPowerData.meter_id = "MTR553";
 	ocppCurrentPowerData.phase_seq_error = false;
 	ocppCurrentPowerData.energy_Wh_export = ocpp::Energy{0.0f};
@@ -183,9 +171,9 @@ static void EVSE_VehicleData_to_OcppData(void)
 	ocppCurrentPowerData.phase_seq_error = false;
 
 	ocppCurrentPowerData.energy_Wh_import.total = 0.0f; //grid-to-vehicle
-	ocppCurrentPowerData.energy_Wh_import.L1 = 0.0f;
-	ocppCurrentPowerData.energy_Wh_import.L2 = 0.0f;
-	ocppCurrentPowerData.energy_Wh_import.L3 = 0.0f;
+	// ocppCurrentPowerData.energy_Wh_import.L1 = 0.0f;
+	// ocppCurrentPowerData.energy_Wh_import.L2 = 0.0f;
+	// ocppCurrentPowerData.energy_Wh_import.L3 = 0.0f;
 	ocppCurrentPowerData.energy_Wh_export = ocpp::Energy{0.0f}; //VEHICLE-TO-GRID
 
 	charging_directions_t dir = EVSE_ChargingProtocol_ChargingDirection();
@@ -207,11 +195,12 @@ static void EVSE_VehicleData_to_OcppData(void)
 #endif
 	}
 
-	ocppCurrentPowerData.power_W = ocpp::Power{m_values->wh};
-	ocppCurrentPowerData.voltage_V = ocpp::Voltage{m_values->vrms};
-	ocppCurrentPowerData.VAR = ocpp::ReactivePower{float(m_values->Q)};
-	ocppCurrentPowerData.current_A = ocpp::Current{values->chargeCurrent};
-//	ocppCurrentPowerData.frequency_Hz = ocpp::Frequency{values[FREQUENCY_HZ]};
+	ocppCurrentPowerData.power_W = ocpp::Power{m_values->PPh1, m_values->PPh1, m_values->PPh2, m_values->PPh3};
+	ocppCurrentPowerData.voltage_V = ocpp::Voltage{m_values->voltagePh1, m_values->voltagePh1, m_values->voltagePh2, m_values->voltagePh3};
+	ocppCurrentPowerData.VAR = ocpp::ReactivePower{float(m_values->QPh1)};
+	// ocppCurrentPowerData.VAR = ocpp::ReactivePower{m_values->QPh1, m_values->QPh1, m_values->QPh2, m_values->QPh3};;
+	ocppCurrentPowerData.current_A = ocpp::Current{m_values->currentPh1, m_values->currentPh1, m_values->currentPh2, m_values->currentPh1};
+    // ocppCurrentPowerData.frequency_Hz = ocpp::Frequency{values[FREQUENCY_HZ]};
 }
 
 static std::optional<ocpp::v2::IdToken> prvEVSE_OCPP_GetLocalAuthorizationToken(void)
@@ -463,6 +452,7 @@ bool EVSE_OCPP_GetAuthResponse(uint32_t timeout_ms, bool* auth_response)
 
     return false;
 }
+
 void EVSE_OCPP_SetNetworkConnectionProfile()
 {
 	ocppConnectionProfile.ocppInterface = OCPPInterfaceEnum::Wireless0;
@@ -475,6 +465,70 @@ void EVSE_OCPP_SetNetworkConnectionProfile()
 ocpp::v2::NetworkConnectionProfile* EVSE_OCPP_GetNetworkConnectionProfile(void)
 {
    return &ocppConnectionProfile;
+}
+
+void EVSE_OCPP_GenerateUUID(char* buffer, size_t buffer_size)
+{
+    if (buffer == NULL || buffer_size < EVSE_OCPP_UUID_STRING_LENGTH) {
+        configPRINTF(("buffer not allocated or too small for UUID generation"));
+        return;  // Need at least 37 bytes (36 chars + null terminator)
+    }
+
+    uint32_t tick = xTaskGetTickCount();
+    uint32_t random1, random2;
+
+    // Generate random numbers
+    random1 = EVSE_Random();
+    random2 = EVSE_Random();
+
+    // Format as UUID: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
+    (void)snprintf(buffer, buffer_size, "%08" PRIX32 "-%04" PRIX32 "-%04" PRIX32 "-%04" PRIX32 "-%08" PRIX32 "%04" PRIX32,
+            random1,
+			(random2 >> 16) & 0xFFFF,
+			random2 & 0xFFFF,
+			(tick >> 16) & 0xFFFF,
+			tick,
+			(random1 >> 16) & 0xFFFF);
+}
+
+static std::optional<std::string> EVSE_OCPP_GetAuthPassword(void)
+{
+#ifdef CHARGE_POINT_AUTH_PASSWORD
+    if (sizeof(CHARGE_POINT_AUTH_PASSWORD) > 1)
+    {
+         return std::string(CHARGE_POINT_AUTH_PASSWORD);
+    }
+#endif
+    return std::nullopt;
+}
+
+ocpp::WebsocketConnectionOptions EVSE_OCPP_Get_Connection_Options(void)
+{
+	std::vector<ocpp::OcppProtocolVersion> ocpp_versions;
+
+	return ocpp::WebsocketConnectionOptions {
+        ocpp_versions,
+        ocpp::Uri(),
+        0,
+        EVSE_OCPP_GetAuthPassword(),
+        EVSE_OCPP_RETRY_BACKOFF_RANDOM_RANGE,
+        EVSE_OCPP_RETRY_BACKOFF_REPEAT_TIMES,
+        EVSE_OCPP_RETRY_BACKOFF_WAIT_MINIMUM,
+        EVSE_OCPP_NETWORK_PROFILE_CONNECTION_ATTEMPTS,
+        EVSE_OCPP_TLS_CIPHERS_12,
+        EVSE_OCPP_TLS_CIPHERS_13,
+        EVSE_OCPP_WEBSOCKET_PING_INTERVAL,
+        EVSE_OCPP_PING_PAYLOAD,
+        EVSE_OCPP_WEBSOCKET_PONG_TIMEOUT,
+        false,  // UseSslDefaultVerifyPaths
+        false,  // AdditionalRootCertificateCheck
+        std::nullopt,  // HostName
+        false,  // VerifyCsmsCommonName
+        false,  // UseTPM
+        false,  // VerifyCsmsAllowWildcards
+        std::nullopt,  // IFace
+        false   // EnableTLSKeylog
+    };
 }
 
 const char* EVSE_OCPP_GetDisplayMessageString(void)
@@ -558,6 +612,7 @@ void OCPP_ConnectorEffectiveOperativeStatusChanged_Cb(const int32_t evse_id, con
 GetLogResponse OCPP_GetLogRequest_Cb(const GetLogRequest& request)
 {
 	GetLogResponse resp;
+	resp.status = LogStatusEnum::Accepted;
 	configPRINTF(("-----> OCPP_GetLogRequest Callback\r\n"));
 	return resp;
 }
@@ -565,6 +620,7 @@ GetLogResponse OCPP_GetLogRequest_Cb(const GetLogRequest& request)
 UnlockConnectorResponse OCPP_UnlockConnector_Cb(const int32_t evse_id, const int32_t connecor_id)
 {
 	UnlockConnectorResponse resp;
+	resp.status = UnlockStatusEnum::Unlocked;
 	configPRINTF(("-----> OCPP_UnlockConnector Callback\r\n"));
 	return resp;
 }
@@ -612,6 +668,7 @@ ocpp::ReservationCheckStatus OCPP_IsReservationForToken_Cb(const int32_t evse_id
 UpdateFirmwareResponse OCPP_UpdateFirmwareRequest_Cb(const UpdateFirmwareRequest& request)
 {
 	UpdateFirmwareResponse resp;
+	resp.status = UpdateFirmwareStatusEnum::Rejected;
 	configPRINTF(("-----> OCPP_UpdateFirmwareRequest Callback\r\n"));
 	return resp;
 }
@@ -779,6 +836,7 @@ void OCPP_AllConnectorsAvailable_Cb()
 DataTransferResponse OCPP_DataTransfer_Cb(const DataTransferRequest& request)
 {
 	DataTransferResponse resp;
+	resp.status = ocpp::v2::DataTransferStatusEnum::Accepted;
 	configPRINTF(("-----> OCPP_DataTransfer Callback\r\n"));
 	return resp;
 }
@@ -1051,8 +1109,9 @@ void ocpp_run(void *arg)
 			if ((ocppBits & EV_CONNECTED_EVENT) == EV_CONNECTED_EVENT)
 			{
 				char session_buff[EVSE_OCPP_SESSION_ID_MAX] = {0,};
-				generate_session_id(session_buff, sizeof(session_buff));
+				EVSE_OCPP_GenerateUUID(session_buff, sizeof(session_buff));
 				std::string session_id = std::string(session_buff);
+				configPRINTF(("Session UUID: %s", session_buff));
 
 				if (transactionHandler == nullptr)
 				{

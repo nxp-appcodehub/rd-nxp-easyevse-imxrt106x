@@ -8,8 +8,8 @@
 .vscode/
 .settings/
 
-# VS Code generated files
-CMSIS/
+# Build and generated files
+/CMSIS/
 CMakeLists.txt
 CMakePresets.json
 *.cmake
@@ -18,39 +18,35 @@ mcux_include.json
 user_override.cmake
 flags.cmake
 
-# Board specific
-DAL/
-board/
-custom/
-custom_EV/
-device/
-drivers/
-component/
-utilities/
-
-# Generated code LVGL
-generated/
-generated_EV/
+# Build directories and generated code
+/DAL/
+/board/
+/custom/
+/custom_EV/
+/device/
+/drivers/
+/generated/
+/generated_EV/
+/component/
+/utilities/
 
 # Third-party libraries and dependencies
-lvgl/
-azure-iot-middleware-freertos/
-freertos/
-libwebsockets/
-littlefs/
-lwip/
-mbedtls/
-mflash/
-ocpp/
-pkcs11/
-sdmmc/
-sevenstax/
-
-# NXP
-usb/
-video/
-wifi/
-source/
-touchpanel/
-se_hostlib/
-NxpNfcRdLib/
+/lvgl/
+/NxpNfcRdLib/
+/azure-iot-middleware-freertos/
+/freertos/
+/libwebsockets/
+/littlefs/
+/lwip/
+/mbedtls/
+/mflash/
+/ocpp/
+/pkcs11/
+/sdmmc/
+/se_hostlib/
+/sevenstax/
+/touchpanel/
+/usb/
+/video/
+/wifi/
+/source/

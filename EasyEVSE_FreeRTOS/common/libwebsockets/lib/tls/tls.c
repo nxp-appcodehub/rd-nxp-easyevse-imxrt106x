@@ -349,6 +349,7 @@ int alloc_file(struct lws_context *context, const char *filename, uint8_t **buf,
 
 	if (fread(*buf, s, 1, f) != 1) {
 		lws_free(*buf);
+		*buf = NULL;
 		n = 1;
 		goto bail;
 	}
@@ -400,7 +401,12 @@ lws_tls_alloc_pem_to_der_file(struct lws_context *context, const char *filename,
 	if (strncmp((char *)p, "-----", 5)) {
 
 		/* take it as being already DER */
-
+		if (p != inbuf)
+		{
+			/* p comes from alloc_file, need to free it */
+			lws_free(p);
+		}
+		
 		pem = lws_malloc((size_t)inlen, "alloc_der");
 		if (!pem)
 			return 1;

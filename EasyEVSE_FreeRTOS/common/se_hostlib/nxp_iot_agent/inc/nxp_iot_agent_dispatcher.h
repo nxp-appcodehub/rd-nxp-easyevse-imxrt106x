@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021,2024 NXP
+ * Copyright 2018-2021, 2024, 2026 NXP
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -42,7 +42,7 @@ typedef bool(*get_endpoint_info_callback_t)(
 	void* context, void* endpoint_information);
 
 typedef bool(*request_handler_callback_t)(pb_istream_t *istream,
-	pb_ostream_t *ostream, const pb_field_t* message_type, void *endpoint_context);
+	pb_ostream_t *ostream, const pb_msgdesc_t* message_type, void *endpoint_context);
 
 typedef struct iot_agent_endpoint_cache_table_entry_t {
 	nxp_iot_EndpointType type;

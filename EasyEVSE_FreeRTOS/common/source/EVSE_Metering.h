@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 NXP
+ * Copyright 2023-2026 NXP
  * NXP Proprietary. This software is owned or controlled by NXP and may only be used strictly in
  * accordance with the applicable license terms. By expressly accepting such terms or by downloading, installing,
  * activating and/or otherwise using the software, you are agreeing that you have read, and that you agree to comply
@@ -44,16 +44,25 @@ typedef enum _meter_data_fields
 /*! @brief Metering data structure. */
 typedef struct _meter_data
 {
-    float irms; /* meter measured consumption current */
-    float vrms; /* meter measured voltage */
-    float wh;   /* meter measured power */
-
-    double Q;   /* meter measured  Re-Active Power  */
-    double S;   /* meter measured  Apparent Power   */
-
-    uint8_t meterState;
-    const char *EVSE_ChargeState;      /* Charge state moves from A to D for charging and E..F for errors */
-    const char *EVSE_ChargingProtocol; /* BASIC or ISO15118 */
+    float currentPh1;
+    float currentPh2;
+    float currentPh3;
+    float voltagePh1;
+    float voltagePh2;
+    float voltagePh3;
+    float QPh1; // reactive power
+    float QPh2;
+    float QPh3;
+    float SPh1; // apparent power
+    float SPh2;
+    float SPh3;
+    float PPh1; // active power
+    float PPh2;
+    float PPh3;
+    uint32_t energy_wht;
+    uint32_t energy_varht;
+    charging_directions_t power_direction;
+    const char *EVSE_ChargeState;
 } meter_data_t;
 
 /*! @brief Evse data structure. */
@@ -100,14 +109,6 @@ void EVSE_Meter_Init(void);
  */
 void EVSE_Set_MeterEvent(meter_events_t event);
 
-/**
- * @brief  Checks if meter values are valid according to J1772 standard
- *
- * @param  None
- * @return True if values are valid, False otherwise
- */
-const bool EVSE_Meter_CheckValidMeterData(void);
-
 /*
  * @brief Retrieves meter data
  * @return pointer to meter information
@@ -127,26 +128,5 @@ const evse_data_t *EVSE_Meter_GetEVSEData(void);
  * FIRMWARE_VERSION_HOTFIX.
  */
 uint32_t EVSE_Meter_GetFirmwareVersion(void);
-
-/**
- * @brief Parse e reply from a Meter device to obtain the I R P Q S
- *
- * @param meter_reply buffer that contains raw data from the meter device
- * @param reply_size the size of the buffer
- * @param meter_data_t *parsed_meter_data
- * @param found_fileds filed which were found in the raw data stream
- */
-void EVSE_Meter_ParseMeterReply(uint8_t *meter_reply,
-                                uint32_t reply_size,
-                                meter_data_t *parsed_meter_data,
-                                uint32_t *found_fields);
-
-/**
- * @brief Update the meter data from an external source. This will force parameter calculation and UI update
- *
- * @param new_meter_data pointer of the new meter data
- * @param fields_to_update fields data are valid in the new meter_data
- */
-void EVSE_Meter_SetMeterData(const meter_data_t *new_meter_data, uint32_t fields_to_update);
 
 #endif /* EVSE_METERING_H_ */

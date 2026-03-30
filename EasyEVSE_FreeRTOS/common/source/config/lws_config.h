@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 NXP
+ * Copyright 2025-2026 NXP
  * NXP Proprietary. This software is owned or controlled by NXP and may only be used strictly in
  * accordance with the applicable license terms. By expressly accepting such terms or by downloading, installing,
  * activating and/or otherwise using the software, you are agreeing that you have read, and that you agree to comply
@@ -76,7 +76,15 @@
 #define LWS_COMPRESSED_BACKTRACES_SNIP_PRE 2
 #define LWS_COMPRESSED_BACKTRACES_SNIP_POST 1
 
-#define ETHER_ADDR_LEN ETHARP_HWADDR_LEN //6
+#define ETHER_ADDR_LEN ETHARP_HWADDR_LEN
+
+#if (LWS_WITH_TLS == 1) && (LWS_WITH_MBEDTLS == 1)
+#include "EVSE_config.h"
+#if (ENABLE_OCPP_HSM_SUPPORT == 1)
+#define LWS_WITH_TLS_MBEDTLS_HSM 1
+#define LWS_HAVE_mbedtls_ssl_set_hs_own_cert
+#endif
+#endif /* (LWS_WITH_TLS == 1) && (LWS_WITH_MBEDTLS == 1) */
 
 #endif /* _LWS_CONFIG_H_ */
 

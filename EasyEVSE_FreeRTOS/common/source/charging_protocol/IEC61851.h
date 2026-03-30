@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 NXP
+ * Copyright 2024-2026 NXP
  * NXP Proprietary. This software is owned or controlled by NXP and may only be used strictly in
  * accordance with the applicable license terms. By expressly accepting such terms or by downloading, installing,
  * activating and/or otherwise using the software, you are agreeing that you have read, and that you agree to comply
@@ -28,29 +28,33 @@
 #define BATTERY_DESIRED_LEVEL  100
 
 #define BC_MEASURE_INTERVAL_MS 100 /* MS */
-#define PWM100_MIN_VALUE       980
-#define PWM100_MAX_VALUE       1000
+#define PWM100_MIN_VALUE       980.0f
+#define PWM100_MAX_VALUE       1000.0f
 
 #define PWM5_MIN_VALUE 45
 #define PWM5_MAX_VALUE 55
 #define PWM5_VALUE     50
 
-#define STATEB2_TRANSITION_B1_MIN_TIME 3000
-#define STATEC1_TRANSITION_C2_MIN_TIME 2000
-#define STATEA_MIN_LEVEL               58000
-#define STATEA_MAX_LEVEL               62000
-#define STATEB_MIN_LEVEL               52000
-#define STATEB_MAX_LEVEL               54000
-#define STATEC_MIN_LEVEL               46000
-#define STATEC_MAX_LEVEL               49000
-#define STATED_MIN_LEVEL               42000
-#define STATED_MAX_LEVEL               44000
+#define STATEB2_TRANSITION_B1_MIN_TIME  3000
+#define STATEC1_TRANSITION_C2_MIN_TIME  2000
 
-#define STATEE_MIN_LEVEL 32000
-#define STATEE_MAX_LEVEL 33000
+#define STATEA_MIN_LEVEL                58000
+#define STATEA_MAX_LEVEL                62000
 
-#define STATEF_MIN_LEVEL 12000 /* -12V state value */
-#define STATEF_MAX_LEVEL 14000 /* -12V low state value */
+#define STATEB_MIN_LEVEL                52000
+#define STATEB_MAX_LEVEL                54000
+
+#define STATEC_MIN_LEVEL                46000
+#define STATEC_MAX_LEVEL                49000
+
+#define STATED_MIN_LEVEL                42000
+#define STATED_MAX_LEVEL                44000
+
+#define STATEE_MIN_LEVEL                32000
+#define STATEE_MAX_LEVEL                33000
+
+#define STATEF_MIN_LEVEL                12000 /* -12V state value */
+#define STATEF_MAX_LEVEL                14000 /* -12V low state value */
 
 #define MIN_CURRENT (6u)
 #define MAX_CURRENT (81u)
@@ -101,7 +105,7 @@ typedef enum _proximity_state
  * @param amps pointer where to store the amps
  * @return j1772_status_t J1772_Error if wrong duty cycle provided
  */
-j1772_status_t EVSE_J1772_GetAmpsFromDutyCycle(uint8_t dutyCycle, uint8_t *amps);
+j1772_status_t EVSE_J1772_GetAmpsFromDutyCycle(float dutyCycle, float *amps);
 
 /**
  * @brief Get the duty cycle from a known charge rate
@@ -110,7 +114,7 @@ j1772_status_t EVSE_J1772_GetAmpsFromDutyCycle(uint8_t dutyCycle, uint8_t *amps)
  * @param dutyCycle the duty cycle that matches that provided amps
  * @return j1772_status_t
  */
-j1772_status_t EVSE_J1772_GetDutyCycleFromAmps(uint8_t amps, uint8_t *dutyCycle);
+j1772_status_t EVSE_J1772_GetDutyCycleFromAmps(float amps, float *dutyCycle);
 
 /**
  * @brief Set the CP pwm based on the state provided and amps
@@ -118,7 +122,7 @@ j1772_status_t EVSE_J1772_GetDutyCycleFromAmps(uint8_t amps, uint8_t *dutyCycle)
  * @param j1772_state j1772 state
  * @param amps amps
  */
-j1772_status_t EVSE_J1772_SetCPFromState(j1772_state_t j1772_state, uint16_t amps);
+j1772_status_t EVSE_J1772_SetCPFromState(j1772_state_t j1772_state, float amps);
 
 /**
  * @brief Get the CP state from a CP value. The cp values are based on the ADC used.
@@ -154,7 +158,7 @@ proximity_state_t EVSE_J1772_GetPPState();
  * @param pwm
  * @return j1772_status_t
  */
-j1772_status_t EVSE_J1772_SetCPFromPWM(uint8_t pwm);
+j1772_status_t EVSE_J1772_SetCPFromPWM(float pwm);
 
 /**
  * @brief Set CP Resistor according to the EV state

@@ -1,6 +1,5 @@
 /*
- * Copyright 2018-2025 NXP
- * All rights reserved.
+ * Copyright 2018-2026 NXP.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -238,12 +237,6 @@
 #define METER_LPUART_CLK_FREQ   BOARD_DebugConsoleSrcFreq()
 #define METER_LPUART_IRQn       LPUART3_IRQn
 #define METER_LPUART_IRQHandler LPUART3_IRQHandler
-
-#if (METER_LPUART_Base == SIGBRD_LPUART_Base)
-#define METER_SIGBOARD_LPUART_SHARED 1
-#else
-#define METER_SIGBOARD_LPUART_SHARED 0
-#endif /* (METER_LPUART_Base == SIGBRD_LPUART_Base) */
 
 /* FILESYSTEM */
 

@@ -66,13 +66,13 @@ void UI_Update_ChargingParameters(const vehicle_data_t *vehicle_data)
     {
         lv_bar_set_value(guider_ui.Main_screen_battery_indicator, sp_lastVehicleData->fBatteryLevel, LV_ANIM_OFF);
         memset(data_string, '\0', sizeof(data_string));
-        snprintf(data_string, sizeof(data_string), "%.2f%%", sp_lastVehicleData->fBatteryLevel);
+        (void)snprintf(data_string, sizeof(data_string), "%.2f%%", sp_lastVehicleData->fBatteryLevel);
         lv_label_set_text(guider_ui.Main_screen_battery_value, data_string);
     }
 
     label_text = lv_label_get_text(guider_ui.Main_screen_protocol_value);
     memset(data_string, '\0', sizeof(data_string));
-    snprintf(data_string, sizeof(data_string), "%s", EVSE_ChargingProtocol_GetStringFromProtocol(sp_lastVehicleData->charging_protocol));
+    (void)snprintf(data_string, sizeof(data_string), "%s", EVSE_ChargingProtocol_GetStringFromProtocol(sp_lastVehicleData->charging_protocol));
     if(memcmp(data_string, label_text, strlen(data_string)) != 0)
     {
         lv_label_set_text(guider_ui.Main_screen_protocol_value, data_string);
@@ -82,7 +82,7 @@ void UI_Update_ChargingParameters(const vehicle_data_t *vehicle_data)
         if ((sp_lastVehicleData->charging_protocol == EVSE_HighLevelCharging_ISO15118) ||
                 (sp_lastVehicleData->charging_protocol == EVSE_HighLevelCharging_ISO15118_20))
         {
-            snprintf(data_string, sizeof(data_string), "%s", iso15118AuthStateToString[EV_GetAuthMethod()]);
+            (void)snprintf(data_string, sizeof(data_string), "%s", iso15118AuthStateToString[EV_GetAuthMethod()]);
             if(memcmp(label_text, data_string, strlen(data_string)) != 0)
             {
                 lv_label_set_text(guider_ui.Main_screen_auth_value, data_string);
@@ -90,14 +90,14 @@ void UI_Update_ChargingParameters(const vehicle_data_t *vehicle_data)
         }
         else
         {
-            snprintf(data_string, sizeof(data_string), iso15118AuthStateToString[VehicleAuth_None]);
+            (void)snprintf(data_string, sizeof(data_string), iso15118AuthStateToString[VehicleAuth_None]);
             if(memcmp(label_text, data_string, strlen(data_string)) != 0)
             {
                 lv_label_set_text(guider_ui.Main_screen_auth_value, data_string);
             }
         }
 #else
-        snprintf(data_string, sizeof(data_string), iso15118AuthStateToString[VehicleAuth_None]);
+        (void)snprintf(data_string, sizeof(data_string), iso15118AuthStateToString[VehicleAuth_None]);
         if(memcmp(label_text, data_string, strlen(data_string)) != 0)
         {
             lv_label_set_text(guider_ui.Main_screen_auth_value, data_string);
@@ -125,7 +125,7 @@ void UI_Update_ChargingParameters(const vehicle_data_t *vehicle_data)
 
         label_text = lv_label_get_text(guider_ui.Main_screen_current_value);
         memset(data_string, '\0', sizeof(data_string));
-        snprintf(data_string, sizeof(data_string), "%.2f", sp_lastVehicleData->chargeCurrent);
+        (void)snprintf(data_string, sizeof(data_string), "%.2f", sp_lastVehicleData->chargeCurrent);
         if(memcmp(label_text, data_string, strlen(data_string)) != 0)
         {
             lv_label_set_text(guider_ui.Main_screen_current_value, data_string);
@@ -133,7 +133,7 @@ void UI_Update_ChargingParameters(const vehicle_data_t *vehicle_data)
 
         label_text = lv_label_get_text(guider_ui.Main_screen_voltage_value);
         memset(data_string, '\0', sizeof(data_string));
-        snprintf(data_string, sizeof(data_string), "%.2f", sp_lastVehicleData->chargeVoltage);
+        (void)snprintf(data_string, sizeof(data_string), "%.2f", sp_lastVehicleData->chargeVoltage);
         if(memcmp(label_text, data_string, strlen(data_string)) != 0)
         {
             lv_label_set_text(guider_ui.Main_screen_voltage_value, data_string);
@@ -141,7 +141,7 @@ void UI_Update_ChargingParameters(const vehicle_data_t *vehicle_data)
 
         label_text = lv_label_get_text(guider_ui.Main_screen_power_value);
         memset(data_string, '\0', sizeof(data_string));
-        snprintf(data_string, sizeof(data_string), "%.2f", sp_lastVehicleData->chargePower);
+        (void)snprintf(data_string, sizeof(data_string), "%.2f", sp_lastVehicleData->chargePower);
         if(memcmp(label_text, data_string, strlen(data_string)) != 0)
         {
             lv_label_set_text(guider_ui.Main_screen_power_value, data_string);
@@ -149,7 +149,7 @@ void UI_Update_ChargingParameters(const vehicle_data_t *vehicle_data)
 
         label_text = lv_label_get_text(guider_ui.Main_screen_protocol_value);
         memset(data_string, '\0', sizeof(data_string));
-        snprintf(data_string, sizeof(data_string), "%s", EVSE_ChargingProtocol_GetStringFromProtocol(sp_lastVehicleData->charging_protocol));
+        (void)snprintf(data_string, sizeof(data_string), "%s", EVSE_ChargingProtocol_GetStringFromProtocol(sp_lastVehicleData->charging_protocol));
         if(memcmp(label_text, data_string, strlen(data_string)) != 0)
         {
             lv_label_set_text(guider_ui.Main_screen_protocol_value, data_string);

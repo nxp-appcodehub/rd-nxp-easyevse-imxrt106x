@@ -1,6 +1,5 @@
 /*
- * Copyright 2021, 2023, 2025 NXP
- * All rights reserved.
+ * Copyright 2021, 2023, 2025-2026 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -590,6 +589,11 @@ static void DEMO_InitTouch(void)
     status_t status;
 
     lpi2c_master_config_t masterConfig = {0};
+
+    const gpio_pin_config_t resetPinConfig = {
+                .direction = kGPIO_DigitalOutput, .outputLogic = 0, .interruptMode = kGPIO_NoIntmode};
+    GPIO_PinInit(BOARD_TOUCH_RST_GPIO, BOARD_TOUCH_RST_PIN, &resetPinConfig);
+    GPIO_PinWrite(BOARD_TOUCH_RST_GPIO, BOARD_TOUCH_RST_PIN, 1);
 
     /*Clock setting for LPI2C*/
     CLOCK_SetMux(kCLOCK_Lpi2cMux, TOUCH_LPI2C_CLOCK_SOURCE_SELECT);

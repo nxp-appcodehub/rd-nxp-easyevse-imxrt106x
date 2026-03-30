@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright Pionix GmbH and Contributors to EVerest
-// Copyright 2025 NXP
+// Copyright 2025-2026 NXP
 
 #include <conversions.hpp>
-#include "types.hpp"
-#include "ocpp_enums.hpp"
+#include <ocpp/common/types.hpp>
+#include <ocpp/v2/ocpp_enums.hpp>
 
 
 namespace module {
@@ -21,6 +21,7 @@ ocpp::v2::SampledValue to_ocpp_sampled_value(const ocpp::v2::ReadingContextEnum&
     unit_of_measure.unit = unit;
     sampled_value.unitOfMeasure = unit_of_measure;
     sampled_value.phase = phase;
+    sampled_value.value = 0.0f;
     return sampled_value;
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 NXP
+ * Copyright 2024-2026 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -34,15 +34,22 @@
 #endif /* EVSE_EDGELOCK_AGENT */
 
 /* URL of the OCPP server (CSMS). The URL string has the following format:
- * url="ws://<CSMS IP or hostname>:<CSMS port>" */
+ * url="ws://<CSMS IP or hostname>:<CSMS port>"
+ * Security level 1: url="ws://<CSMS IP or hostname>:8082"
+ * Security level 2: url="wss://<CSMS IP or hostname>:8443"
+ * Security level 3: url="wss://<CSMS IP or hostname>:8444" */
 #define EVSE_OCPP_SERVER_URL     "paste your ocpp server address here"
 /* Charge point ID as registered with the CSMS */
 #define CHARGE_POINT_ID "paste your charge point id here"
+/* Charge point password to be used for HTTP authentication with security level 1 and 2 */
+#define CHARGE_POINT_AUTH_PASSWORD "paste your http auth password here"
+/* Security level used for the connection to the server:
+ * Level 1: Basic HTTP Authentication
+ * Level 2: TLS with Basic HTTP Authentication
+ * Level 3: TLS (mutual authentication) */
+#define EVSE_OCPP_SECURITY_LEVEL 3
 /* Timeout used when connectiong to the CSMS (in seconds) */
 #define EVSE_OCPP_TIMEOUT_S      30
-/* Security level used for the connection to the server.
- * Level 1: basic http configuration */
-#define EVSE_OCPP_SECURITY_LEVEL 1
 /* Don't sign meter values for now. */
 #define EVSE_OCPP_SIGNED_METER_VALUES 0
 

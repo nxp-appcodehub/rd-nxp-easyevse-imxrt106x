@@ -24,7 +24,7 @@ sss_status_t se05x_WriteKeyFile(uint32_t objectId, uint8_t *data, size_t data_le
     sss_status_t status      = kStatus_SSS_Fail;
 
     ex_sss_boot_ctx_t *pCtx = EX_SSS_BOOT_PCONTEXT;
-    sss_object_t obj;
+    sss_object_t obj = {0};
 
     if ((key_type != kSSS_KeyPart_Private) && (key_type != kSSS_KeyPart_Pair))
 	{
@@ -76,7 +76,7 @@ sss_status_t se05x_WriteBinaryFile(uint32_t objectId, uint8_t *data, size_t data
     size_t binary_dataLength = data_length * 8;
 
     ex_sss_boot_ctx_t *pCtx = EX_SSS_BOOT_PCONTEXT;
-    sss_object_t obj;
+    sss_object_t obj = {0};
 
     status = sss_key_object_init(&obj, &pCtx->ks);
     if (kStatus_SSS_Success != status)
@@ -121,7 +121,7 @@ sss_status_t se05x_ReadObjectType(uint32_t objectId, uint32_t* objectType)
     sss_status_t status      = kStatus_SSS_Fail;
 
     ex_sss_boot_ctx_t *pCtx = EX_SSS_BOOT_PCONTEXT;
-    sss_object_t obj;
+    sss_object_t obj = {0};
 
     if (objectType == NULL)
     {
@@ -155,7 +155,7 @@ sss_status_t se05x_ReadBinaryFile(uint32_t objectId, uint8_t *data, size_t *data
     size_t binary_dataLength = *data_length * 8;
 
     ex_sss_boot_ctx_t *pCtx = EX_SSS_BOOT_PCONTEXT;
-    sss_object_t obj;
+    sss_object_t obj = { 0 };
 
     status = sss_key_object_init(&obj, &pCtx->ks);
     if (kStatus_SSS_Success != status)
@@ -192,7 +192,7 @@ sss_status_t se05x_DeleteBinaryFile(uint32_t objectId)
     sss_status_t status = kStatus_SSS_Fail;
 
     ex_sss_boot_ctx_t *pCtx = EX_SSS_BOOT_PCONTEXT;
-    sss_object_t obj;
+    sss_object_t obj = {0};
 
     status = sss_key_object_init(&obj, &pCtx->ks);
     if (kStatus_SSS_Success != status)

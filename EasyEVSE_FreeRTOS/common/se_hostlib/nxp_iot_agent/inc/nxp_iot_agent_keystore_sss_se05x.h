@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2022 NXP
+ * Copyright 2018-2022, 2026 NXP
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -75,7 +75,7 @@ bool iot_agent_keystore_sss_se05x_get_endpoint_info(
 *
 */
 bool iot_agent_keystore_sss_se05x_handle_request(pb_istream_t *istream,
-	pb_ostream_t *ostream, const pb_field_t* message_type, void *context);
+	pb_ostream_t *ostream, const pb_msgdesc_t* message_type, void *context);
 
 iot_agent_status_t iot_agent_keystore_sss_se05x_get_sss_key_store(iot_agent_keystore_sss_se05x_context_t* context,
 	sss_key_store_t** sss_key_store);

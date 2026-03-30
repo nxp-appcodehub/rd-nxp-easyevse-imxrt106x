@@ -26,6 +26,9 @@
 
     APIs related to writing data on a connection
 */
+
+#pragma once
+
 //@{
 #define LWS_WRITE_RAW LWS_WRITE_HTTP
 

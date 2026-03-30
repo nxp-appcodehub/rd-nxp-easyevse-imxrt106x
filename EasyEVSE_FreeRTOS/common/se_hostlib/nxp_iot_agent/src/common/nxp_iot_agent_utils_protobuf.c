@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2024 NXP
+ * Copyright 2018-2024, 2026 NXP
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -34,9 +34,10 @@ bool decode_byte_field(pb_istream_t *stream, const pb_field_t *field, void **arg
 }
 
 
-bool encode_byte_field(pb_ostream_t *stream, const pb_field_t *field, void *const *arg)
+bool encode_byte_field(pb_ostream_t *stream, const pb_field_t  *field, void *const *arg)
 {
     buffer_t* write_buffer = (buffer_t*)(*arg);
+
     if (!pb_encode_tag_for_field(stream, field))
     {
         IOT_AGENT_ERROR("pb_encode_tag_for_field failed for encode_byte_field");
@@ -141,7 +142,7 @@ bool encode_varint_with_fixed_length(size_t number, uint8_t* buffer, size_t buff
 * Returns a pointer to the MsgType_fields array, as an identifier for the
 * message type. Returns null if the tag is of unknown type or an error occurs.
 */
-const pb_field_t* decode_unionmessage_type(pb_istream_t *stream, const pb_field_t* fields)
+const pb_msgdesc_t* decode_unionmessage_type(pb_istream_t *stream, const pb_msgdesc_t* union_desc)
 {
     pb_wire_type_t wire_type;
     uint32_t tag;
@@ -151,14 +152,18 @@ const pb_field_t* decode_unionmessage_type(pb_istream_t *stream, const pb_field_
     {
         if (wire_type == (pb_wire_type_t)PB_WT_STRING)
         {
-            const pb_field_t *field;
-            for (field = fields; field->tag != 0U; field++)
+            pb_field_iter_t it;
+
+            if (pb_field_iter_begin(&it, union_desc, NULL))
             {
-                if (field->tag == tag && (field->type & PB_LTYPE_SUBMESSAGE))
+                do
                 {
-                    /* Found our field. */
-                    return (const pb_field_t*)field->ptr;
-                }
+                    if (it.tag == tag && PB_LTYPE(it.type) == PB_LTYPE_SUBMESSAGE)
+                    {
+                        return it.submsg_desc;   // This is a pb_msgdesc_t*
+                    }
+
+                } while (pb_field_iter_next(&it));
             }
         }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 NXP
+ * Copyright 2023-2026 NXP
  * NXP Proprietary. This software is owned or controlled by NXP and may only be used strictly in
  * accordance with the applicable license terms. By expressly accepting such terms or by downloading, installing,
  * activating and/or otherwise using the software, you are agreeing that you have read, and that you agree to comply
@@ -11,6 +11,10 @@
 #define EVSE_UTILS_H_
 
 #include "fsl_common.h"
+
+#if (EASYEVSE_EV == 1)
+#include <time.h>
+#endif
 
 #define HOURS_DIVIDER          3600
 #define MINUTES_DIVIDER        60
@@ -152,5 +156,36 @@ uint32_t EVSE_Random();
  * @param time_format the desired time format, chosen from timestamp_formats_t enum
  */
 const char *convertSecToFormat(uint32_t seconds, timestamp_formats_t time_format);
+
+#if (EASYEVSE_EV == 1)
+/**
+ * Convert an RFC 3339 string to UTC timestamp (seconds since epoch)
+ * @param rfc3339_str RFC 3339 formatted string
+ * @param timestamp Output UTC timestamp in seconds since epoch
+ * @return 0 on success, -1 on error
+ */
+int rfc3339_to_utc_timestamp(const char *rfc3339_str, time_t *timestamp);
+
+/**
+ * Convert UTC timestamp to an RFC 3339 string
+ * @param timestamp Input UTC timestamp in seconds since epoch
+ * @param rfc3339_buff Output RFC 3339 formatted string
+ * @param len Input RFC 3339 buffer size
+ * @return 0 on success, -1 on error
+ */
+int utc_timestamp_to_rfc3339(time_t timestamp, char* rfc3339_buff, size_t len);
+
+/**
+ * Set a new timestamp
+ * @paramm new_timestamp the value to be updated
+ */
+void EV_SetTimestamp(time_t new_timestamp);
+
+/**
+ * Get the current timestamp
+ * @return the timestamp for 1st of January 2026 or the latest timestamp set by the user
+ */
+time_t EV_GetTimestamp(void);
+#endif /* (EASYEVSE_EV == 1) */
 
 #endif /* EVSE_UTILS_H_ */

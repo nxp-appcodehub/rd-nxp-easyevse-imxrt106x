@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 NXP
+ * Copyright 2024-2026 NXP
  * NXP Proprietary. This software is owned or controlled by NXP and may only be used strictly in
  * accordance with the applicable license terms. By expressly accepting such terms or by downloading, installing,
  * activating and/or otherwise using the software, you are agreeing that you have read, and that you agree to comply
@@ -28,14 +28,16 @@ typedef enum _shell_events
     EVSE_SHELL_PAYMENT_EVENT    = 1 << 5,
     EVSE_SHELL_OCPP_INFO_EVENT  = 1 << 6,
     EVSE_SHELL_CHARGING_EVENT   = 1 << 7,
-    EV_SHELL_CONNECT_DISCONNECT_CP_EVENT = 1 << 8,
-    EV_SHELL_START_STOP_CHARGING_EVENT   = 1 << 9,
-    EV_SHELL_CHANGE_AUTH_METHOD_EVENT    = 1 << 10,
-    EV_SHELL_CHANGE_PROTOCOL_EVENT       = 1 << 11,
-    EV_SHELL_RESET_BATTERY_LEVEL_EVENT   = 1 << 12,
-    EV_SHELL_CHANGE_CHARGING_DIRECTION_EVENT   = 1 << 13,
-    EV_SHELL_VERSION_EVENT = 1 << 14,
-    EVSE_SHELL_ALL_EVENTS       = 0xFFFFFF,
+    EVSE_SHELL_METER_INFO_EVENT   = 1 << 8,
+    EV_SHELL_CONNECT_DISCONNECT_CP_EVENT = 1 << 9,
+    EV_SHELL_START_STOP_CHARGING_EVENT   = 1 << 10,
+    EV_SHELL_CHANGE_AUTH_METHOD_EVENT    = 1 << 11,
+    EV_SHELL_CHANGE_PROTOCOL_EVENT       = 1 << 12,
+    EV_SHELL_RESET_BATTERY_LEVEL_EVENT   = 1 << 13,
+    EV_SHELL_CHANGE_CHARGING_DIRECTION_EVENT   = 1 << 14,
+	EV_SHELL_DATETIME_EVENT                    = 1 << 15,
+    EV_SHELL_VERSION_EVENT                     = 1 << 16,
+    EVSE_SHELL_ALL_EVENTS                      = 0xFFFFFF,
 } shell_events_t;
 
 /* Entry point for EVSE shell.

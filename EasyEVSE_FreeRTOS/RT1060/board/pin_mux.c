@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 NXP
+ * Copyright 2023-2026 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -703,7 +703,7 @@ void BOARD_Init_NFCPins(void)
     /* used as CS*/
     IOMUXC_SetPinMux(IOMUXC_GPIO_AD_B1_11_GPIO1_IO27, 0U);
     /* Init it, maybe you will use it */
-    IOMUXC_SetPinMux(IOMUXC_GPIO_AD_B1_12_LPSPI3_PCS0, 0U);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_AD_B0_04_LPSPI3_PCS1, 0U);
     IOMUXC_SetPinMux(IOMUXC_GPIO_AD_B1_13_LPSPI3_SDI, 0U);
     IOMUXC_SetPinMux(IOMUXC_GPIO_AD_B1_14_LPSPI3_SDO, 0U);
 #if FSL_IOMUXC_DRIVER_VERSION >= MAKE_VERSION(2, 0, 4)

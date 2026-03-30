@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2024 NXP
+ * Copyright 2018-2024, 2026 NXP
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -849,7 +849,7 @@ bool iot_agent_get_endpoint_info(void* context, void* endpoint_information)
 
 
 bool iot_agent_handle_request(pb_istream_t *istream, pb_ostream_t *ostream,
-	const pb_field_t* message_type, void *context)
+	const pb_msgdesc_t* message_type, void *context)
 {
 	iot_agent_dispatcher_context_t* dispatcher_context = (iot_agent_dispatcher_context_t*)context;
 	if (message_type == nxp_iot_AgentGoodbyeRequest_fields)

@@ -1,8 +1,7 @@
 /*
- * se05x_nx_ecdsa_sign.h
  *
- *  Created on: 09.04.2021
- *      Author: atp01729
+ * Copyright 2019-2020 NXP
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #ifndef SE_AZURE_IOT_INC_SE05X_NX_ECDSA_SIGN_H_

@@ -10,6 +10,8 @@
 #ifndef _NXP_IOT_AGENT_SERVICE_H_
 #define _NXP_IOT_AGENT_SERVICE_H_
 
+
+
 #include <nxp_iot_agent_common.h>
 #include <nxp_iot_agent_datastore.h>
 

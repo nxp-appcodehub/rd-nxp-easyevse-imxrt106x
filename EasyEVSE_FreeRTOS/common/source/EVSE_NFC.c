@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 NXP
+ * Copyright 2023-2026 NXP
  * NXP Proprietary. This software is owned or controlled by NXP and may only be used strictly in
  * accordance with the applicable license terms. By expressly accepting such terms or by downloading, installing,
  * activating and/or otherwise using the software, you are agreeing that you have read, and that you agree to comply
@@ -214,8 +214,6 @@ static void NFC_Run_Discovery_Loop(void)
 
         if (EVSE_NFC_getNFCActivationStatus())
         {
-            phhalHw_Rc663_SetIRQStatus(true);
-
             /* Bool to enable LPCD feature. */
             status = phacDiscLoop_SetConfig(pDiscLoop, PHAC_DISCLOOP_CONFIG_ENABLE_LPCD, PH_ON);
             CHECK_STATUS(status);

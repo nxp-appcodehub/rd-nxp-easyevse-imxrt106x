@@ -1,5 +1,5 @@
 /* 
- * Copyright 2018-2024 NXP
+ * Copyright 2018-2024, 2026 NXP
  *
  * SPDX-License-Identifier: Apache-2.0
  * 
@@ -395,10 +395,6 @@ iot_agent_status_t iot_agent_get_keystore_by_id(
 bool iot_agent_get_endpoint_info(void* context, void* endpoint_information);
 
 
-typedef struct pb_istream_s pb_istream_t;
-typedef struct pb_ostream_s pb_ostream_t;
-typedef struct pb_field_s pb_field_t;
-
 
 /*! @brief handle request by end point
  * @param[in] istream Input stream
@@ -407,7 +403,7 @@ typedef struct pb_field_s pb_field_t;
  * @param[in] context End point context
  **/
 bool iot_agent_handle_request(pb_istream_t *istream,
-	pb_ostream_t *ostream, const pb_field_t* message_type, void *context);
+	pb_ostream_t *ostream, const pb_msgdesc_t* message_type, void *context);
 
 /*! @brief Initialize Dispatcher
  * @param[in] dispatcher_context Context for the dispatcher

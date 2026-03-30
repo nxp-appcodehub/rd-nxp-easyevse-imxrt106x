@@ -1,5 +1,5 @@
 /* 
- * Copyright 2018-2019,2021,2024 NXP
+ * Copyright 2018-2019, 2021, 2024, 2026 NXP
  *
  * SPDX-License-Identifier: Apache-2.0
  * 
@@ -10,6 +10,7 @@
 #include <nxp_iot_agent_common.h>
 
 #include <pb.h>
+#include <pb_common.h>
 #include <pb_encode.h>
 #include <pb_decode.h>
 
@@ -91,7 +92,7 @@ bool encode_varint_with_fixed_length(size_t number, uint8_t* buffer, size_t buff
  * It returns a pointer to the MsgType_fields array, as an identifier for the
  * message type. Returns null if the tag is of unknown type or an error occurs.
  */
-const pb_field_t* decode_unionmessage_type(pb_istream_t *stream, const pb_field_t* fields);
+const pb_msgdesc_t* decode_unionmessage_type(pb_istream_t *stream, const pb_msgdesc_t* fields);
 
 
 /**

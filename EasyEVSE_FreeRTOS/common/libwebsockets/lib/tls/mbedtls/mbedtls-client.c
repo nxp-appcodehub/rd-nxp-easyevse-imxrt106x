@@ -29,6 +29,11 @@
 
 #if defined(LWS_WITH_TLS_JIT_TRUST)
 
+#if defined(LWS_WITH_TLS_MBEDTLS_HSM) && (LWS_WITH_TLS_MBEDTLS_HSM == 1)
+#include "mbedtls/mbedtls-hsm.h"
+#include "ssl_pm.h"
+#endif
+
 /*
  * We get called for each peer certificate that was provided in turn.
  *
@@ -498,7 +503,82 @@ lws_tls_client_create_vhost_context(struct lws_vhost *vh,
 
 	if (private_key_filepath) {
 #if !defined(LWS_PLAT_OPTEE)
+#if (defined(LWS_WITH_TLS_MBEDTLS_HSM) && (LWS_WITH_TLS_MBEDTLS_HSM == 1))
+		/* Check if this is an HSM key reference */
+		if (strncmp(private_key_filepath, HSM_LABEL, strlen(HSM_LABEL)) == 0) {
 
+			const char *key_label;
+			mbedtls_pk_context *pk_ctx;
+			struct pkey_pm *pkey_pm_wrapper;
+
+			/* Extract key label (includes "sss:") */
+			key_label = private_key_filepath;
+
+			lwsl_notice("%s: Using HSM key with label '%s'\n",
+					__func__, key_label);
+
+			/* Allocate pk_context on the heap so it persists */
+			pk_ctx = (mbedtls_pk_context *)lws_zalloc(sizeof(mbedtls_pk_context), __func__);
+			if (!pk_ctx) {
+				lwsl_err("%s: Failed to allocate pk_context\n", __func__);
+				return 1;
+			}
+
+			/* Initialize the pk_context */
+			mbedtls_pk_init(pk_ctx);
+
+			lws_tls_mbedtls_hsm_init();
+
+			/* Initialize with hsm key */
+			n = lws_tls_mbedtls_use_hsm_key(pk_ctx, key_label);
+			if (n < 0) {
+				lwsl_err("%s: Failed to setup HSM key\n", __func__);
+				lws_free(pk_ctx);
+				lws_tls_mbedtls_hsm_deinit();
+				return 1;
+			}
+
+			lwsl_notice("%s: Successfully configured HSM key\n", __func__);
+
+			/* Create the pkey_pm wrapper structure */
+			pkey_pm_wrapper = (struct pkey_pm *)lws_zalloc(sizeof(struct pkey_pm), __func__);
+			if (!pkey_pm_wrapper) {
+				lwsl_err("%s: Failed to allocate pkey_pm wrapper\n", __func__);
+				lws_tls_mbedtls_free_hsm_key(pk_ctx);
+				lws_free(pk_ctx);
+				lws_tls_mbedtls_hsm_deinit();
+				return 1;
+			}
+
+			/* Store the hsm pk_ctx in the wrapper */
+			pkey_pm_wrapper->pkey = pk_ctx;
+			pkey_pm_wrapper->ex_pkey = NULL;
+			pkey_pm_wrapper->rngctx = vh->tls.ssl_client_ctx->rngctx;
+
+			/* Create EVP_PKEY for hsm key */
+			EVP_PKEY *pkey = EVP_PKEY_new(vh->tls.ssl_client_ctx->rngctx);
+			if (!pkey) {
+				lwsl_err("EVP_PKEY_new() failed");
+				lws_tls_mbedtls_free_hsm_key(pk_ctx);
+				lws_free(pk_ctx);
+				lws_free(pkey_pm_wrapper);
+				lws_tls_mbedtls_hsm_deinit();
+				return 1;
+			}
+
+		    pkey->pkey_pm = pkey_pm_wrapper;
+
+		    int ret = SSL_CTX_use_PrivateKey(vh->tls.ssl_client_ctx, pkey);
+		    if (!ret) {
+		    	lwsl_err("SSL_CTX_use_PrivateKey() failed");
+				lws_tls_mbedtls_free_hsm_key(pk_ctx);
+				lws_free(pk_ctx);
+				lws_free(pkey_pm_wrapper);
+		    	lws_tls_mbedtls_hsm_deinit();
+		        return 1;
+		    }
+		}
+#else
 		uint8_t *buf;
 		lws_filepos_t amount;
 
@@ -521,7 +601,9 @@ lws_tls_client_create_vhost_context(struct lws_vhost *vh,
 		}
 
 		lwsl_notice("Loaded private key %s\n", private_key_filepath);
-#endif
+
+#endif /* (LWS_WITH_TLS_MBEDTLS_HSM == 1) */
+#endif /* !defined(LWS_PLAT_OPTEE) */
 	} else if (key_mem && key_mem_len) {
 		/* lwsl_hexdump_notice(cert_mem, cert_mem_len - 1); */
 		n = SSL_CTX_use_PrivateKey_ASN1(0, vh->tls.ssl_client_ctx,

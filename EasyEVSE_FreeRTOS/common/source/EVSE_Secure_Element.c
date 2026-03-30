@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 NXP
+ * Copyright 2023-2026 NXP
  * NXP Proprietary. This software is owned or controlled by NXP and may only be used strictly in
  * accordance with the applicable license terms. By expressly accepting such terms or by downloading, installing,
  * activating and/or otherwise using the software, you are agreeing that you have read, and that you agree to comply
@@ -41,8 +41,9 @@
 
 /* The following Object IDs (OIDs) need to match the OIDs set by the provisioning tool (EdgeLock2GO platform or others). */
 #define ISO15118_CPO_KEY_INDEX_SM      0x223388           /* Object ID (OID) of the ISO15118 CPO key in SE050. */
-#define ISO15118_CPO_KEY_FORMAT_SM     kSSS_KeyPart_Pair /* Format of the ISO15118 CPO key in SE050: kSSS_KeyPart_Pair for keypair
-                                                          *                                          kSSS_KeyPart_Private if only the private key is stored. */
+#define ISO15118_CPO_KEY_FORMAT_SM     kSSS_KeyPart_Pair  /* Format of the ISO15118 CPO key in SE050: kSSS_KeyPart_Pair for keypair
+                                                           *                                          kSSS_KeyPart_Private if only the private key is stored. */
+#define ISO15118_OCPP_KEY_INDEX_SM      0x224401          /* Object ID (OID) of the OCPP client key in SE050. */
 
 #if ENABLE_ISO15118
 #define EVSE_ISO15118_CPO_KEY_MAX_BUFFER 256
@@ -528,6 +529,30 @@ EVSE_SE05X_status_t EVSE_SE050_Delete_CPOKey(void)
 }
 
 #endif /* ENABLE_ISO15118 */
+
+#if ENABLE_OCPP
+EVSE_SE05X_status_t EVSE_SE050_Delete_OCPPKey(void)
+{
+    sss_status_t status                    = kStatus_SSS_Fail;
+    EVSE_SE05X_status_t status_ocppkey_s   = kStatus_OCPPKey_Failed;
+
+    if (se_event_flag == SE_INIT_SUCCESS_EVENT)
+    {
+        status = se05x_DeleteBinaryFile(ISO15118_OCPP_KEY_INDEX_SM);
+        if (status == kStatus_SSS_Success)
+        {
+            configPRINTF(("Successfully deleted OCPP client key from SE\r\n"));
+            status_ocppkey_s = kStatus_OCPPKey_Success;
+        }
+        else
+        {
+            configPRINTF(("Failed to delete OCPP client key from SE\r\n"));
+        }
+    }
+
+    return status_ocppkey_s;
+}
+#endif /* ENABLE_OCPP */
 
 EVSE_SE05X_status_t get_oid_value_in_subject(
     uint8_t *cert_buffer, size_t cert_len, char *oid, char *value, size_t max_size)

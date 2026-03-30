@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 NXP
+ * Copyright 2024-2026 NXP
  * NXP Proprietary. This software is owned or controlled by NXP and may only be used strictly in
  * accordance with the applicable license terms. By expressly accepting such terms or by downloading, installing,
  * activating and/or otherwise using the software, you are agreeing that you have read, and that you agree to comply
@@ -19,6 +19,7 @@
 #include "fsl_shell.h"
 #if EASYEVSE_EV
 #include "board.h"
+#include "EVSE_Utils.h"
 #endif /* EASYEVSE_EV */
 
 #include "EVSE_Shell.h"
@@ -35,7 +36,11 @@
 
 #if ENABLE_SIGBOARD
 #include "EVSE_Metering.h"
+#if (SIGBRD == EM_HPGP)
+#include "comm_command_proc_host.h"
+#elif ((SIGBRD == HPGP) || (SIGBRD == SIGBRD2X))
 #include "hal_uart_bridge.h"
+#endif
 #endif /* ENABLE_SIGBOARD */
 
 #if ENABLE_ISO15118
@@ -68,6 +73,7 @@ static shell_status_t EV_protocol_handler(shell_handle_t shellHandle, int32_t ar
 static shell_status_t EV_battery_handler(shell_handle_t shellHandle, int32_t argc, char **argv);
 static shell_status_t EV_direction_handler(shell_handle_t shellHandle, int32_t argc, char **argv);
 static shell_status_t EV_version_handler(shell_handle_t shellHandle, int32_t argc, char **argv);
+static shell_status_t EV_datetime_handler(shell_handle_t shellHandle, int32_t argc, char **argv);
 
 static shell_status_t EVSE_version_handler(shell_handle_t shellHandle, int32_t argc, char **argv);
 static shell_status_t EVSE_wifi_handler(shell_handle_t shellHandle, int32_t argc, char **argv);
@@ -76,6 +82,7 @@ static shell_status_t EVSE_auth_handler(shell_handle_t shellHandle, int32_t argc
 static shell_status_t EVSE_payment_handler(shell_handle_t shellHandle, int32_t argc, char **argv);
 static shell_status_t EVSE_ocpp_info_handler(shell_handle_t shellHandle, int32_t argc, char **argv);
 static shell_status_t EVSE_charging_handler(shell_handle_t shellHandle, int32_t argc, char **argv);
+static shell_status_t EVSE_meter_info_handler(shell_handle_t shellHandle, int32_t argc, char **argv);
 
 /*******************************************************************************
  * Variables
@@ -139,6 +146,15 @@ SHELL_COMMAND_DEFINE(direction,
                     EV_direction_handler,
                     SHELL_IGNORE_PARAMETER_COUNT);
 
+SHELL_COMMAND_DEFINE(date,
+                    "\r\n\"date\": Set/get the date and time (UTC format):\r\n"
+                    "                 Usage:\r\n"
+                    "                     date set YYYY-MM-DDTHH:MM:SSZ\r\n"
+                    "                     (e.g. date set 2026-01-15T14:30:00Z)\r\n"
+                    "                     date get\r\n",
+                    /* if more than the specified number of parameters, the rest of the parameters will be ignored */
+                    EV_datetime_handler,
+                    SHELL_IGNORE_PARAMETER_COUNT);
 #endif /* ENABLE_ISO15118 */
 shell_command_t* shell_commands_list[] = {SHELL_COMMAND(version),
                                          SHELL_COMMAND(cp),
@@ -146,6 +162,7 @@ shell_command_t* shell_commands_list[] = {SHELL_COMMAND(version),
 #if ENABLE_ISO15118
                                          SHELL_COMMAND(auth),
                                          SHELL_COMMAND(direction),
+										 SHELL_COMMAND(date),
 #endif
                                          SHELL_COMMAND(protocol),
                                          SHELL_COMMAND(battery)
@@ -181,7 +198,8 @@ SHELL_COMMAND_DEFINE(wifi,
 SHELL_COMMAND_DEFINE(se05x,
                      "\r\n\"se05x\": Erase content of Secure Element:\r\n"
                      "                 Usage:\r\n"
-                     "                     se05x erase cloud_certificate/hostname/cpokey\r\n",
+                     "                     se05x erase cpokey - erase the ISO15118-2/20 CPO key\r\n"
+					 "                     se05x erase ocppkey - erase the OCPP client key\r\n",
                      EVSE_se05x_handler,
                      SHELL_IGNORE_PARAMETER_COUNT);
 #endif /* ENABLE_SE */
@@ -218,6 +236,14 @@ SHELL_COMMAND_DEFINE(charging,
                      "                     charging stop\r\n",
                      EVSE_charging_handler,
                      SHELL_IGNORE_PARAMETER_COUNT);
+
+SHELL_COMMAND_DEFINE(meter_info,
+                     "\r\n\"meter_info\": Print data retrieved from EMETER\r\n"
+                     "                 Usage:\r\n"
+                     "                     meter_info\r\n",
+                     EVSE_meter_info_handler,
+                     0);
+
 shell_command_t* shell_commands_list[] = {SHELL_COMMAND(version),
 #if ENABLE_WIFI
                                          SHELL_COMMAND(wifi),
@@ -231,6 +257,7 @@ shell_command_t* shell_commands_list[] = {SHELL_COMMAND(version),
 #endif /* ENABLE_ISO15118 */
                                          SHELL_COMMAND(ocpp_info),
                                          SHELL_COMMAND(charging),
+                                         SHELL_COMMAND(meter_info)
                                         };
 #endif /* EASYEVSE_EV */
 
@@ -509,6 +536,81 @@ static shell_status_t EV_direction_cmd_do(void)
         }
     }
 }
+static shell_status_t EV_datetime_handler(shell_handle_t shellHandle, int32_t argc, char **argv)
+{
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    BaseType_t xResult                  = pdFAIL;
+
+    shell_status_t status = kStatus_SHELL_Success;
+
+    if (argc > 3)
+    {
+    	SHELL_Printf(s_shellHandle, COMMAND_ERROR);
+    	return kStatus_SHELL_Error;
+    }
+
+    if (strcmp(evse_argv[1], "set") == 0)
+    {
+    	if (strlen(argv[2]) < 10
+    			|| strlen(argv[2]) > 20)
+    	{
+    		SHELL_Printf(s_shellHandle, COMMAND_ERROR);
+    		return kStatus_SHELL_Error;
+    	}
+    }
+
+    evse_argc = argc;
+    for (uint8_t i = 0; i < argc; i++)
+    {
+    	strncpy(evse_argv[i], argv[i], EVSE_ARGV_STR_MAX);
+    	evse_argv[i][EVSE_ARGV_STR_MAX - 1] = '\0';
+    }
+
+
+    xResult = xEventGroupSetBitsFromISR(s_shell_event, EV_SHELL_DATETIME_EVENT, &xHigherPriorityTaskWoken);
+    if (xResult != pdFAIL)
+    {
+    	portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    }
+    return kStatus_SHELL_Success;
+}
+
+static shell_status_t EV_datetime_cmd_do(void)
+{
+	time_t timestamp = 0;
+
+	if (strcmp(evse_argv[1], "set") == 0)
+	{
+		if (rfc3339_to_utc_timestamp(evse_argv[2], &timestamp) == 0)
+		{
+			EV_SetTimestamp(timestamp);
+		}
+		else
+		{
+			SHELL_Printf(s_shellHandle, "Unable to convert date to timestamp.");
+		}
+	}
+	else if (strcmp(evse_argv[1], "get") == 0)
+	{
+		timestamp = EV_GetTimestamp();
+		char date_buff[21] = {0};
+		if (utc_timestamp_to_rfc3339(timestamp, date_buff, sizeof(date_buff)) == 0)
+		{
+			SHELL_Printf(s_shellHandle, "date: %s\r\n", date_buff);
+		}
+		else
+		{
+			SHELL_Printf(s_shellHandle, "Unable to convert timestamp to date.");
+		}
+		SHELL_Printf(s_shellHandle, "timestamp: %ld\r\n", timestamp);
+	}
+	else
+	{
+		SHELL_Printf(s_shellHandle, "Incorrect parameters \r\n");
+	}
+
+
+}
 #endif /* ENABLE_ISO15118 */
 
 static shell_status_t EV_protocol_handler(shell_handle_t shellHandle, int32_t argc, char **argv)
@@ -658,7 +760,7 @@ static void EV_version_cmd_do(void)
     uint32_t SIGBRD_SW_version_minor  = 0;
     uint32_t SIGBRD_SW_version_bugfix = 0;
 
-    SIGBRD_GetGetHWVersion(&SIGBRD_HW_version);
+    SIGBRD_GetHWVersion(&SIGBRD_HW_version);
     SIGBRD_GetSWVersion(&SIGBRD_SW_version_major, &SIGBRD_SW_version_minor, &SIGBRD_SW_version_bugfix);
 
     SHELL_Printf(s_shellHandle, "SIGBOARD HW: v%d\r\n", SIGBRD_HW_version);
@@ -802,31 +904,20 @@ static shell_status_t EVSE_se05x_cmd_do(void)
     if (strcmp(evse_argv[1], "erase") == 0)
     {
         EVSE_SE050_Open_Session();
-        if (strcmp(evse_argv[2], "key") == 0)
+        if (strcmp(evse_argv[2], "ocppkey") == 0)
         {
-            SHELL_Printf(s_shellHandle, "Deprecated. Use command 'se05x erase cloud_certificate' instead.\r\n");
-        }
-        else if (strcmp(evse_argv[2], "cloud_certificate") == 0)
-        {
-            if (EVSE_SE050_Delete_Cloud_Certificate() == kStatus_Certificates_Success)
+#if ENABLE_OCPP
+            if (EVSE_SE050_Delete_OCPPKey() == kStatus_OCPPKey_Success)
             {
-                SHELL_Printf(s_shellHandle, "Successfully deleted certificate and corresponding key\r\n");
+                SHELL_Printf(s_shellHandle, "Successfully deleted the OCPP client key\r\n");
             }
             else
             {
-                SHELL_Printf(s_shellHandle, "Delete failed. Certificate missing or unattainable.\r\n");
+                SHELL_Printf(s_shellHandle, "Delete failed. OCPP client key missing or unattainable.\r\n");
             }
-        }
-        else if (strcmp(evse_argv[2], "hostname") == 0)
-        {
-            if (EVSE_SE050_Delete_ServerHostname() == kStatus_Hostname_Success)
-            {
-                SHELL_Printf(s_shellHandle, "Successfully deleted hostname\r\n");
-            }
-            else
-            {
-                SHELL_Printf(s_shellHandle, "Delete failed. Hostname missing or unattainable.\r\n");
-            }
+#else
+            SHELL_Printf(s_shellHandle, "OCPP not enabled. You can't access the OCPP client key.\r\n");
+#endif /* ENABLE_OCPP */
         }
         else if (strcmp(evse_argv[2], "cpokey") == 0)
         {
@@ -1107,7 +1198,69 @@ static shell_status_t EVSE_charging_handler(shell_handle_t shellHandle, int32_t 
     }
     return kStatus_SHELL_Success;
 }
-#endif /* EASYEVSE_EV == 1) */
+
+static void EVSE_meter_info_cmd_do(void)
+{
+#if ENABLE_SIGBOARD
+    uint32_t sw_version_major, sw_version_minor, sw_version_hotfix, hw_version;
+    SIGBRD_GetSWVersion(&sw_version_major, &sw_version_minor, &sw_version_hotfix);
+    configPRINTF(("shell SW value: \n\r"));
+    SIGBRD_GetHWVersion(&hw_version);
+    configPRINTF(("shell hW value: \n\r"));
+    SHELL_Printf(s_shellHandle, "EMETER SW version: %d.%d.%d, HW version: %d\n\r", sw_version_major, sw_version_minor, sw_version_hotfix, hw_version);
+
+    uint16_t pwm_ms = 0xFFFF;
+    SIGBRD_GetPWMDutyInMilli(&pwm_ms);
+    configPRINTF(("shell PWM value: %d\n\r", pwm_ms));
+    SHELL_Printf(s_shellHandle, "PWM [ms]: %d\n\r", pwm_ms);
+
+    uint16_t pp_state, cp_state, gfci_state;
+    SIGBRD_GetPPState(&pp_state);
+    configPRINTF(("shell PP state: %d\n\r", pp_state));
+    SHELL_Printf(s_shellHandle, "PP state: %d\n\r", pp_state);
+
+    SIGBRD_GetCPState(&cp_state);
+    configPRINTF(("shell CP state: %d\n\r", cp_state));
+    SHELL_Printf(s_shellHandle, "CP state: %d\n\r", cp_state);
+
+    SIGBRD_GetGFCIState(&gfci_state);
+    SHELL_Printf(s_shellHandle, "GFCI state: %d\n\r", gfci_state);
+
+    uint32_t adcVal = 0xFFFFFFFF;
+    SIGBRD_GetADCVal(&adcVal);
+    configPRINTF(("shell ADC value: %d\n\r", adcVal));
+    SHELL_Printf(s_shellHandle, "ADC value: %d\n\r", adcVal);
+
+
+    meter_data_t meter_data;
+    SIGBRD_GetMetrologyAll(&meter_data);
+    SHELL_Printf(s_shellHandle, "Current [A]: Ph1: %.2f, Ph2: %.2f, Ph3: %.2f\n\r", meter_data.currentPh1, meter_data.currentPh2, meter_data.currentPh3);
+    SHELL_Printf(s_shellHandle, "Voltage [V]: Ph1: %.2f, Ph2: %.2f, Ph3: %.2f\n\r", meter_data.voltagePh1, meter_data.voltagePh2, meter_data.voltagePh3);
+    SHELL_Printf(s_shellHandle, "Active power [W]: Ph1: %.2f, Ph2: %.2f, Ph3: %.2f\n\r", meter_data.PPh1, meter_data.PPh2, meter_data.PPh3);
+    SHELL_Printf(s_shellHandle, "Reactive power [VAR]: Ph1: %.2f, Ph2: %.2f, Ph3: %.2f\n\r", meter_data.QPh1, meter_data.QPh2, meter_data.QPh3);
+    SHELL_Printf(s_shellHandle, "Apparent power [VA]: Ph1: %.2f, Ph2: %.2f, Ph3: %.2f\n\r", meter_data.SPh1, meter_data.SPh2, meter_data.SPh3);
+
+    uint8_t relay_state;
+    SIGBRD_GetRelayState(&relay_state);
+    SHELL_Printf(s_shellHandle, "Relay state: %d\n\r", relay_state);
+#else
+    SHELL_Printf(s_shellHandle, "Sigbrd not enabled\n\r");
+#endif /* ENABLE_SIGBOARD */
+}
+
+static shell_status_t EVSE_meter_info_handler(shell_handle_t shellHandle, int32_t argc, char **argv)
+{
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    BaseType_t xResult                  = pdFAIL;
+
+    xResult = xEventGroupSetBitsFromISR(s_shell_event, EVSE_SHELL_METER_INFO_EVENT, &xHigherPriorityTaskWoken);
+    if (xResult != pdFAIL)
+    {
+        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    }
+    return kStatus_SHELL_Success;
+}
+#endif /* EASYEVSE_EV == 1 */
 
 void EVSE_Shell_Task(void *arg)
 {
@@ -1161,6 +1314,11 @@ void EVSE_Shell_Task(void *arg)
         {
            EV_direction_cmd_do();
         }
+
+        if (shellBits & (EV_SHELL_DATETIME_EVENT))
+        {
+           EV_datetime_cmd_do();
+        }
 #endif /* ENABLE_ISO15118 */
 
 #else
@@ -1203,6 +1361,11 @@ void EVSE_Shell_Task(void *arg)
         if ((shellBits & EVSE_SHELL_CHARGING_EVENT) == EVSE_SHELL_CHARGING_EVENT)
         {
             EVSE_charging_cmd_do();
+        }
+
+        if ((shellBits & EVSE_SHELL_METER_INFO_EVENT) == EVSE_SHELL_METER_INFO_EVENT)
+        {
+            EVSE_meter_info_cmd_do();
         }
 #endif
     }

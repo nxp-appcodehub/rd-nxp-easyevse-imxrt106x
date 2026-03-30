@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2024 NXP
+ * Copyright 2018-2024, 2026 NXP
  * 
  * SPDX-License-Identifier: Apache-2.0
  * 
@@ -341,7 +341,7 @@ bool iot_agent_datastore_fs_handle_write_data(pb_istream_t *stream, const pb_fie
 #define MAX_VARINT_SIZE 5U
 
 bool iot_agent_datastore_fs_handle_request(pb_istream_t *istream,
-	pb_ostream_t *ostream, const pb_field_t* message_type, void *context)
+	pb_ostream_t *ostream, const pb_msgdesc_t* message_type, void *context)
 {
 	iot_agent_status_t agent_status = IOT_AGENT_SUCCESS;
 	bool result = true;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 NXP
+ * Copyright 2023-2026 NXP
  * NXP Proprietary. This software is owned or controlled by NXP and may only be used strictly in
  * accordance with the applicable license terms. By expressly accepting such terms or by downloading, installing,
  * activating and/or otherwise using the software, you are agreeing that you have read, and that you agree to comply
@@ -30,7 +30,9 @@ typedef enum
 	kStatus_Certificates_Success,
     kStatus_Certificates_Failed,
     kStatus_CPOKey_Success,
-    kStatus_CPOKey_Failed
+    kStatus_CPOKey_Failed,
+    kStatus_OCPPKey_Success,
+    kStatus_OCPPKey_Failed
 } EVSE_SE05X_status_t;
 
 typedef enum _se_events
@@ -134,5 +136,13 @@ EVSE_SE05X_status_t EVSE_SE050_Handle_CPOKey(void);
  */
 EVSE_SE05X_status_t EVSE_SE050_Delete_CPOKey(void);
 #endif /* ENABLE_ISO15118 */
+
+#if ENABLE_OCPP
+/**
+ * @brief Delete the OCPP client key from SE05X memory
+ * @return kStatus_OCPPKey_Success on succeeded operation or kStatus_OCPPKey_Failed on failed operation
+ */
+EVSE_SE05X_status_t EVSE_SE050_Delete_OCPPKey(void);
+#endif /* ENABLE_OCPP */
 
 #endif /* EVSE_SECURE_ELEMENT_H */

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 NXP
+ * Copyright 2023-2026 NXP
  * NXP Proprietary. This software is owned or controlled by NXP and may only be used strictly in
  * accordance with the applicable license terms. By expressly accepting such terms or by downloading, installing,
  * activating and/or otherwise using the software, you are agreeing that you have read, and that you agree to comply
@@ -24,8 +24,8 @@
 #include "EVSE_Utils.h"
 #include "EVSE_ChargingProtocol.h"
 
-#if ((ENABLE_SIGBOARD == 1) && (METER_SIGBOARD_LPUART_SHARED == 1))
-#include "hal_uart_bridge.h"
+#if (ENABLE_SIGBOARD == 1)
+#include "comm_command_proc_host.h"
 #endif
 
 #if ENABLE_OCPP
@@ -150,12 +150,24 @@ static void EVSE_Meter_Data_Init(void)
     evse_data.EVSE_ChargeCost     = 0;     /* Charge cost */
     evse_data.EVSE_IsCharging     = false; /* True if car is charging */
 
-    meter_data.irms             = 2.0;
-    meter_data.vrms             = 230.0;
-    meter_data.wh               = 890.0;
-    meter_data.Q                = 890.0;
-    meter_data.S                = 890.0;
-    meter_data.EVSE_ChargeState = NULL;
+    meter_data.currentPh1 = 0.0f;
+    meter_data.currentPh2 = 0.0f;
+    meter_data.currentPh3 = 0.0f;
+    meter_data.voltagePh1 = 0.0f;
+    meter_data.voltagePh2 = 0.0f;
+    meter_data.voltagePh3 = 0.0f;
+    meter_data.PPh1 = 0.0f;
+    meter_data.PPh2 = 0.0f;
+    meter_data.PPh3 = 0.0f;
+    meter_data.QPh1 = 0.0f;
+    meter_data.QPh2 = 0.0f;
+    meter_data.QPh3 = 0.0f;
+    meter_data.SPh1 = 0.0f;
+    meter_data.SPh2 = 0.0f;
+    meter_data.SPh3 = 0.0f;
+    meter_data.energy_varht = 0;
+    meter_data.energy_wht = 0;
+    meter_data.power_direction = EVSE_G2V;
 
     property_data.GridPowerLimit = 32;
     property_data.TariffRate     = 0;
@@ -167,7 +179,7 @@ static void EVSE_Meter_Data_Init(void)
 
 void EVSE_Meter_Init(void)
 {
-#if ((ENABLE_SIGBOARD == 0) || (METER_SIGBOARD_LPUART_SHARED == 0))
+#if (ENABLE_SIGBOARD == 0)
 
     lpuart_config_t uart_config;
     /* Set up Meter UART
@@ -201,7 +213,7 @@ void EVSE_Meter_Init(void)
     }
 #else
     SIGBRD_UART_BridgeEntry();
-#endif /* ((ENABLE_SIGBOARD == 0) || (METER_SIGBOARD_LPUART_SHARED == 0)) */
+#endif /* (ENABLE_SIGBOARD == 0) */
 
     /* Create the event flags group used by Meter UART  */
     meter_event_flags = xEventGroupCreate();
@@ -232,7 +244,7 @@ void EVSE_Meter_Init(void)
 }
 
 /* If we enable the sigboard we need to use the uart bridge to get meter information */
-#if ((ENABLE_SIGBOARD == 0) || (METER_SIGBOARD_LPUART_SHARED == 0))
+#if (ENABLE_SIGBOARD == 0)
 void METER_LPUART_IRQHandler(void)
 {
     char data;
@@ -270,11 +282,11 @@ void METER_LPUART_IRQHandler(void)
     }
     SDK_ISR_EXIT_BARRIER;
 }
-#endif /* ((ENABLE_SIGBOARD == 0) || (METER_SIGBOARD_LPUART_SHARED == 0)) */
+#endif /* (ENABLE_SIGBOARD == 0) */
 
 static void meter_send(uint8_t command_code)
 {
-#if ((ENABLE_SIGBOARD == 0) || (METER_SIGBOARD_LPUART_SHARED == 0))
+#if (ENABLE_SIGBOARD == 0)
 
     /* Get the UART MuteX with suspension. Wait forever. */
     if (xSemaphoreTake(xMutexUart, portMAX_DELAY) != pdTRUE)
@@ -295,8 +307,8 @@ static void meter_send(uint8_t command_code)
         configPRINTF((warning("Could not release MuteX for UART in request now\r\n")));
     }
 #else
-    SIGBRD_EVSE_UARTCommsProcess(command_code, 0, NULL);
-#endif /* ((ENABLE_SIGBOARD == 0) || (METER_SIGBOARD_LPUART_SHARED == 0)) */
+    SIGBRD_GetMetrologyAll(&meter_data);
+#endif /* (ENABLE_SIGBOARD == 0) */
 }
 
 /* This function sends an update request to the metering board to obtain latest measurement values.
@@ -307,15 +319,6 @@ static void meter_send(uint8_t command_code)
  */
 static void meter_request_task(void *pvParameters)
 {
-    //   uint8_t command_all = '0'; // ASCII '0' Request ALL meter data parameters
-    //   uint8_t command_current = '1'; // Request iRMS
-    //   uint8_t command_voltage = '2'; // Request vRMS
-    //   uint8_t command_power = '3';   // Request Power
-    //   uint8_t command_status = '4';  // Request STATE
-    //   uint8_t command_status = 'A';  // Set STATE
-
-    uint8_t command_all = '0';
-
     configPRINTF((info("Configured to ask for updates every %d ms"), METER_REQUEST_INTERVAL_MS));
 
     while (1)
@@ -328,7 +331,9 @@ static void meter_request_task(void *pvParameters)
             pdFALSE,                                   /* Don't wait for both bits, either bit unblocks task. */
             pdMS_TO_TICKS(METER_REQUEST_INTERVAL_MS)); /* Block for a maximum of METER_REQUEST_INTERVAL_MS ms. */
 
-        meter_send(command_all);
+#if ENABLE_SIGBOARD
+        SIGBRD_GetMetrologyAll(&meter_data);
+#endif
         request_data = true;
 
         configPRINTF((success("Requested meter data\r\n")));
@@ -340,18 +345,6 @@ static void meter_refresh_task(void *pvParameters)
 {
     EventBits_t event_bits;
 
-    /* For an ALL data request, the raw data received from the metering board has the following format:
-     * "irms[1]vrms[2]power[3]evse_state[4]reactive_power[5]apparent_power[6]"
-     *
-     * "[1]" -> Current Data -IRMS
-     * "[2]" -> Voltage Data -VRMS
-     * "[3]" -> Power Data   -Wh
-     * "[4]" -> EVSE State   -A,B,C,D,E,F
-     * "[5]" -> Re-Active Power Value Q
-     * "[6]" -> Apparent Power Value S
-     *
-     * This task waits for the data to be received from the metering board and then processes it.
-     * */
     while (1)
     {
         /* Wait for meter_event_flags which is set by the METER_LPUART_IRQHandler only when full packet received from
@@ -369,24 +362,11 @@ static void meter_refresh_task(void *pvParameters)
             break;
         }
 
-        if ((event_bits & METER_FLAG) == METER_FLAG)
-        {
-            configPRINTF((success("Received meter data\r\n ")));
-            meter_data_t parsed_data = {0};
-            uint32_t found_fields    = 0;
-            /* Process data in meterRingBuffer from index 0 to rxIndex -1. */
-            EVSE_Meter_ParseMeterReply(meterRingBuffer, rxIndex - 1, &parsed_data, &found_fields);
-            EVSE_Meter_SetMeterData(&parsed_data, found_fields);
-            rxIndex = 0;
-        }
-
         if ((event_bits & METER_REFRESH_DATA) == METER_REFRESH_DATA)
         {
-            if (oldMeterState != meter_data.meterState)
-            {
-                /* Send a session status event to the UI */
-                EVSE_UI_SetEvent(EVSE_UI_ChargingSession);
-            }
+            configPRINTF((success("Received meter data\r\n ")));
+            /* Send a session status event to the UI */
+            EVSE_UI_SetEvent(EVSE_UI_ChargingSession);
 
             if (request_data == true)
             {
@@ -491,41 +471,9 @@ static void convert_time_remaining(uint32_t timeToCharge)
 
 }
 
-const bool EVSE_Meter_CheckValidMeterData(void)
-{
-    bool result = true;
-
-    if (meter_data.irms > MAX_IRMS)
-    {
-        result = false;
-    }
-    else if (meter_data.vrms > MAX_VRMS)
-    {
-        result = false;
-    }
-    else if (meter_data.wh > meter_data.irms * meter_data.vrms)
-    {
-        result = false;
-    }
-
-    return result;
-}
-
 const meter_data_t *EVSE_Meter_GetMeterData(void)
 {
     meter_data.EVSE_ChargeState = EVSE_ChargingProtocol_GetCPStateString();
-    if (EVSE_Meter_CheckValidMeterData())
-    {
-        meter_data.S    = meter_data.irms * meter_data.vrms;
-        double S_squre  = pow(meter_data.S, 2);
-        double P_square = pow(meter_data.wh, 2);
-        meter_data.Q    = sqrt(S_squre - P_square);
-    }
-    else
-    {
-        configPRINTF((error("Invalid meter data\r\n")));
-    }
-
     return &meter_data;
 }
 
@@ -542,7 +490,7 @@ const evse_data_t *EVSE_Meter_GetEVSEData(void)
 #if ENABLE_SIGBOARD
     if (SIGBRD_HW_version == INVALID_SIGBOARD_HW_VERSION)
     {
-        SIGBRD_GetGetHWVersion(&SIGBRD_HW_version);
+        SIGBRD_GetHWVersion(&SIGBRD_HW_version);
     }
     if (SIGBRD_SW_version_major == 0)
     {
@@ -562,134 +510,4 @@ uint32_t EVSE_Meter_GetFirmwareVersion(void)
 {
     return (FIRMWARE_VERSION_MAJOR * MAJOR_VERSION_MULTIPLIER + FIRMWARE_VERSION_MINOR * MINOR_VERSION_MULTIPLIER +
             FIRMWARE_VERSION_HOTFIX);
-}
-
-void EVSE_Meter_SetMeterData(const meter_data_t *new_meter_data, uint32_t fields_to_update)
-{
-    if (new_meter_data == NULL)
-    {
-        return;
-    }
-
-    if ((fields_to_update & (1 << METER_FIELD_IRMS)) == (1 << METER_FIELD_IRMS))
-    {
-        meter_data.irms = new_meter_data->irms;
-    }
-    if ((fields_to_update & (1 << METER_FIELD_VRMS)) == (1 << METER_FIELD_VRMS))
-    {
-        meter_data.vrms = new_meter_data->vrms;
-    }
-    if ((fields_to_update & (1 << METER_FIELD_WH)) == (1 << METER_FIELD_WH))
-    {
-        meter_data.wh = new_meter_data->wh;
-    }
-    if ((fields_to_update & (1 << METER_FIELD_STATE)) == (1 << METER_FIELD_STATE))
-    {
-        oldMeterState               = meter_data.meterState;
-        meter_data.meterState       = new_meter_data->meterState;
-        meter_data.EVSE_ChargeState = new_meter_data->EVSE_ChargeState;
-    }
-    if ((fields_to_update & (1 << METER_FIELD_Q)) == (1 << METER_FIELD_Q))
-    {
-        meter_data.Q = new_meter_data->Q;
-    }
-    if ((fields_to_update & (1 << METER_FIELD_S)) == (1 << METER_FIELD_S))
-    {
-        meter_data.S = new_meter_data->S;
-    }
-
-    if (fields_to_update)
-    {
-        EVSE_Set_MeterEvent(METER_REFRESH_DATA);
-    }
-}
-
-void EVSE_Meter_ParseMeterReply(uint8_t *meter_reply,
-                                uint32_t reply_size,
-                                meter_data_t *parsed_meter_data,
-                                uint32_t *found_fields)
-{
-    uint32_t chartoprocess                       = reply_size;
-    uint32_t len                                 = 0;
-    float ret                                    = 0.00;
-    char data_label[METER_LABEL_STRING_SIZE + 1] = "";
-    char *ptr                                    = NULL;
-    char *str_ptr                                = NULL;
-
-    if ((meter_reply == NULL) || (found_fields == NULL) || (parsed_meter_data == NULL))
-    {
-        return;
-    }
-    else
-    {
-        *found_fields = 0;
-        memset(parsed_meter_data, 0, sizeof(meter_data_t));
-    }
-
-    /* Set pointer to start of receiver array. */
-    str_ptr = &meter_reply[0];
-
-    while (chartoprocess)
-    {
-        /* Extract the meter value (in float). */
-        ret = strtod(str_ptr, &ptr);
-        len = ptr - str_ptr;
-
-        /* Extract the meter data label [1], [2] etc. */
-        strncpy(data_label, ptr, METER_LABEL_STRING_SIZE);
-
-        /* Save the meter value in both float and string formats. */
-        if (strcmp(EVSE_LABEL_strings[METER_FIELD_IRMS], data_label) == 0)
-        {
-            parsed_meter_data->irms = ret;
-            *found_fields |= 1 << METER_FIELD_IRMS;
-        }
-        else if (strcmp(EVSE_LABEL_strings[METER_FIELD_VRMS], data_label) == 0)
-        {
-            parsed_meter_data->vrms = ret;
-            *found_fields |= 1 << METER_FIELD_VRMS;
-        }
-        else if (strcmp(EVSE_LABEL_strings[METER_FIELD_WH], data_label) == 0)
-        {
-            parsed_meter_data->wh = ret;
-            *found_fields |= 1 << METER_FIELD_WH;
-        }
-        else if (strcmp(EVSE_LABEL_strings[METER_FIELD_STATE], data_label) == 0)
-        {
-            parsed_meter_data->meterState = ret / 1;
-            if ((parsed_meter_data->meterState < 1) || (parsed_meter_data->meterState > 6))
-            {
-                parsed_meter_data->EVSE_ChargeState = EVSE_CHARGE_STATE_strings[0];
-                parsed_meter_data->meterState       = 0;
-            }
-            else
-            {
-                parsed_meter_data->EVSE_ChargeState = EVSE_CHARGE_STATE_strings[parsed_meter_data->meterState];
-            }
-
-            *found_fields |= 1 << METER_FIELD_STATE;
-        }
-        else if (strcmp(EVSE_LABEL_strings[METER_FIELD_Q], data_label) == 0)
-        {
-            parsed_meter_data->Q = ret;
-            *found_fields |= 1 << METER_FIELD_Q;
-        }
-        else if (strcmp(EVSE_LABEL_strings[METER_FIELD_S], data_label) == 0)
-        {
-            parsed_meter_data->S = ret;
-            *found_fields |= 1 << METER_FIELD_S;
-        }
-
-        /* Point to the next meter value. */
-        ptr     = ptr + METER_LABEL_STRING_SIZE;
-        str_ptr = ptr;
-        chartoprocess -= (len + METER_LABEL_STRING_SIZE);
-
-        if ((chartoprocess >= reply_size))
-        {
-            chartoprocess = 0;
-            /** pointer usage underflowed this variable */
-            configPRINTF((error("Error processing meter data")));
-        }
-    }
 }
